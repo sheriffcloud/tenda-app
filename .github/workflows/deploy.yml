@@ -1,0 +1,83 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write   # required for OIDC
+  contents: read
+
+env:
+  AWS_REGION: eu-west-2
+  ECR_REGISTRY: 535002884759.dkr.ecr.eu-west-2.amazonaws.com
+
+jobs:
+  # Detect which apps changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            server:
+              - 'apps/server/**'
+              - 'packages/shared/**'
+              - 'pnpm-lock.yaml'
+            admin:
+              - 'apps/admin/**'
+              - 'packages/shared/**'
+              - 'pnpm-lock.yaml'
+
+  deploy-server:
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push server image
+        run: |
+          docker build -f apps/server/Dockerfile -t $ECR_REGISTRY/tenda-production-server:${{ github.sha }} -t $ECR_REGISTRY/tenda-production-server:latest .
+          docker push $ECR_REGISTRY/tenda-production-server:${{ github.sha }}
+          docker push $ECR_REGISTRY/tenda-production-server:latest
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service --cluster tenda-production-cluster --service tenda-production-server --force-new-deployment --region $AWS_REGION
+
+  deploy-admin:
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push admin image
+        run: |
+          docker build -f apps/admin/Dockerfile \
+            --build-arg NEXT_PUBLIC_API_URL=https://api.netforgetech.online \
+            --build-arg NEXT_PUBLIC_ADMIN_URL=https://admin.netforgetech.online \
+            --build-arg NEXT_PUBLIC_REOWN_PROJECT_ID=${{ vars.REOWN_PROJECT_ID }} \
+            -t $ECR_REGISTRY/tenda-production-admin:${{ github.sha }} -t $ECR_REGISTRY/tenda-production-admin:latest .
+          docker push $ECR_REGISTRY/tenda-production-admin:${{ github.sha }}
+          docker push $ECR_REGISTRY/tenda-production-admin:latest
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service --cluster tenda-production-cluster --service tenda-production-admin --force-new-deployment --region $AWS_REGION
