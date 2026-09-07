@@ -42,16 +42,6 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Debug OIDC token availability
-        run: |
-          echo "Request URL set: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
-          echo "Request token set: ${ACTIONS_ID_TOKEN_REQUEST_TOKEN:+yes}"
-      - name: Decode OIDC token claims
-        run: |
-          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
-          echo "=== payload ==="
-          echo "$TOKEN" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | jq '{sub, aud, iss, repository, repository_owner, ref}'
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
