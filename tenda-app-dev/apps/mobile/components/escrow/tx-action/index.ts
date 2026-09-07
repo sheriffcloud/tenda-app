@@ -1,0 +1,1 @@
+export { TxConfirmDialog } from './TxConfirmDialog'

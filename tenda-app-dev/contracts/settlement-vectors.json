@@ -1,0 +1,97 @@
+{
+  "//": "Settlement-math golden vectors shared by contracts/evm (forge) and contracts/solana (litesvm). Both contracts MUST produce these exact outputs: fee = floor(amount*bps/10000); split = (floor(amount/2), amount - floor(amount/2)). All values fit in 2^53 so plain JSON numbers stay exact in every consumer.",
+  "fee": [
+    {
+      "amount": 1,
+      "bps": 250,
+      "expectedFee": 0
+    },
+    {
+      "amount": 39,
+      "bps": 250,
+      "expectedFee": 0
+    },
+    {
+      "amount": 40,
+      "bps": 250,
+      "expectedFee": 1
+    },
+    {
+      "amount": 2,
+      "bps": 1,
+      "expectedFee": 0
+    },
+    {
+      "amount": 999999,
+      "bps": 250,
+      "expectedFee": 24999
+    },
+    {
+      "amount": 1000000,
+      "bps": 250,
+      "expectedFee": 25000
+    },
+    {
+      "amount": 1,
+      "bps": 0,
+      "expectedFee": 0
+    },
+    {
+      "amount": 7,
+      "bps": 999,
+      "expectedFee": 0
+    },
+    {
+      "amount": 123456789,
+      "bps": 999,
+      "expectedFee": 12333333
+    },
+    {
+      "amount": 1000000000000000,
+      "bps": 1000,
+      "expectedFee": 100000000000000
+    },
+    {
+      "amount": 333333,
+      "bps": 100,
+      "expectedFee": 3333
+    },
+    {
+      "amount": 999999999999999,
+      "bps": 3,
+      "expectedFee": 299999999999
+    }
+  ],
+  "split": [
+    {
+      "amount": 1,
+      "creatorHalf": 0,
+      "counterpartyShare": 1
+    },
+    {
+      "amount": 2,
+      "creatorHalf": 1,
+      "counterpartyShare": 1
+    },
+    {
+      "amount": 3,
+      "creatorHalf": 1,
+      "counterpartyShare": 2
+    },
+    {
+      "amount": 999999,
+      "creatorHalf": 499999,
+      "counterpartyShare": 500000
+    },
+    {
+      "amount": 1000001,
+      "creatorHalf": 500000,
+      "counterpartyShare": 500001
+    },
+    {
+      "amount": 1000000000000001,
+      "creatorHalf": 500000000000000,
+      "counterpartyShare": 500000000000001
+    }
+  ]
+}

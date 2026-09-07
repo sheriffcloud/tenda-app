@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Hero — Dark Explorations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../shared.css" />
+<link rel="stylesheet" href="../landing.css" />
+<style>
+  /* ==== Dark hero exploration overrides ==== */
+  body { background: #0A0C12; padding: 56px 32px 120px; }
+  .canvas-eyebrow, .canvas-title, .canvas-sub, .canvas-meta { color: #B6BAC5; }
+  .canvas-title { color: #F4F2ED; }
+  .canvas-meta { color: #6F7488; }
+  .frame-row-title h2 { color: #F4F2ED; }
+  .frame-row-title .desc { color: #8A8E98; }
+  .frame-label { color: #8A8E98; }
+  .frame-label .dot { background: #4E525B; }
+
+  .hero-frame { width: 1440px; border-radius: 16px; overflow: hidden; position: relative; box-shadow: 0 24px 80px rgba(0,0,0,0.4); }
+
+  /* ============ OPTION A — WALL OF ESCROWS ============ */
+  .opt-a {
+    background: radial-gradient(120% 80% at 70% 20%, #1B2444 0%, #0D1018 50%, #07090F 100%);
+    color: #F4F2ED;
+    min-height: 880px;
+    position: relative;
+    overflow: hidden;
+  }
+  .opt-a::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 85% 35%, rgba(94,135,232,0.22), transparent 50%),
+      radial-gradient(circle at 12% 70%, rgba(240,163,101,0.12), transparent 45%);
+    pointer-events: none;
+  }
+  .opt-a::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 64px 64px;
+    background-position: -1px -1px;
+    pointer-events: none;
+    mask-image: radial-gradient(80% 70% at 50% 40%, #000 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(80% 70% at 50% 40%, #000 30%, transparent 80%);
+  }
+
+  .opt-a .nav-dark { position: relative; z-index: 5; height: 64px; padding: 0 40px; display: flex; align-items: center; gap: 32px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .opt-a .nav-dark .word, .opt-b .nav-dark .word, .opt-c .nav-dark .word { font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -0.04em; color: #F4F2ED; }
+  .opt-a .nav-dark .mark, .opt-b .nav-dark .mark, .opt-c .nav-dark .mark { width: 24px; height: 24px; border-radius: 6px; border: 1.5px solid #F4F2ED; display: inline-flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 700; font-size: 14px; color: #F4F2ED; }
+  .opt-a .nav-dark .links, .opt-b .nav-dark .links, .opt-c .nav-dark .links { display: flex; gap: 28px; flex: 1; justify-content: center; }
+  .opt-a .nav-dark .links a, .opt-b .nav-dark .links a, .opt-c .nav-dark .links a { font-family: var(--body); font-size: 14px; font-weight: 500; color: #B6BAC5; text-decoration: none; }
+  .opt-a .nav-dark .right, .opt-b .nav-dark .right, .opt-c .nav-dark .right { display: flex; align-items: center; gap: 12px; }
+
+  .opt-a .copy-block {
+    position: relative; z-index: 4;
+    padding: 96px 80px 64px;
+    max-width: 880px;
+  }
+  .opt-a .live-pill {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 8px 16px 8px 12px;
+    border-radius: 999px;
+    background: rgba(58,203,142,0.12);
+    border: 1px solid rgba(58,203,142,0.32);
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; font-weight: 600;
+    color: #3ACB8E;
+    margin-bottom: 32px;
+  }
+  .opt-a .live-pill .pulse {
+    position: relative; width: 8px; height: 8px; border-radius: 999px; background: #3ACB8E;
+  }
+  .opt-a .live-pill .pulse::after {
+    content: ''; position: absolute; inset: -6px; border-radius: 999px; border: 1.5px solid #3ACB8E; opacity: 0.5;
+    animation: pulse 1.6s ease-out infinite;
+  }
+  @keyframes pulse { 0% { transform: scale(0.6); opacity: 0.7; } 100% { transform: scale(1.6); opacity: 0; } }
+
+  .opt-a h1 {
+    font-family: var(--display); font-weight: 700;
+    font-size: 104px; line-height: 0.92; letter-spacing: -0.05em;
+    margin: 0; color: #F4F2ED;
+  }
+  .opt-a h1 .accent {
+    background: linear-gradient(180deg, #5E87E8 0%, #3F6FE0 60%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    position: relative;
+  }
+  .opt-a h1 .strike {
+    position: relative; color: #5C6275;
+  }
+  .opt-a h1 .strike::after {
+    content: ''; position: absolute; left: -2%; right: -2%; top: 52%;
+    height: 6px; background: #F0706E; transform: rotate(-3deg); border-radius: 4px;
+    box-shadow: 0 0 24px rgba(240,112,110,0.5);
+  }
+  .opt-a .sub {
+    font-family: var(--body); font-size: 20px; line-height: 1.5; color: #B6BAC5;
+    margin: 28px 0 36px; max-width: 56ch;
+  }
+  .opt-a .cta-row { display: flex; gap: 12px; align-items: center; }
+  .opt-a .btn-primary { background: #F4F2ED; color: #0D1018; border: none; height: 56px; padding: 0 24px; border-radius: 14px; font-family: var(--body); font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 8px 32px rgba(244,242,237,0.16); }
+  .opt-a .btn-ghost { background: rgba(255,255,255,0.04); color: #F4F2ED; border: 1px solid rgba(255,255,255,0.12); height: 56px; padding: 0 22px; border-radius: 14px; font-family: var(--body); font-size: 15px; font-weight: 600; }
+  .opt-a .trust-line { margin-top: 36px; font-family: var(--mono); font-size: 12px; color: #6F7488; letter-spacing: 0.08em; }
+
+  /* ----- the wall ----- */
+  .opt-a .wall {
+    position: absolute; right: -40px; top: 80px; bottom: -80px; width: 720px;
+    perspective: 1600px;
+    z-index: 2;
+    pointer-events: none;
+    mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 75%, transparent 100%);
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 75%, transparent 100%);
+  }
+  .opt-a .wall-inner {
+    transform: rotateY(-22deg) rotateX(8deg) rotateZ(-2deg);
+    transform-origin: 100% 50%;
+    display: grid; grid-template-columns: repeat(3, 220px); gap: 16px;
+    width: 692px;
+  }
+  .escrow-mini {
+    background: rgba(22,27,41,0.85); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 16px;
+    padding: 14px 16px; font-family: var(--body);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+  .escrow-mini .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .escrow-mini .pill-mini { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; font-weight: 600; }
+  .escrow-mini .pill-mini.ok { background: rgba(58,203,142,0.16); color: #3ACB8E; }
+  .escrow-mini .pill-mini.warn { background: rgba(240,163,101,0.18); color: #F0A365; }
+  .escrow-mini .pill-mini .d { width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+  .escrow-mini .timer { font-family: var(--mono); font-size: 11px; color: #B6BAC5; font-weight: 500; }
+  .escrow-mini .amount { font-family: var(--mono); font-size: 22px; font-weight: 600; color: #F4F2ED; line-height: 1.1; letter-spacing: -0.02em; }
+  .escrow-mini .arrow-row { font-family: var(--mono); font-size: 11px; color: #7A8096; margin-top: 4px; }
+  .escrow-mini .fiat { font-family: var(--mono); font-size: 13px; color: #B6BAC5; margin-top: 2px; font-weight: 500; }
+  .escrow-mini .gig-cat { display: inline-flex; align-items: center; gap: 4px; font-family: var(--body); font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 7px; border-radius: 5px; }
+  .escrow-mini .who { font-family: var(--mono); font-size: 10px; color: #6F7488; margin-top: 8px; }
+  .cat-delivery { background: rgba(59,130,246,0.18); color: #79A6FF; }
+  .cat-photo { background: rgba(139,92,246,0.20); color: #B69DFF; }
+  .cat-errand { background: rgba(217,135,34,0.20); color: #F0A365; }
+  .cat-service { background: rgba(31,157,107,0.20); color: #3ACB8E; }
+  .cat-digital { background: rgba(224,87,157,0.20); color: #F087BB; }
+
+  /* drift animation */
+  .escrow-mini { animation: drift 7s ease-in-out infinite; }
+  .escrow-mini:nth-child(2n) { animation-delay: -2s; }
+  .escrow-mini:nth-child(3n) { animation-delay: -4s; animation-duration: 9s; }
+  @keyframes drift {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  /* hero card highlight (one big card mid-wall) */
+  .opt-a .hero-card {
+    position: absolute; right: 100px; top: 280px;
+    width: 320px; padding: 22px;
+    background: rgba(22,27,41,0.95); backdrop-filter: blur(16px);
+    border: 1px solid rgba(94,135,232,0.40); border-radius: 22px;
+    box-shadow: 0 0 0 1px rgba(94,135,232,0.10), 0 24px 60px rgba(94,135,232,0.25), 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 4;
+    transform: rotate(-3deg);
+  }
+  .opt-a .hero-card .pill-big { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; background: rgba(58,203,142,0.16); color: #3ACB8E; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.10em; }
+  .opt-a .hero-card .pill-big .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 3px rgba(58,203,142,0.28); }
+  .opt-a .hero-card .topline { display: flex; align-items: center; justify-content: space-between; }
+  .opt-a .hero-card .countdown { font-family: var(--mono); font-size: 14px; font-weight: 600; color: #F4F2ED; }
+  .opt-a .hero-card .lbl { font-family: var(--body); font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7488; margin: 18px 0 4px; }
+  .opt-a .hero-card .big-amt { font-family: var(--mono); font-size: 36px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; color: #F4F2ED; }
+  .opt-a .hero-card .arrow { font-family: var(--mono); font-size: 18px; color: #5E87E8; margin: 12px 0 6px; }
+  .opt-a .hero-card .fiat-amt { font-family: var(--mono); font-size: 22px; font-weight: 600; color: #F4F2ED; }
+  .opt-a .hero-card .rate { font-family: var(--mono); font-size: 11px; color: #3ACB8E; margin-top: 6px; }
+
+  /* ============ OPTION B — TICKER TERMINAL ============ */
+  .opt-b {
+    background: #07090F;
+    color: #F4F2ED;
+    min-height: 820px;
+    position: relative;
+    overflow: hidden;
+  }
+  .opt-b::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 100% 32px;
+    pointer-events: none;
+  }
+
+  .opt-b .ticker-band {
+    height: 44px; display: flex; align-items: center; overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    position: relative; z-index: 5;
+  }
+  .opt-b .ticker-band.bottom { border-top: 1px solid rgba(255,255,255,0.08); border-bottom: none; }
+  .opt-b .ticker-track { display: inline-flex; gap: 32px; padding: 0 24px; white-space: nowrap; align-items: center; }
+  .opt-b .ticker-item { display: inline-flex; align-items: center; gap: 8px; color: #B6BAC5; }
+  .opt-b .ticker-item .ccy { color: #F4F2ED; font-weight: 600; }
+  .opt-b .ticker-item .price { color: #F4F2ED; }
+  .opt-b .ticker-item .delta { font-weight: 600; }
+  .opt-b .ticker-item .delta.up { color: #3ACB8E; }
+  .opt-b .ticker-item .delta.down { color: #F0706E; }
+  .opt-b .ticker-item .dot-sep { color: #4E525B; }
+
+  .opt-b .nav-dark { height: 64px; padding: 0 40px; display: flex; align-items: center; gap: 32px; border-bottom: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 5; }
+
+  .opt-b .body-grid {
+    position: relative; z-index: 4;
+    padding: 80px 80px 96px;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+
+  .opt-b .corner-tag { position: absolute; top: 12px; left: 24px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; color: #4E525B; }
+  .opt-b .corner-tag.right { left: auto; right: 24px; }
+
+  .opt-b .eyebrow-row { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .opt-b .eyebrow-row .stamp { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.20em; color: #6F7488; padding: 6px 10px; border: 1px solid rgba(255,255,255,0.10); border-radius: 4px; }
+  .opt-b .eyebrow-row .live { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; color: #3ACB8E; }
+  .opt-b .eyebrow-row .live .d { width: 8px; height: 8px; border-radius: 999px; background: #3ACB8E; box-shadow: 0 0 0 4px rgba(58,203,142,0.18); }
+
+  .opt-b h1 {
+    font-family: var(--display); font-weight: 700;
+    font-size: 88px; line-height: 0.94; letter-spacing: -0.045em;
+    margin: 0; color: #F4F2ED;
+  }
+  .opt-b h1 em {
+    font-style: normal; font-weight: 700;
+    background: linear-gradient(180deg, #F0A365 0%, #E08A3C 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .opt-b .ribbon {
+    margin-top: 28px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65;
+    color: #B6BAC5; max-width: 56ch;
+  }
+  .opt-b .ribbon b { color: #F4F2ED; font-weight: 600; }
+
+  .opt-b .stat-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    border-top: 1px solid rgba(255,255,255,0.10);
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    margin: 36px 0;
+  }
+  .opt-b .stat-cell { padding: 18px 16px 18px 0; border-right: 1px solid rgba(255,255,255,0.06); }
+  .opt-b .stat-cell:last-child { border-right: none; }
+  .opt-b .stat-cell .v { font-family: var(--mono); font-size: 28px; font-weight: 600; color: #F4F2ED; letter-spacing: -0.02em; }
+  .opt-b .stat-cell .l { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: #6F7488; margin-top: 4px; }
+
+  .opt-b .cta-row { display: flex; gap: 12px; align-items: center; }
+  .opt-b .btn-primary { background: #F0A365; color: #0D1018; border: none; height: 56px; padding: 0 24px; border-radius: 14px; font-family: var(--body); font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 8px 32px rgba(240,163,101,0.20); }
+  .opt-b .btn-ghost { background: transparent; color: #F4F2ED; border: 1px solid rgba(255,255,255,0.16); height: 56px; padding: 0 22px; border-radius: 14px; font-family: var(--body); font-size: 15px; font-weight: 600; }
+
+  /* terminal-style display panel */
+  .opt-b .terminal {
+    background: rgba(22,27,41,0.6); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.10); border-radius: 14px;
+    padding: 22px; font-family: var(--mono); position: relative;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), 0 24px 60px rgba(0,0,0,0.4);
+  }
+  .opt-b .terminal::before {
+    content: '< escrow_v0.2.live />';
+    position: absolute; top: -10px; left: 20px;
+    background: #07090F; padding: 0 8px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; color: #4E525B;
+  }
+  .opt-b .term-line { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; font-size: 12px; color: #7A8096; }
+  .opt-b .term-line .prompt { color: #3ACB8E; }
+  .opt-b .term-line .key { color: #F4F2ED; }
+  .opt-b .term-line .val { color: #F0A365; margin-left: auto; font-weight: 500; }
+  .opt-b .term-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 14px 0 20px; }
+  .opt-b .term-bigrow { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .opt-b .term-bigrow .k { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: #6F7488; }
+  .opt-b .term-bigrow .v-big { font-family: var(--mono); font-size: 44px; font-weight: 600; color: #F4F2ED; letter-spacing: -0.02em; line-height: 1; }
+  .opt-b .term-bigrow .v-mid { font-family: var(--mono); font-size: 24px; font-weight: 600; color: #F4F2ED; }
+  .opt-b .term-foot { display: flex; align-items: center; gap: 10px; padding-top: 18px; margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); font-family: var(--mono); font-size: 11px; color: #B6BAC5; }
+  .opt-b .term-foot .blink { width: 10px; height: 18px; background: #3ACB8E; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ============ OPTION C — RATE-CARD HERO ============ */
+  .opt-c {
+    background: linear-gradient(135deg, #0D1018 0%, #131826 100%);
+    color: #F4F2ED;
+    min-height: 880px;
+    position: relative;
+    overflow: hidden;
+  }
+  .opt-c .glow-a, .opt-c .glow-b { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; }
+  .opt-c .glow-a { width: 600px; height: 600px; background: rgba(94,135,232,0.30); top: -100px; left: -150px; }
+  .opt-c .glow-b { width: 500px; height: 500px; background: rgba(240,163,101,0.22); bottom: -150px; right: -50px; }
+
+  .opt-c .nav-dark { position: relative; z-index: 5; height: 64px; padding: 0 40px; display: flex; align-items: center; gap: 32px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+
+  .opt-c .body-grid {
+    position: relative; z-index: 4;
+    padding: 80px 80px 80px;
+    display: grid; grid-template-columns: 1.05fr 1fr;
+    gap: 56px; align-items: center;
+  }
+
+  .opt-c .meta-eyebrow {
+    display: inline-flex; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em; color: #6F7488; margin-bottom: 28px;
+  }
+  .opt-c .meta-eyebrow .seg { display: inline-flex; align-items: center; gap: 6px; }
+  .opt-c .meta-eyebrow .seg .d { width: 6px; height: 6px; border-radius: 999px; background: #3ACB8E; box-shadow: 0 0 0 3px rgba(58,203,142,0.20); }
+  .opt-c .meta-eyebrow .sep { color: #2C3140; }
+
+  .opt-c h1 {
+    font-family: var(--display); font-weight: 700;
+    font-size: 92px; line-height: 0.94; letter-spacing: -0.045em;
+    margin: 0; color: #F4F2ED;
+  }
+  .opt-c h1 .out {
+    -webkit-text-stroke: 1.5px #5E87E8;
+    color: transparent;
+    background: none;
+  }
+  .opt-c h1 .pop {
+    background: linear-gradient(180deg, #F4F2ED 0%, #B6BAC5 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .opt-c .arrow-mark {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 92px; height: 92px; border-radius: 24px;
+    background: linear-gradient(135deg, #5E87E8 0%, #2E5BD6 100%);
+    font-family: var(--display); font-size: 56px; line-height: 1; color: #F4F2ED;
+    vertical-align: middle; margin-right: 6px; transform: translateY(-6px) rotate(-4deg);
+    box-shadow: 0 16px 48px rgba(94,135,232,0.45);
+  }
+
+  .opt-c .sub {
+    font-family: var(--body); font-size: 19px; line-height: 1.55; color: #B6BAC5;
+    margin: 28px 0 32px; max-width: 56ch;
+  }
+
+  .opt-c .pillrow { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; }
+  .opt-c .small-pill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); font-family: var(--mono); font-size: 11px; font-weight: 500; color: #B6BAC5; letter-spacing: 0.04em; }
+  .opt-c .small-pill .ic { font-size: 13px; }
+
+  .opt-c .cta-row { display: flex; gap: 12px; align-items: center; }
+  .opt-c .btn-primary { background: linear-gradient(180deg, #5E87E8 0%, #3F6FE0 100%); color: #fff; border: none; height: 56px; padding: 0 26px; border-radius: 14px; font-family: var(--body); font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 12px 36px rgba(94,135,232,0.40), inset 0 1px 0 rgba(255,255,255,0.18); }
+  .opt-c .btn-ghost { background: rgba(255,255,255,0.04); color: #F4F2ED; border: 1px solid rgba(255,255,255,0.14); height: 56px; padding: 0 22px; border-radius: 14px; font-family: var(--body); font-size: 15px; font-weight: 600; }
+
+  /* the big rate card */
+  .opt-c .rate-card-wrap { position: relative; padding: 0 0 0 24px; }
+  .opt-c .rate-card-bg {
+    position: absolute; inset: -20px -20px -20px 0;
+    border-radius: 32px;
+    background: radial-gradient(60% 50% at 50% 30%, rgba(94,135,232,0.28), transparent);
+    filter: blur(20px);
+    pointer-events: none;
+  }
+  .opt-c .rate-card {
+    position: relative;
+    background: linear-gradient(180deg, rgba(34,40,60,0.96) 0%, rgba(22,27,41,0.96) 100%);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 28px;
+    padding: 28px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,255,255,0.08);
+    overflow: hidden;
+  }
+  .opt-c .rate-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(94,135,232,0.6), transparent);
+  }
+  .opt-c .rc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .opt-c .rc-pill { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 999px; background: rgba(58,203,142,0.14); color: #3ACB8E; font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.10em; border: 1px solid rgba(58,203,142,0.28); }
+  .opt-c .rc-pill .d { width: 7px; height: 7px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 3px rgba(58,203,142,0.30); }
+  .opt-c .rc-pms { display: flex; gap: 6px; }
+  .opt-c .rc-pm { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 9px; color: #B6BAC5; font-weight: 700; }
+
+  .opt-c .rc-trade {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center;
+    padding: 8px 0 18px;
+  }
+  .opt-c .rc-side .lbl { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: #6F7488; margin-bottom: 6px; }
+  .opt-c .rc-side .num { font-family: var(--mono); font-weight: 600; line-height: 1; letter-spacing: -0.02em; color: #F4F2ED; }
+  .opt-c .rc-side .num.big { font-size: 40px; }
+  .opt-c .rc-side .num.mid { font-size: 30px; }
+  .opt-c .rc-side .ticker { font-family: var(--mono); font-size: 11px; color: #6F7488; margin-top: 6px; font-weight: 500; }
+  .opt-c .rc-arrow { width: 40px; height: 40px; border-radius: 999px; background: rgba(94,135,232,0.16); border: 1px solid rgba(94,135,232,0.30); display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 18px; color: #5E87E8; }
+
+  .opt-c .rc-rate {
+    margin-top: 4px; padding: 12px 14px; border-radius: 12px;
+    background: rgba(58,203,142,0.08); border: 1px solid rgba(58,203,142,0.16);
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--mono); font-size: 12px;
+  }
+  .opt-c .rc-rate .l { color: #B6BAC5; }
+  .opt-c .rc-rate .r { color: #3ACB8E; font-weight: 600; }
+
+  .opt-c .rc-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .opt-c .rc-mc { padding: 12px 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }
+  .opt-c .rc-mc .l { font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em; color: #6F7488; margin-bottom: 4px; }
+  .opt-c .rc-mc .v { font-family: var(--mono); font-size: 13px; font-weight: 600; color: #F4F2ED; }
+
+  .opt-c .rc-foot { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .opt-c .rc-av { width: 28px; height: 28px; border-radius: 999px; background: linear-gradient(135deg,#E08A3C,#CB3A3A); }
+  .opt-c .rc-who { font-family: var(--body); font-size: 13px; font-weight: 600; color: #F4F2ED; }
+  .opt-c .rc-meta-mini { font-family: var(--mono); font-size: 11px; color: #6F7488; margin-left: auto; }
+
+  /* peeking secondary card */
+  .opt-c .gig-peek {
+    position: absolute; right: -32px; bottom: -40px;
+    width: 240px; padding: 14px;
+    background: rgba(22,27,41,0.92); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 18px;
+    transform: rotate(6deg);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+  }
+  .opt-c .gig-peek .cat { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 5px; font-family: var(--body); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(59,130,246,0.18); color: #79A6FF; }
+  .opt-c .gig-peek .t { font-family: var(--display); font-size: 14px; font-weight: 600; color: #F4F2ED; margin: 8px 0 6px; line-height: 1.25; }
+  .opt-c .gig-peek .b { display: flex; align-items: center; justify-content: space-between; }
+  .opt-c .gig-peek .b .a { font-family: var(--mono); font-size: 16px; font-weight: 600; color: #F4F2ED; }
+  .opt-c .gig-peek .b .ti { font-family: var(--mono); font-size: 10px; color: #6F7488; }
+
+</style>
+</head>
+<body>
+
+<header class="canvas-header">
+  <p class="canvas-eyebrow">Tenda · Hero exploration · dark</p>
+  <h1 class="canvas-title">Three swings at the hero</h1>
+  <p class="canvas-sub">Light v1 was too quiet. Three divergent dark directions — different bets on visual energy, motion source, and what the page makes you <em>feel</em>. Pick one (or remix), then I'll productionise.</p>
+  <div class="canvas-meta">
+    <span>1440w each</span>
+    <span>All on dark surface tokens</span>
+    <span>Real type, real numbers</span>
+  </div>
+</header>
+
+<div class="frames">
+
+  <!-- =========================== OPTION A =========================== -->
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">A</span>
+      <h2>Wall of escrows</h2>
+      <span class="desc">Marketplace energy — a real grid of live cards drifting in 3D behind the headline. The page IS the product.</span>
+    </div>
+    <div class="frame-wrap">
+      <span class="frame-label dark-tag"><span class="dot"></span>1440 · dark · option A</span>
+      <div class="hero-frame opt-a">
+        <nav class="nav-dark">
+          <span class="mark">T</span><span class="word">tenda</span>
+          <div class="links" style="margin-left: 24px;">
+            <a href="#">Gigs</a><a href="#">Exchange</a><a href="#">How it works</a><a href="#">For who</a><a href="#">FAQ</a>
+          </div>
+          <div class="right">
+            <button class="btn-ghost" style="height:36px; padding:0 14px; font-size:13px; border-radius:10px;">Sign in</button>
+            <button class="btn-primary" style="height:36px; padding:0 14px; font-size:13px; border-radius:10px;">Download</button>
+          </div>
+        </nav>
+
+        <div class="copy-block">
+          <span class="live-pill"><span class="pulse"></span>LIVE ON SOLANA · DEVNET · 247 OFFERS OPEN</span>
+          <h1>
+            <span class="strike">Trust them.</span><br/>
+            <span class="accent">Trust the<br/>contract.</span>
+          </h1>
+          <p class="sub">Tenda is the on-chain marketplace where escrow holds SOL up front and proof releases it. Real-world gigs and P2P fiat trades, one wallet, zero custody.</p>
+          <div class="cta-row">
+            <button class="btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m6 9 6 6 6-6"/><path d="M5 21h14"/></svg>
+              Download for Android
+            </button>
+            <button class="btn-ghost">Watch escrow demo →</button>
+          </div>
+          <p class="trust-line">NON-CUSTODIAL · OPEN-SOURCE · 2.5% FLAT FEE · &lt; 2s LOCK</p>
+        </div>
+
+        <!-- THE WALL -->
+        <div class="wall">
+          <div class="wall-inner">
+            <div class="escrow-mini">
+              <div class="top"><span class="pill-mini ok"><span class="d"></span>LOCKED</span><span class="timer">02:14</span></div>
+              <div class="amount">2.000 SOL</div>
+              <div class="arrow-row">→ 490,000 NGN</div>
+              <span class="gig-cat cat-delivery" style="margin-top:8px;">📦 Exchange</span>
+              <div class="who">@chiamaka · 4.9★</div>
+            </div>
+            <div class="escrow-mini">
+              <div class="top"><span class="pill-mini ok"><span class="d"></span>OPEN</span><span class="timer">45m</span></div>
+              <span class="gig-cat cat-photo">📸 Photo</span>
+              <div class="amount" style="margin-top:8px;">1.20 SOL</div>
+              <div class="who">@kimani</div>
+            </div>
+            <div class="escrow-mini">
+              <div class="top"><span class="pill-mini warn"><span class="d"></span>FUNDING</span><span class="timer">·</span></div>
+              <div class="amount">0.500 SOL</div>
+              <div class="arrow-row">→ 122,500 NGN</div>
+              <span class="gig-cat cat-service" style="margin-top:8px;">🛠 Exchange</span>
+              <div class="who">@yemi</div>
+            </div>
+            <div class="escrow-mini">
+              <div class="top"><span class="pill-mini ok"><span class="d"></span>LOCKED</span><span class="timer">8h</span></div>
+              <span class="gig-cat cat-errand">🏃 Errand</span>
+              <div class="amount" style="margin-top:8px;">0.30 SOL</div>
+              <div class="who">@rashim</div>
+            </div>
+            <div class="escrow-mini">
+              <div class="top"><span class="pill-mini ok"><span class="d"></span>LOCKED</span><span class="timer">19:58</span></div>
+              <div class="amount">0.85 SOL</div>
+              <div class="arrow-row">→ 18,300 KES</div>
+              <span class="gig-cat cat-delivery" style="margin-top:8px;">📦 Exchange</span>
+              <div class="who">@maina</div>
+            </div>
+            <div class="escrow-mini">
+              <div class="top"><span class="pill-mini ok"><span class="d"></span>OPEN</span><span class="timer">2d</span></div>
+              <span class="gig-cat cat-digital">💻 Digital</span>
+              <div class="amount" style="margin-top:8px;">3.00 SOL</div>
+              <div class="who">@ada · 5.0★</div>
+            </div>
+            <div class="escrow-mini">
+              <div class="top"><span class="pill-mini ok"><span class="d"></span>LOCKED</span><span class="timer">11:42</span></div>
+              <div class="amount">5.50 SOL</div>
+              <div class="arrow-row">→ 1,925 GHS</div>
+              <span class="gig-cat cat-service" style="margin-top:8px;">🛠 Exchange</span>
+              <div class="who">@kwame</div>
+            </div>
+            <div class="escrow-mini">
+              <div class="top"><span class="pill-mini ok"><span class="d"></span>OPEN</span><span class="timer">1h</span></div>
+              <span class="gig-cat cat-delivery">📦 Delivery</span>
+              <div class="amount" style="margin-top:8px;">0.40 SOL</div>
+              <div class="who">@tunde</div>
+            </div>
+            <div class="escrow-mini">
+              <div class="top"><span class="pill-mini ok"><span class="d"></span>LOCKED</span><span class="timer">04:08</span></div>
+              <div class="amount">1.00 SOL</div>
+              <div class="arrow-row">→ 18,000 ZAR</div>
+              <span class="gig-cat cat-photo" style="margin-top:8px;">📸 Exchange</span>
+              <div class="who">@thandi</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- featured card -->
+        <div class="hero-card">
+          <div class="topline">
+            <span class="pill-big"><span class="d"></span>ESCROW LOCKED</span>
+            <span class="countdown">02:14:48</span>
+          </div>
+          <p class="lbl">SELLER SENDS</p>
+          <div class="big-amt">2.000 SOL</div>
+          <div class="arrow">↓</div>
+          <p class="lbl" style="margin-top:0;">BUYER PAYS</p>
+          <div class="fiat-amt">490,000 NGN</div>
+          <p class="rate">₦245,000 / SOL · +1.2% above market</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">The big bet</p>
+        Show the marketplace, don't describe it. Real card data drifts in 3D behind the headline. One featured card sits forward at full fidelity. Sells "two products" and "live right now" without a separate ticker section.
+      </div>
+      <div class="note">
+        <p class="note-title">Headline copy</p>
+        <strong>Trust them.</strong> (struck through, danger red) → <strong>Trust the contract.</strong> (brand-blue gradient). One sharp idea — "the contract replaces the middleman" — instead of two flat lines.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Cards drift <code>±8px / 7s</code>, staggered. Pulse ring on LIVE pill. Featured card glow throbs <code>4s</code>. All respect <code>prefers-reduced-motion</code>.
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =========================== OPTION B =========================== -->
+  <section class="frame-row" style="margin-top: 24px;">
+    <div class="frame-row-title">
+      <span class="num">B</span>
+      <h2>Ticker terminal</h2>
+      <span class="desc">Bloomberg/trading-desk vibe. Headline + numeric stat band + a terminal panel showing one live escrow. Top + bottom ticker bands frame everything.</span>
+    </div>
+    <div class="frame-wrap">
+      <span class="frame-label dark-tag"><span class="dot"></span>1440 · dark · option B</span>
+      <div class="hero-frame opt-b">
+        <!-- top ticker -->
+        <div class="ticker-band">
+          <span class="corner-tag">RATES · LIVE</span>
+          <div class="ticker-track" style="margin-left: 110px;">
+            <span class="ticker-item"><span class="ccy">NGN/SOL</span><span class="price">₦245,000</span><span class="delta up">▲ 1.2%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">GHS/SOL</span><span class="price">₵350</span><span class="delta down">▼ 0.4%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">KES/SOL</span><span class="price">KSh21,500</span><span class="delta up">▲ 0.8%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">ZAR/SOL</span><span class="price">R 4,580</span><span class="delta up">▲ 2.1%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">PHP/SOL</span><span class="price">₱14,200</span><span class="delta down">▼ 0.2%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">USD/SOL</span><span class="price">$248</span><span class="delta up">▲ 0.6%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">GBP/SOL</span><span class="price">£195</span><span class="delta up">▲ 0.3%</span></span>
+          </div>
+        </div>
+
+        <nav class="nav-dark">
+          <span class="mark">T</span><span class="word">tenda</span>
+          <div class="links" style="margin-left:24px;"><a href="#">Gigs</a><a href="#">Exchange</a><a href="#">How it works</a><a href="#">For who</a><a href="#">FAQ</a></div>
+          <div class="right">
+            <button class="btn-ghost" style="height:36px; padding:0 14px; font-size:13px; border-radius:10px;">Sign in</button>
+            <button class="btn-primary" style="height:36px; padding:0 14px; font-size:13px; border-radius:10px;">Download</button>
+          </div>
+        </nav>
+
+        <div class="body-grid">
+          <!-- LEFT -->
+          <div>
+            <div class="eyebrow-row">
+              <span class="stamp">v0.2 · DEVNET</span>
+              <span class="live"><span class="d"></span>247 OFFERS OPEN NOW</span>
+            </div>
+            <h1>The escrow<br/>does the<br/><em>trusting.</em></h1>
+            <p class="ribbon">SOL locks the moment a gig posts or an offer goes live. Nobody holds your funds — not us, not the counterparty, not an exchange. <b>Proof releases. The contract settles.</b></p>
+
+            <div class="stat-row">
+              <div class="stat-cell"><div class="v">&lt;&nbsp;2s</div><div class="l">ESCROW LOCK</div></div>
+              <div class="stat-cell"><div class="v">2.5%</div><div class="l">FLAT FEE</div></div>
+              <div class="stat-cell"><div class="v">100%</div><div class="l">ON-CHAIN</div></div>
+              <div class="stat-cell"><div class="v">8</div><div class="l">FIAT MARKETS</div></div>
+            </div>
+
+            <div class="cta-row">
+              <button class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m6 9 6 6 6-6"/><path d="M5 21h14"/></svg>
+                Download for Android
+              </button>
+              <button class="btn-ghost">Read the contract →</button>
+            </div>
+          </div>
+
+          <!-- RIGHT: terminal -->
+          <div class="terminal">
+            <div class="term-line"><span class="prompt">$</span> <span>load</span> <span class="key">escrow_0x7f3a…b2c1</span> <span class="val">OK</span></div>
+            <div class="term-line"><span class="prompt">$</span> <span>status</span> <span class="key">→</span> <span class="val" style="color:#3ACB8E;">LOCKED</span></div>
+
+            <div class="term-divider"></div>
+
+            <div class="term-bigrow"><span class="k">SELLER SENDS</span></div>
+            <div class="term-bigrow"><span class="v-big">2.000 SOL</span><span style="font-family:var(--mono); color:#3ACB8E; font-size:14px;">▲ 1.2% over mkt</span></div>
+
+            <div class="term-bigrow" style="margin-top: 18px;"><span class="k">BUYER PAYS · NGN</span></div>
+            <div class="term-bigrow"><span class="v-mid">490,000.00</span><span style="font-family:var(--mono); color:#7A8096; font-size:11px;">via OPay · Kuda · MoMo</span></div>
+
+            <div class="term-divider"></div>
+
+            <div class="term-bigrow"><span style="font-family:var(--mono); font-size:11px; color:#6F7488; letter-spacing:0.10em;">PAYMENT WINDOW</span><span style="font-family:var(--mono); color:#F4F2ED; font-weight:600;">29:48 remaining</span></div>
+            <div class="term-bigrow" style="margin-top: 8px;"><span style="font-family:var(--mono); font-size:11px; color:#6F7488; letter-spacing:0.10em;">FEE</span><span style="font-family:var(--mono); color:#F4F2ED;">0.050 SOL</span></div>
+
+            <div class="term-foot">
+              <span class="blink"></span>
+              <span>awaiting <b style="color:#F4F2ED;">@chiamaka</b> · 4.9★ · 38 trades</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- bottom ticker -->
+        <div class="ticker-band bottom">
+          <span class="corner-tag">RECENT · MAINNET-READY</span>
+          <div class="ticker-track" style="margin-left: 180px;">
+            <span class="ticker-item"><span class="ccy">@yemi</span> released <span class="price">0.50 SOL</span> · delivery</span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">@kimani</span> locked <span class="price">1.20 SOL</span> · photo</span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">@thandi</span> traded <span class="price">1.00 SOL → 18,000 ZAR</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">@kwame</span> traded <span class="price">5.50 SOL → 1,925 GHS</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">@ada</span> posted <span class="price">3.00 SOL</span> · digital</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">The big bet</p>
+        Stop pretending Tenda isn't financial. Lean all the way into trading-desk language — ticker bands, terminal panel, monospace for everything. Confident, dense, "for people who know."
+      </div>
+      <div class="note">
+        <p class="note-title">Headline copy</p>
+        <strong>The escrow does the trusting.</strong> Italic accent on the verb. Tight, declarative, defensible — no hype words.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Top + bottom ticker bands scroll opposite directions, <code>60s</code> loops. Terminal cursor blinks. Numbers tick over occasionally with a <code>220ms</code> flip. Reduced-motion → static, no flips.
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =========================== OPTION C =========================== -->
+  <section class="frame-row" style="margin-top: 24px;">
+    <div class="frame-row-title">
+      <span class="num">C</span>
+      <h2>Rate-card hero</h2>
+      <span class="desc">Big-card hero — the OfferSummaryCard from the app, scaled up and glowing. Headline plays support. The product IS the visual.</span>
+    </div>
+    <div class="frame-wrap">
+      <span class="frame-label dark-tag"><span class="dot"></span>1440 · dark · option C</span>
+      <div class="hero-frame opt-c">
+        <div class="glow-a"></div>
+        <div class="glow-b"></div>
+
+        <nav class="nav-dark">
+          <span class="mark">T</span><span class="word">tenda</span>
+          <div class="links" style="margin-left:24px;"><a href="#">Gigs</a><a href="#">Exchange</a><a href="#">How it works</a><a href="#">For who</a><a href="#">FAQ</a></div>
+          <div class="right">
+            <button class="btn-ghost" style="height:36px; padding:0 14px; font-size:13px; border-radius:10px;">Sign in</button>
+            <button class="btn-primary" style="height:36px; padding:0 14px; font-size:13px; border-radius:10px;">Download</button>
+          </div>
+        </nav>
+
+        <div class="body-grid">
+          <!-- LEFT -->
+          <div>
+            <div class="meta-eyebrow">
+              <span class="seg"><span class="d"></span>LIVE · DEVNET</span>
+              <span class="sep">/</span>
+              <span class="seg">8 FIAT MARKETS</span>
+              <span class="sep">/</span>
+              <span class="seg">v0.2.0</span>
+            </div>
+
+            <h1>
+              <span class="pop">SOL</span><br/>
+              <span class="arrow-mark">↔</span><span class="pop">cash.</span><br/>
+              <span class="out">Held by code.</span>
+            </h1>
+
+            <p class="sub">List or accept SOL ↔ fiat at your rate. Run gigs that pay on proof. The same on-chain escrow holds both — funds lock up front, proof releases them.</p>
+
+            <div class="pillrow">
+              <span class="small-pill"><span class="ic">🇳🇬</span>NGN</span>
+              <span class="small-pill"><span class="ic">🇬🇭</span>GHS</span>
+              <span class="small-pill"><span class="ic">🇰🇪</span>KES</span>
+              <span class="small-pill"><span class="ic">🇿🇦</span>ZAR</span>
+              <span class="small-pill"><span class="ic">🇵🇭</span>PHP</span>
+              <span class="small-pill"><span class="ic">🇺🇸</span>USD</span>
+              <span class="small-pill"><span class="ic">🇬🇧</span>GBP</span>
+              <span class="small-pill"><span class="ic">🇪🇺</span>EUR</span>
+            </div>
+
+            <div class="cta-row">
+              <button class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m6 9 6 6 6-6"/><path d="M5 21h14"/></svg>
+                Get Tenda for Android
+              </button>
+              <button class="btn-ghost">Tour the app →</button>
+            </div>
+          </div>
+
+          <!-- RIGHT: rate card -->
+          <div class="rate-card-wrap">
+            <div class="rate-card-bg"></div>
+            <div class="rate-card">
+              <div class="rc-top">
+                <span class="rc-pill"><span class="d"></span>OPEN OFFER · ESCROW LOCKED</span>
+                <div class="rc-pms">
+                  <span class="rc-pm">OP</span>
+                  <span class="rc-pm">KU</span>
+                  <span class="rc-pm">MM</span>
+                </div>
+              </div>
+
+              <div class="rc-trade">
+                <div class="rc-side">
+                  <div class="lbl">SELLING</div>
+                  <div class="num big">2.000</div>
+                  <div class="ticker">SOL · locked in escrow</div>
+                </div>
+                <div class="rc-arrow">↔</div>
+                <div class="rc-side" style="text-align:right;">
+                  <div class="lbl">FOR</div>
+                  <div class="num mid">490,000</div>
+                  <div class="ticker">NGN · buyer pays via bank</div>
+                </div>
+              </div>
+
+              <div class="rc-rate">
+                <span class="l">Rate · ₦245,000 / SOL</span>
+                <span class="r">▲ 1.2% above market</span>
+              </div>
+
+              <div class="rc-meta">
+                <div class="rc-mc"><div class="l">PAYMENT WINDOW</div><div class="v">30 min</div></div>
+                <div class="rc-mc"><div class="l">TENDA FEE</div><div class="v">0.050 SOL</div></div>
+              </div>
+
+              <div class="rc-foot">
+                <span class="rc-av"></span>
+                <div>
+                  <div class="rc-who">@chiamaka</div>
+                  <div style="font-family:var(--mono); font-size:10px; color:#6F7488;">Lagos · 4.9★ · 38 trades</div>
+                </div>
+                <span class="rc-meta-mini">posted 4m ago</span>
+              </div>
+            </div>
+
+            <!-- gig peek -->
+            <div class="gig-peek">
+              <span class="cat">📦 Delivery</span>
+              <div class="t">Pickup laptop, drop at Yaba</div>
+              <div class="b">
+                <span class="a">0.50 SOL</span>
+                <span class="ti">⏱ 45m</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">The big bet</p>
+        The OfferSummaryCard is the most distinctive thing in the app. Make it the hero — outsized, glowing, with a peeking gig card to imply "two products". Headline supports the visual; doesn't carry the page alone.
+      </div>
+      <div class="note">
+        <p class="note-title">Headline trick</p>
+        <strong>SOL ↔ cash.</strong> in solid white, then <strong>Held by code.</strong> in outlined-only stroke (brand blue). Mixes weights for visual rhythm. Big "↔" glyph rendered as a 92px gradient tile inline.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Glows breathe slowly (<code>6s</code>). Card border has a subtle blue sheen sweep (<code>4s</code>). LIVE pill pulses. Peek card has a soft hover-tilt. Reduced-motion → all static.
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

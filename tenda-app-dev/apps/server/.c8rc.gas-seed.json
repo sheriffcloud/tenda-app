@@ -1,0 +1,24 @@
+{
+  "//": "Scoped coverage gate for the gas seed (#53a, moved into features/gas-seed by #53c-1's pluggability requirement). Mirrors .c8rc.contracts.json: the repo-wide gate in .c8rc.json sits at 81/82/80/81, and raising it globally is a separate decision that would fail on unrelated files, so this asserts the house bar (>90) on the code this work owns. The feature is a directory, so the include is a glob \u2014 a new file inside it is covered by this gate automatically, which is the point. src/db/seed/rows.ts is listed because the seeder writes the gas columns; src/chains/evm/hot-wallet.ts is NOT \u2014 the relayer shares it, so it is not the seed's to speak for. Run via `pnpm test:coverage:gas-seed`.",
+  "all": true,
+  "src": [
+    "src"
+  ],
+  "include": [
+    "src/features/gas-seed/**/*.ts",
+    "src/db/seed/rows.ts"
+  ],
+  "exclude": [
+    "src/**/*.d.ts"
+  ],
+  "reporter": [
+    "text"
+  ],
+  "report-dir": "coverage/gas-seed",
+  "clean": true,
+  "check-coverage": true,
+  "lines": 90,
+  "branches": 90,
+  "functions": 90,
+  "statements": 90
+}

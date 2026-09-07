@@ -1,0 +1,13 @@
+{
+  "name": "@tenda/contracts-evm",
+  "version": "0.0.1",
+  "private": true,
+  "description": "TendaEscrow EVM (Foundry) contract — source of truth for the shared ABI (packages/shared/src/abi).",
+  "scripts": {
+    "compile": "forge build",
+    "test": "forge test -vvv",
+    "fmt": "forge fmt --check",
+    "fmt:fix": "forge fmt",
+    "sync": "node ../../scripts/sync-abi.mjs"
+  }
+}

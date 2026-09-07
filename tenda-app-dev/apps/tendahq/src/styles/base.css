@@ -1,0 +1,71 @@
+/* =============================================================================
+ * Base — what the generated tokens do not carry, and the element resets.
+ *
+ * Every colour, radius, spacing, shadow, motion value and type style on this
+ * page is in styles/tokens.css, GENERATED from apps/mobile/theme/tokens.ts
+ * (regenerate with `pnpm --filter tendahq gen:tokens`; CI refuses a stale
+ * copy) — the type styles as `type-*` utilities that styles/type.css applies.
+ * This file keeps only what the generator has no source for: the web font
+ * stacks (mobile registers native faces per weight), the page measure, and
+ * the theme stamps that pick a side of every `light-dark()` pair.
+ *
+ * The generated --radius-xs…xl share Tailwind's radius namespace on purpose:
+ * `rounded-md` here is mobile's 16px, as it is in web. Reach for a token
+ * (`rounded-[var(--radius-xs)]`) rather than the default scale.
+ *
+ * Colour discipline (the Receipt direction): ink and paper do all the work.
+ * Brand blue is the one filled button, the blue period on a headline, the
+ * live pip. Green is limited to the two roles mobile gives it — a LiveChip
+ * dot and a settled payout. The category tones colour gig categories and
+ * nothing else. Accent amber is deliberately absent (ruling of 2026-09-01);
+ * the generator omits the group for both web targets (#59e).
+ * =========================================================================== */
+@layer base {
+  :root {
+    /* Typography — the three faces of mobile's typography.fonts, as web fonts */
+    --font-display: 'Space Grotesk Variable', system-ui, sans-serif;
+    --font-body: 'Manrope Variable', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+    /* Layout */
+    --maxw: 1180px;
+  }
+
+  /*
+   * The stamp from the ThemeProvider. `light dark` on the root (set in
+   * tokens.css) follows the system until it has run; either explicit value
+   * wins over the system in both directions. Any subtree can re-pin itself
+   * the same way — the app screens set `color-scheme: light` because a phone
+   * does not invert with the page around it.
+   */
+  [data-theme='light'] { color-scheme: light; }
+  [data-theme='dark'] { color-scheme: dark; }
+
+  html { scroll-behavior: smooth; }
+  html, body, #root { min-height: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--surface-background);
+    color: var(--content-primary);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 22px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  img { display: block; max-width: 100%; }
+  button, input, textarea, select { font: inherit; }
+  h1, h2, h3, h4 { text-wrap: balance; }
+
+  *:focus-visible {
+    outline: 3px solid var(--brand-focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+  *::selection { background: var(--brand-primary-surface); color: var(--content-primary); }
+
+  a { color: inherit; text-decoration: none; }
+}

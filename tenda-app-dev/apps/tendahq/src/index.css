@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+
+/* Variable fonts — self-hosted via @fontsource. The three faces are the
+   mobile token file's: Space Grotesk (display), Manrope (body), JetBrains
+   Mono (numerics and eyebrows). */
+@import '@fontsource-variable/space-grotesk';
+@import '@fontsource-variable/manrope';
+@import '@fontsource-variable/jetbrains-mono';
+
+/* The stylesheet, in four sheets:
+   - styles/tokens.css      GENERATED from apps/mobile/theme/tokens.ts — every
+                            colour as light-dark(), radius, spacing, shadows,
+                            motion; `pnpm gen:tokens`, never edited by hand;
+   - styles/base.css        the font stacks, the theme stamps and the element
+                            resets, in @layer base;
+   - styles/type.css        the type atoms (mobile typography.styles), in
+                            @layer components;
+   - styles/components.css  the few component rules that are not Tailwind
+                            utilities — the custody scene, the receipt's
+                            stage line, the ticker — plus keyframes. */
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/type.css';
+@import './styles/components.css';

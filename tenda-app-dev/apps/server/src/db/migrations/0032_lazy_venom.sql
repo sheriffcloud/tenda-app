@@ -1,0 +1,1 @@
+ALTER TABLE "gig_applications" ADD COLUMN "wallet_address" text;

@@ -1,0 +1,1 @@
+ALTER TABLE "escrows" ADD COLUMN "accept_window_seconds" integer DEFAULT 604800 NOT NULL;

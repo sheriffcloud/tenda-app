@@ -1,0 +1,38 @@
+{
+  "name": "@tenda/contracts-solana",
+  "version": "0.0.1",
+  "private": true,
+  "description": "TendaEscrow Anchor program \u2014 source of truth for the shared IDL (packages/shared/src/idl).",
+  "license": "Apache-2.0",
+  "scripts": {
+    "compile": "anchor build",
+    "//fmt": "Rust formatting, mirroring contracts/evm's `fmt`/`fmt:fix` (forge fmt). `cargo fmt` picks up the PINNED toolchain via rust-toolchain.toml, which declares the rustfmt component \u2014 so CI and a laptop format identically. Run `fmt:fix` in its OWN commit: it rewrites every file it touches, and a reformat buried in a feature diff hides the feature.",
+    "fmt": "cargo fmt --check",
+    "fmt:fix": "cargo fmt",
+    "//ts-node": "Shim for `anchor migrate`: Anchor.toml sets package_manager=pnpm, so Anchor shells out to `pnpm ts-node <migration>` \u2014 and pnpm resolves a bare name as a SCRIPT, not a binary, so migrate died with ERR_PNPM_NO_SCRIPT. This forwards it to the real binary.",
+    "ts-node": "ts-node",
+    "//test": "--node-option expose-gc + the root hooks are what keep peak RSS flat; LiteSVM holds ~12 MB of native memory per instance that only a GC finalizer releases. See tests/root-hooks.ts.",
+    "test": "ts-mocha -p ./tsconfig.json --node-option expose-gc --require ./tests/root-hooks.ts -t 120000 \"tests/**/*.test.ts\"",
+    "sync": "node ../../scripts/sync-idl.mjs",
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "lint:fix": "prettier --write \"**/*.ts\"",
+    "lint": "prettier --check \"**/*.ts\""
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1"
+  },
+  "devDependencies": {
+    "@solana/spl-token": "0.4.14",
+    "@types/bn.js": "^5.1.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.9.1",
+    "anchor-litesvm": "0.2.1",
+    "chai": "^4.3.4",
+    "litesvm": "0.3.3",
+    "mocha": "^11.7.6",
+    "prettier": "^3.8.5",
+    "ts-mocha": "^11.1.0",
+    "typescript": "^5.7.3"
+  }
+}

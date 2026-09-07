@@ -1,0 +1,404 @@
+@import 'tailwindcss';
+
+/* Variable fonts — self-hosted via @fontsource */
+@import '@fontsource-variable/outfit';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource-variable/jetbrains-mono';
+
+/* =============================================================================
+ * Tokens — dark-first, blue + neutral system built around the logo (deep navy
+ * wordmark, royal-blue period). ONE theme per page view: the <html>
+ * data-theme attribute (ThemeProvider, default dark) flips the whole page;
+ * sections never pin their own theme.
+ *
+ * Colour discipline: brand blue (+ a lighter companion blue) and neutrals do
+ * ALL decorative work. Green/orange/red exist only as semantic feedback
+ * tones; per-chain brand colours appear only as micro-dots.
+ * =========================================================================== */
+@layer base {
+  :root,
+  [data-theme='dark'] {
+    /* Typography */
+    --font-display: 'Outfit Variable', system-ui, sans-serif;
+    --font-body: 'Instrument Sans Variable', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+    /* Surfaces — deep navy family */
+    --surface-bg: #0A0E1B;
+    --surface-bg-alt: #0C1122;
+    --surface-card: #111729;
+    --surface-card-elevated: #151C33;
+    --surface-inset: #0E1424;
+    --surface-overlay: rgba(8, 12, 24, 0.72);
+    --surface-navbar: rgba(10, 14, 27, 0.85);
+    --surface-pressed: #1A2136;
+    --surface-inverse: #F5F7FC;
+
+    /* Brand — the logo's royal blue */
+    --brand: #3D6DF2;
+    --brand-pressed: #5581F5;
+    --brand-surface: rgba(61, 109, 242, 0.15);
+    --brand-border: rgba(61, 109, 242, 0.35);
+    --brand-on: #FFFFFF;
+    --brand-focus: rgba(61, 109, 242, 0.45);
+
+    /* Companion blue — soft sky, replaces the old orange accent everywhere */
+    --accent: #8AB0F8;
+    --accent-surface: rgba(138, 176, 248, 0.12);
+    --accent-border: rgba(138, 176, 248, 0.28);
+
+    /* Live — blue like the logo dot (green is reserved for real success) */
+    --live: #6E9BF7;
+    --live-bright: #8AB0F8;
+
+    /* Content */
+    --content-primary: #F2F5FB;
+    --content-secondary: #A9B2C7;
+    --content-tertiary: #6E7891;
+    --content-inverse: #0A0E1B;
+    --content-link: #8AB0F8;
+    --content-disabled: #5A6478;
+
+    /* Borders */
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --border-default: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.18);
+
+    /* Feedback — semantic only, never decorative */
+    --success: #3ACB8E;
+    --success-surface: rgba(58, 203, 142, 0.13);
+    --warning: #E8B25C;
+    --warning-surface: rgba(232, 178, 92, 0.13);
+    --danger: #F0706E;
+    --danger-surface: rgba(240, 112, 110, 0.13);
+    --info: #8AB0F8;
+    --info-surface: rgba(138, 176, 248, 0.13);
+
+    /* Money / numerics — semantic */
+    --money: #3ACB8E;
+    --positive: #3ACB8E;
+    --negative: #F0706E;
+
+    /* Radii */
+    --r-xs: 8px;
+    --r-sm: 12px;
+    --r-md: 16px;
+    --r-lg: 20px;
+    --r-xl: 24px;
+    --r-card: 20px;
+    --r-sheet: 24px;
+
+    /* Shadows — deep, with a faint blue cast */
+    --shadow-card: 0 4px 16px rgba(2, 5, 14, 0.35);
+    --shadow-elevated: 0 1px 2px rgba(2, 5, 14, 0.25), 0 16px 40px rgba(2, 5, 14, 0.45);
+    --shadow-modal: 0 4px 8px rgba(2, 5, 14, 0.3), 0 32px 64px rgba(2, 5, 14, 0.6);
+
+    /* Layout */
+    --maxw: 1280px;
+
+    color-scheme: dark;
+  }
+
+  /* Light — cool, paper-white counterpart. Same blue, navy content. */
+  [data-theme='light'] {
+    --surface-bg: #F7F8FC;
+    --surface-bg-alt: #EFF2F8;
+    --surface-card: #FFFFFF;
+    --surface-card-elevated: #FFFFFF;
+    --surface-inset: #ECEFF6;
+    --surface-overlay: rgba(247, 248, 252, 0.8);
+    --surface-navbar: rgba(247, 248, 252, 0.88);
+    --surface-pressed: #E3E8F2;
+    --surface-inverse: #10152B;
+
+    --brand: #2E5BD6;
+    --brand-pressed: #264CB5;
+    --brand-surface: #E9EEFC;
+    --brand-border: #C3D2F4;
+    --brand-on: #FFFFFF;
+    --brand-focus: rgba(46, 91, 214, 0.34);
+
+    --accent: #4774E0;
+    --accent-surface: #EBF0FD;
+    --accent-border: #CAD7F7;
+
+    --live: #2E5BD6;
+    --live-bright: #4774E0;
+
+    --content-primary: #10152B;
+    --content-secondary: #4A5168;
+    --content-tertiary: #878FA6;
+    --content-inverse: #FFFFFF;
+    --content-link: #2E5BD6;
+    --content-disabled: #9AA3B8;
+
+    --border-subtle: rgba(16, 21, 43, 0.06);
+    --border-default: rgba(16, 21, 43, 0.1);
+    --border-strong: rgba(16, 21, 43, 0.18);
+
+    --success: #1F9D6B;
+    --success-surface: #E6F4ED;
+    --warning: #B07914;
+    --warning-surface: #FBF1DC;
+    --danger: #CB3A3A;
+    --danger-surface: #F9E4E4;
+    --info: #2E5BD6;
+    --info-surface: #E9EEFC;
+
+    --money: #1F9D6B;
+    --positive: #1F9D6B;
+    --negative: #CB3A3A;
+
+    --shadow-card: 0 4px 14px rgba(16, 21, 43, 0.06);
+    --shadow-elevated: 0 1px 2px rgba(16, 21, 43, 0.04), 0 14px 36px rgba(16, 21, 43, 0.1);
+    --shadow-modal: 0 4px 8px rgba(16, 21, 43, 0.06), 0 32px 64px rgba(16, 21, 43, 0.18);
+
+    color-scheme: light;
+  }
+
+  html { scroll-behavior: smooth; }
+  html, body, #root { min-height: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--surface-bg);
+    color: var(--content-primary);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  img { display: block; max-width: 100%; }
+  button, input, textarea, select { font: inherit; }
+
+  *:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+  *::selection { background: var(--brand-surface); color: var(--content-primary); }
+
+  a { color: inherit; text-decoration: none; }
+}
+
+/* =============================================================================
+ * Type atoms — use these classes; do not redefine type per-section.
+ * =========================================================================== */
+@layer components {
+  .h-hero {
+    font-family: var(--font-display);
+    font-size: clamp(46px, 6.0vw, 74px);
+    line-height: 1.02;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+  }
+  .h1 {
+    font-family: var(--font-display);
+    font-size: clamp(34px, 4.4vw, 46px);
+    line-height: 1.1;
+    font-weight: 650;
+    letter-spacing: -0.025em;
+  }
+  .h2 {
+    font-family: var(--font-display);
+    font-size: clamp(27px, 3.2vw, 32px);
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+  .h3 {
+    font-family: var(--font-display);
+    font-size: 21px;
+    line-height: 1.3;
+    font-weight: 600;
+    letter-spacing: -0.008em;
+  }
+  .body-lg {
+    font-family: var(--font-body);
+    font-size: 18px;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+  .body {
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+    font-weight: 400;
+  }
+  .body-sm {
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.5;
+    font-weight: 400;
+  }
+  .eyebrow {
+    font-family: var(--font-body);
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .caption {
+    font-family: var(--font-body);
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+  }
+  .mono-large {
+    font-family: var(--font-mono);
+    font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.05;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .mono-mid {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+  .mono {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 500;
+  }
+  .mono-sm {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+
+  /* Headline emphasis — the one decorative flourish: a blue sweep. */
+  .text-brand-gradient {
+    background: linear-gradient(100deg, var(--accent), var(--brand));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .hairline { height: 1px; background: var(--border-subtle); }
+  .container-page { width: min(100%, var(--maxw)); margin-inline: auto; padding-inline: 20px; }
+  @media (min-width: 768px) { .container-page { padding-inline: 32px; } }
+
+  .app-shell { position: relative; min-height: 100vh; color: var(--content-primary); }
+  .app-main { width: 100%; }
+
+  /* TradeCard corridor — animated dashes drifting asset → fiat. */
+  .corridor-line {
+    height: 2px;
+    background-image: repeating-linear-gradient(
+      90deg,
+      currentColor 0 6px,
+      transparent 6px 16px
+    );
+    animation: corridor-flow 0.9s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .corridor-line { animation: none; }
+  }
+
+  /* ---------------------------------------------------------------------------
+   * SwipeDeck — a physical card flick. The front card is thrown up and off
+   * (fast start, slight spin, fades late); the stack settles forward on a
+   * springy curve, each follower a beat behind the one before it.
+   * ------------------------------------------------------------------------- */
+  .deck-card {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    transition:
+      transform 640ms cubic-bezier(0.34, 1.3, 0.5, 1),
+      opacity 520ms cubic-bezier(0.2, 0, 0, 1);
+    will-change: transform, opacity;
+  }
+  .deck-pos-0 { z-index: 30; transform: translateY(0) scale(1); opacity: 1; transition-delay: 70ms; }
+  .deck-pos-1 { z-index: 20; transform: translateY(20px) scale(0.95); opacity: 0.72; transition-delay: 120ms; }
+  .deck-pos-2 { z-index: 10; transform: translateY(40px) scale(0.9); opacity: 0.4; transition-delay: 170ms; }
+  .deck-hidden { z-index: 0; transform: translateY(58px) scale(0.86); opacity: 0; }
+  .deck-exit {
+    z-index: 40;
+    transform: translateY(0);
+    animation: deck-flick 700ms cubic-bezier(0.3, 0.1, 0.25, 1) forwards;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .deck-card { transition: none; animation: none; }
+    .deck-exit { animation: none; opacity: 0; }
+  }
+
+  /* Section entrance — children fade-up with a 60ms stagger when the parent
+     enters the viewport. Honour reduced-motion. */
+  .reveal-on-scroll > * {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 520ms cubic-bezier(0.2, 0, 0, 1),
+                transform 520ms cubic-bezier(0.2, 0, 0, 1);
+    transition-delay: calc(var(--reveal-i, 0) * 60ms);
+  }
+  .reveal-on-scroll[data-visible='true'] > * {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .reveal-on-scroll > *:nth-child(1) { --reveal-i: 0; }
+  .reveal-on-scroll > *:nth-child(2) { --reveal-i: 1; }
+  .reveal-on-scroll > *:nth-child(3) { --reveal-i: 2; }
+  .reveal-on-scroll > *:nth-child(4) { --reveal-i: 3; }
+  .reveal-on-scroll > *:nth-child(5) { --reveal-i: 4; }
+  .reveal-on-scroll > *:nth-child(6) { --reveal-i: 5; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal-on-scroll > * {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+}
+
+/* =============================================================================
+ * Keyframes
+ * =========================================================================== */
+@keyframes live-ping {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  70%  { transform: scale(2.2); opacity: 0;   }
+  100% { transform: scale(2.2); opacity: 0;   }
+}
+
+@keyframes marquee-x {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes marquee-x-reverse {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes marquee-y {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-50%); }
+}
+
+@keyframes marquee-y-reverse {
+  from { transform: translateY(-50%); }
+  to   { transform: translateY(0); }
+}
+
+/* TradeCard corridor — dashes drift from the asset side to the fiat side. */
+@keyframes corridor-flow {
+  from { background-position-x: 0; }
+  to   { background-position-x: 16px; }
+}
+
+/* SwipeDeck front-card exit — thrown upward with a slight spin. */
+@keyframes deck-flick {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+  55%  { opacity: 0.85; }
+  100% { transform: translateY(-135%) rotate(-6deg) scale(0.98); opacity: 0; }
+}

@@ -1,0 +1,28 @@
+{
+  "extends": "fastify-tsconfig",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "sourceMap": true,
+    "paths": {
+      "@server/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  // ts-node runs only in dev/test; production uses `tsc && tsc-alias` and reads
+  // the compiled output. The block below is unused by `tsc` — it's read by
+  // ts-node at runtime when `node -r ts-node/register` (or `fastify-cli` in
+  // dev) loads source files.
+  //   - `files: true` makes ts-node pre-load ambient `.d.ts` files
+  //     (notably `src/types/fastify.d.ts`) so module augmentations are visible
+  //     regardless of import order. Without this, `plugins/audit.ts` failed
+  //     with "Property 'db' does not exist on FastifyInstance" because
+  //     ts-node compiled it before resolving `plugins/db.ts`.
+  //   - `require: ["tsconfig-paths/register"]` resolves the `@server/*` alias
+  //     at runtime. The build path uses `tsc-alias` to rewrite the dist
+  //     output instead.
+  "ts-node": {
+    "files": true,
+    "require": ["tsconfig-paths/register"]
+  }
+}

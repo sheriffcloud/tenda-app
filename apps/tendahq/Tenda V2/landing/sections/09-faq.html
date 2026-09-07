@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Landing — §9 FAQ · dark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../shared.css" />
+<link rel="stylesheet" href="../landing.css" />
+<style>
+  body { background: #0A0C12; padding: 56px 32px 120px; }
+  .canvas-eyebrow, .canvas-meta { color: #6F7488; }
+  .canvas-title { color: #F4F2ED; }
+  .canvas-sub { color: #B6BAC5; }
+  .frame-row-title h2 { color: #F4F2ED; }
+  .frame-row-title .desc { color: #8A8E98; }
+  .frame-label { color: #8A8E98; }
+  .frame-label .dot { background: #4E525B; }
+  .frame-w { width: 1440px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.4); }
+  .frame-mw { width: 390px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.4); }
+
+  /* ===== §9 FAQ — dark, on-chain framing ===== */
+  .faq {
+    background: #07090F;
+    color: #F4F2ED;
+    padding: 112px 80px 120px;
+    position: relative; overflow: hidden;
+  }
+  .faq::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: 0 0;
+    pointer-events: none;
+    mask: radial-gradient(ellipse at top right, black, transparent 70%);
+    -webkit-mask: radial-gradient(ellipse at top right, black, transparent 70%);
+  }
+
+  /* Header */
+  .faq-head {
+    display: grid; grid-template-columns: 1.2fr 1fr; align-items: end; gap: 64px;
+    margin-bottom: 56px;
+    position: relative; z-index: 2;
+  }
+  .faq-eyebrow {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.20em; font-weight: 600;
+    color: #6F7488; margin-bottom: 20px;
+  }
+  .faq-eyebrow .num { color: #3ACB8E; font-weight: 700; }
+  .faq-h {
+    font-family: var(--display); font-weight: 700;
+    font-size: 64px; line-height: 1.0; letter-spacing: -0.04em;
+    margin: 0; color: #F4F2ED;
+  }
+  .faq-h .accent { color: #3ACB8E; }
+  .faq-h .dim { color: #5C6275; }
+  .faq-sub { font-family: var(--body); font-size: 16px; line-height: 1.55; color: #B6BAC5; margin: 0; max-width: 50ch; }
+  .faq-sub b { color: #F4F2ED; font-weight: 600; }
+
+  /* Layout: left rail (categories) + right column (accordion) */
+  .faq-grid {
+    display: grid; grid-template-columns: 280px 1fr; gap: 64px;
+    position: relative; z-index: 2;
+    align-items: start;
+  }
+
+  /* ===== Left rail ===== */
+  .rail {
+    position: sticky; top: 40px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .rail-h {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.20em; font-weight: 700;
+    color: #6F7488; text-transform: uppercase; margin-bottom: 12px;
+    padding-left: 14px;
+  }
+  .rail-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-family: var(--body); font-size: 14px; font-weight: 500;
+    color: #B6BAC5;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all 0.15s ease;
+  }
+  .rail-item .ct {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 10px; color: #6F7488; font-weight: 600;
+  }
+  .rail-item .pre {
+    font-family: var(--mono); font-size: 10px; color: #6F7488; font-weight: 700; letter-spacing: 0.10em;
+    width: 18px;
+  }
+  .rail-item:hover {
+    background: rgba(255,255,255,0.03);
+    color: #F4F2ED;
+  }
+  .rail-item.active {
+    background: rgba(58,203,142,0.08);
+    color: #F4F2ED;
+    border-left-color: #3ACB8E;
+  }
+  .rail-item.active .pre { color: #3ACB8E; }
+  .rail-item.active .ct { color: #5DDDA6; }
+
+  .rail-foot {
+    margin-top: 20px;
+    padding: 16px 14px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+  }
+  .rail-foot .h {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; font-weight: 700;
+    color: #3ACB8E; margin-bottom: 6px;
+  }
+  .rail-foot .b {
+    font-family: var(--body); font-size: 12.5px; line-height: 1.5; color: #B6BAC5; margin-bottom: 12px;
+  }
+  .rail-foot a {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--body); font-size: 13px; font-weight: 600; color: #F4F2ED;
+    text-decoration: none; padding: 8px 12px; border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+  .rail-foot a .arr { font-family: var(--mono); font-weight: 500; }
+
+  /* ===== Right column / accordion ===== */
+  .cat-block {
+    margin-bottom: 56px;
+  }
+  .cat-block:last-child { margin-bottom: 0; }
+  .cat-head {
+    display: flex; align-items: baseline; gap: 14px;
+    padding-bottom: 18px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+  }
+  .cat-head .num {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; font-weight: 700;
+    color: #3ACB8E;
+  }
+  .cat-head .title {
+    font-family: var(--display); font-size: 24px; font-weight: 600; letter-spacing: -0.02em;
+    color: #F4F2ED;
+  }
+  .cat-head .ct {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 10px; color: #6F7488; letter-spacing: 0.14em; font-weight: 600;
+  }
+
+  .qa {
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .qa:last-child { border-bottom: 0; }
+  .qa-q {
+    display: grid; grid-template-columns: 32px 1fr 28px; gap: 16px; align-items: center;
+    padding: 22px 0;
+    cursor: pointer;
+  }
+  .qa-q .qid {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; font-weight: 700;
+    color: #6F7488;
+    align-self: flex-start;
+    padding-top: 4px;
+  }
+  .qa-q .qt {
+    font-family: var(--display); font-size: 19px; font-weight: 600; letter-spacing: -0.01em;
+    color: #F4F2ED; line-height: 1.35;
+  }
+  .qa-q .toggle {
+    width: 28px; height: 28px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #B6BAC5;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 14px; font-weight: 500;
+    flex-shrink: 0;
+  }
+  .qa.open .qa-q .toggle {
+    background: #3ACB8E;
+    color: #07090F;
+    border-color: #3ACB8E;
+  }
+  .qa-a {
+    display: none;
+    padding: 0 0 28px 48px;
+  }
+  .qa.open .qa-a { display: block; }
+  .qa-a p {
+    font-family: var(--body); font-size: 15px; line-height: 1.65; color: #B6BAC5;
+    margin: 0 0 14px;
+  }
+  .qa-a p:last-child { margin-bottom: 0; }
+  .qa-a p strong { color: #F4F2ED; font-weight: 600; }
+  .qa-a code {
+    font-family: var(--mono); font-size: 12.5px;
+    background: rgba(255,255,255,0.06);
+    color: #5DDDA6;
+    padding: 2px 6px; border-radius: 4px;
+    border: 1px solid rgba(58,203,142,0.16);
+  }
+  .qa-a a {
+    color: #79A6FF; text-decoration: none; border-bottom: 1px dashed rgba(121,166,255,0.4);
+  }
+
+  /* on-chain receipt callout inside answers */
+  .qa-receipt {
+    margin: 14px 0;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-left: 2px solid #3ACB8E;
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    display: grid; grid-template-columns: auto 1fr; gap: 8px 16px;
+    font-size: 11.5px;
+  }
+  .qa-receipt .k { color: #6F7488; letter-spacing: 0.10em; font-weight: 700; text-transform: uppercase; font-size: 10px; }
+  .qa-receipt .v { color: #F4F2ED; font-weight: 600; }
+  .qa-receipt .v.hash { color: #5DDDA6; }
+  .qa-receipt .v.ok {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: #5DDDA6; font-size: 10px; letter-spacing: 0.14em; font-weight: 700;
+  }
+  .qa-receipt .v.ok::before {
+    content: ''; width: 6px; height: 6px; border-radius: 999px;
+    background: #3ACB8E; box-shadow: 0 0 0 3px rgba(58,203,142,0.20);
+  }
+
+  /* inline labels (link-style references) */
+  .qa-ref {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.10em; font-weight: 700;
+    color: #79A6FF; background: rgba(94,135,232,0.10);
+    padding: 1px 6px; border-radius: 4px; text-transform: uppercase;
+    border: 1px solid rgba(94,135,232,0.20);
+  }
+
+  /* Bottom: still-have-questions strip */
+  .faq-foot {
+    margin-top: 80px;
+    background: linear-gradient(180deg, rgba(58,203,142,0.06), rgba(58,203,142,0.02));
+    border: 1px solid rgba(58,203,142,0.20);
+    border-radius: 16px;
+    padding: 32px 36px;
+    display: grid; grid-template-columns: 1.4fr auto auto auto; gap: 24px; align-items: center;
+    position: relative; z-index: 2;
+  }
+  .faq-foot::before {
+    content: ''; position: absolute; left: 0; right: 0; top: -1px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(58,203,142,0.5), transparent);
+  }
+  .faq-foot .text .h {
+    font-family: var(--display); font-size: 20px; font-weight: 600; letter-spacing: -0.01em;
+    color: #F4F2ED; margin: 0 0 6px;
+  }
+  .faq-foot .text .b {
+    font-family: var(--body); font-size: 14px; color: #B6BAC5; margin: 0;
+  }
+  .faq-foot .channel {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 12px 18px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    cursor: pointer;
+    min-width: 130px;
+  }
+  .faq-foot .channel .k {
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.16em; font-weight: 700;
+    color: #6F7488; text-transform: uppercase;
+  }
+  .faq-foot .channel .v {
+    font-family: var(--body); font-size: 14px; font-weight: 600; color: #F4F2ED;
+  }
+
+  /* Mobile */
+  .faq-m { padding: 56px 20px 64px; }
+  .faq-m .faq-head { display: block; margin-bottom: 28px; }
+  .faq-m .faq-h { font-size: 36px; }
+  .faq-m .faq-sub { margin-top: 16px; font-size: 14px; }
+  .faq-m .faq-grid { grid-template-columns: 1fr; gap: 28px; }
+  .faq-m .rail { position: static; flex-direction: row; gap: 6px; overflow-x: auto; padding-bottom: 4px; flex-wrap: wrap; }
+  .faq-m .rail-h { display: none; }
+  .faq-m .rail-item { padding: 8px 12px; font-size: 12px; border: 1px solid rgba(255,255,255,0.08); border-left: 1px solid rgba(255,255,255,0.08); }
+  .faq-m .rail-item.active { border-color: #3ACB8E; background: rgba(58,203,142,0.10); border-left-color: #3ACB8E; }
+  .faq-m .rail-item .pre, .faq-m .rail-item .ct { display: none; }
+  .faq-m .rail-foot { display: none; }
+  .faq-m .cat-head .title { font-size: 20px; }
+  .faq-m .qa-q .qt { font-size: 16px; }
+  .faq-m .qa-a { padding-left: 0; }
+  .faq-m .faq-foot { grid-template-columns: 1fr; gap: 12px; padding: 24px; margin-top: 48px; }
+  .faq-m .faq-foot .channel { min-width: 0; }
+</style>
+</head>
+<body>
+
+<header class="canvas-header">
+  <p class="canvas-eyebrow">Tenda · Landing wireframes · §9</p>
+  <h1 class="canvas-title">§9 FAQ · dark · sticky-rail accordion</h1>
+  <p class="canvas-sub">FAQ as the second hard-evidence section. Sticky left rail of categories (Trust · Money · Disputes · Crypto · Coverage), right column accordion with sharp answers and inline on-chain receipt callouts. Sits on the dark spine to inherit the same "this is verifiable" voice from §3-5-7. Bottom strip routes the long-tail to support / discord / docs.</p>
+  <div class="canvas-meta">
+    <span>1440w desktop · 390w mobile (top tabs + stacked)</span>
+    <span>Sits below §8 audiences, above §10 final CTA</span>
+    <span>Accordion: 2-3 open by default per category for visual rhythm; rest collapsed</span>
+  </div>
+</header>
+
+<div class="frames">
+
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">§9</span>
+      <h2>FAQ · desktop · dark</h2>
+      <span class="desc">Sticky rail · 5 categories · ~14 Q&As. Receipts inline where a number can be cited on-chain.</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-label dark-tag"><span class="dot"></span>1440 · dark</span>
+      <div class="frame-w">
+        <div class="faq">
+
+          <div class="faq-head">
+            <div>
+              <p class="faq-eyebrow"><span class="num">§ 09</span><span>·</span><span>FAQ</span></p>
+              <h2 class="faq-h">Honest <span class="accent">answers.</span><br/><span class="dim">No "we'll get back to you."</span></h2>
+            </div>
+            <div>
+              <p class="faq-sub">If a question has a number, the number is here. If a question has an on-chain receipt, the receipt is here. <b>If we don't know, we say so.</b> Anything not covered: jump to the bottom and ping us directly.</p>
+            </div>
+          </div>
+
+          <div class="faq-grid">
+
+            <!-- ============ LEFT RAIL ============ -->
+            <aside class="rail">
+              <p class="rail-h">CATEGORIES</p>
+
+              <div class="rail-item active">
+                <span class="pre">01</span>
+                <span>Trust &amp; safety</span>
+                <span class="ct">5</span>
+              </div>
+              <div class="rail-item">
+                <span class="pre">02</span>
+                <span>Money &amp; fees</span>
+                <span class="ct">4</span>
+              </div>
+              <div class="rail-item">
+                <span class="pre">03</span>
+                <span>Disputes</span>
+                <span class="ct">3</span>
+              </div>
+              <div class="rail-item">
+                <span class="pre">04</span>
+                <span>Crypto &amp; wallet</span>
+                <span class="ct">4</span>
+              </div>
+              <div class="rail-item">
+                <span class="pre">05</span>
+                <span>Coverage</span>
+                <span class="ct">3</span>
+              </div>
+
+              <div class="rail-foot">
+                <p class="h">CAN'T FIND IT?</p>
+                <p class="b">Most answers are in the docs. Anything else, ping us — humans, fast.</p>
+                <a href="#">Open docs <span class="arr">→</span></a>
+              </div>
+            </aside>
+
+            <!-- ============ RIGHT: ACCORDION ============ -->
+            <div class="acc">
+
+              <!-- ===== CAT 01 TRUST ===== -->
+              <div class="cat-block">
+                <div class="cat-head">
+                  <span class="num">01</span>
+                  <span class="title">Trust &amp; safety</span>
+                  <span class="ct">5 QUESTIONS</span>
+                </div>
+
+                <div class="qa open">
+                  <div class="qa-q">
+                    <span class="qid">Q.01</span>
+                    <span class="qt">Where does my money actually sit while a job is in progress?</span>
+                    <span class="toggle">−</span>
+                  </div>
+                  <div class="qa-a">
+                    <p>In the escrow contract on Solana — <strong>not in a Tenda bank account, not in the worker's wallet.</strong> When you fund a gig, USDC moves directly from your wallet into a program-derived account that only the contract can release. Tenda has no admin key, no pause button, no sweep function.</p>
+                    <div class="qa-receipt">
+                      <span class="k">PROGRAM</span><span class="v hash">Tnd…esCrW1</span>
+                      <span class="k">VERIFIED</span><span class="v ok">PUBLIC SOURCE</span>
+                      <span class="k">CUSTODY</span><span class="v">contract-only · no admin override</span>
+                    </div>
+                    <p>You can read the source, audit reports, and every escrow event yourself. <a href="#">View on Solscan</a> · <a href="#">Audit by OtterSec</a></p>
+                  </div>
+                </div>
+
+                <div class="qa open">
+                  <div class="qa-q">
+                    <span class="qid">Q.02</span>
+                    <span class="qt">What stops a worker from taking the job and disappearing?</span>
+                    <span class="toggle">−</span>
+                  </div>
+                  <div class="qa-a">
+                    <p>Two things. <strong>First:</strong> nothing is paid until proof clears. If the worker walks away, the funds simply return to the poster after the auto-cancel timer (default 24h, configurable per gig).</p>
+                    <p>Second: every worker has a public on-chain reputation — completed gigs, dispute rate, average response time. Workers with bad histories don't get hired. The market self-cleans.</p>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.03</span>
+                    <span class="qt">What stops a poster from refusing to release after the work is done?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.04</span>
+                    <span class="qt">Has the contract been audited?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.05</span>
+                    <span class="qt">What happens if Tenda (the company) goes away?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ===== CAT 02 MONEY ===== -->
+              <div class="cat-block">
+                <div class="cat-head">
+                  <span class="num">02</span>
+                  <span class="title">Money &amp; fees</span>
+                  <span class="ct">4 QUESTIONS</span>
+                </div>
+
+                <div class="qa open">
+                  <div class="qa-q">
+                    <span class="qid">Q.06</span>
+                    <span class="qt">What does Tenda charge?</span>
+                    <span class="toggle">−</span>
+                  </div>
+                  <div class="qa-a">
+                    <p><strong>1.5% protocol fee on settled gigs, paid by the poster.</strong> That's it. No platform fee on workers — they keep 100% of their listed payout. No subscription, no listing fee, no withdrawal fee.</p>
+                    <p>Solana network fee per transaction: <code>~$0.0001</code>. The escrow program adds nothing on top.</p>
+                  </div>
+                </div>
+
+                <div class="qa open">
+                  <div class="qa-q">
+                    <span class="qid">Q.07</span>
+                    <span class="qt">Can I get paid in my local currency?</span>
+                    <span class="toggle">−</span>
+                  </div>
+                  <div class="qa-a">
+                    <p>Yes. Workers receive USDC by default, then swap to local fiat through any of the traders in the §7 corridors map. You'll see live rates inside the wallet — pick one, hit swap, money lands in your bank or mobile-money account. <span class="qa-ref">31 currencies live</span></p>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.08</span>
+                    <span class="qt">How fast does a payout actually settle?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.09</span>
+                    <span class="qt">Are there minimum or maximum gig amounts?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ===== CAT 03 DISPUTES ===== -->
+              <div class="cat-block">
+                <div class="cat-head">
+                  <span class="num">03</span>
+                  <span class="title">Disputes</span>
+                  <span class="ct">3 QUESTIONS</span>
+                </div>
+
+                <div class="qa open">
+                  <div class="qa-q">
+                    <span class="qid">Q.10</span>
+                    <span class="qt">What happens if the poster and worker disagree?</span>
+                    <span class="toggle">−</span>
+                  </div>
+                  <div class="qa-a">
+                    <p>Either side can open a dispute before the auto-release timer hits. Funds stay locked in the contract. <strong>A small panel of randomly-selected veteran workers and posters reviews the evidence</strong> (chat log, proof submissions, gig spec) and votes. The contract releases based on the majority vote.</p>
+                    <p>Tenda doesn't decide disputes. Tenda doesn't see your wallet. The dispute panel doesn't see your real identity — just the case file.</p>
+                    <p class="qa-ref-row"><span class="qa-ref">Dispute rate: 0.4% of settled gigs</span></p>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.11</span>
+                    <span class="qt">How long does a dispute take to resolve?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.12</span>
+                    <span class="qt">Can I appeal a dispute decision?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ===== CAT 04 CRYPTO ===== -->
+              <div class="cat-block">
+                <div class="cat-head">
+                  <span class="num">04</span>
+                  <span class="title">Crypto &amp; wallet</span>
+                  <span class="ct">4 QUESTIONS</span>
+                </div>
+
+                <div class="qa open">
+                  <div class="qa-q">
+                    <span class="qid">Q.13</span>
+                    <span class="qt">Do I need to know anything about crypto to use Tenda?</span>
+                    <span class="toggle">−</span>
+                  </div>
+                  <div class="qa-a">
+                    <p>No. The wallet is created for you on signup, secured by a passkey on your device — same auth pattern as Apple Pay or Google Pay. You never see a seed phrase unless you ask. You never approve a transaction in MetaMask. The escrow happens behind the screen you'd use to "post a job" or "submit work."</p>
+                    <p>If you <em>do</em> know crypto: yes, you can export your private key, connect Phantom, and interact with the contract directly. Both modes work. <span class="qa-ref">Self-custody by default</span></p>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.14</span>
+                    <span class="qt">What if I lose my phone?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.15</span>
+                    <span class="qt">Why Solana and not Ethereum or Bitcoin?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.16</span>
+                    <span class="qt">Is USDC the only currency on the contract?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ===== CAT 05 COVERAGE ===== -->
+              <div class="cat-block">
+                <div class="cat-head">
+                  <span class="num">05</span>
+                  <span class="title">Coverage</span>
+                  <span class="ct">3 QUESTIONS</span>
+                </div>
+
+                <div class="qa open">
+                  <div class="qa-q">
+                    <span class="qid">Q.17</span>
+                    <span class="qt">My country isn't on the map. Can I still use Tenda?</span>
+                    <span class="toggle">−</span>
+                  </div>
+                  <div class="qa-a">
+                    <p>Yes — the contract doesn't care where you are. Anyone with a phone and an internet connection can post or accept a gig. The map shows where there's already <strong>active liquidity</strong> (workers + posters meeting, traders quoting fiat). If your local fiat doesn't have a trader yet, you'll receive USDC and can off-ramp through any exchange you already use.</p>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.18</span>
+                    <span class="qt">How do I bring a fiat trader to my country?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.19</span>
+                    <span class="qt">Are there places Tenda doesn't operate?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Bottom: still-have-questions -->
+          <div class="faq-foot">
+            <div class="text">
+              <p class="h">Still have a question?</p>
+              <p class="b">Real humans on the other side. Most answers in &lt; 4h. Anything technical → docs. Anything broken → support.</p>
+            </div>
+            <div class="channel">
+              <span class="k">DOCS</span>
+              <span class="v">docs.tenda.so →</span>
+            </div>
+            <div class="channel">
+              <span class="k">SUPPORT</span>
+              <span class="v">help@tenda.so →</span>
+            </div>
+            <div class="channel">
+              <span class="k">DISCORD</span>
+              <span class="v">discord.gg/tenda →</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile -->
+    <div class="frame-wrap" style="margin-top: 28px;">
+      <span class="frame-label dark-tag"><span class="dot"></span>390 · mobile · dark</span>
+      <div class="frame-mw">
+        <div class="faq faq-m">
+
+          <div class="faq-head">
+            <p class="faq-eyebrow" style="font-size: 10px;"><span class="num">§ 09</span><span>·</span><span>FAQ</span></p>
+            <h2 class="faq-h">Honest <span class="accent">answers.</span> <span class="dim">No "we'll get back to you."</span></h2>
+            <p class="faq-sub">If a question has a number, the number is here. If we don't know, we say so.</p>
+          </div>
+
+          <div class="faq-grid">
+            <aside class="rail">
+              <div class="rail-item active"><span>Trust</span></div>
+              <div class="rail-item"><span>Money</span></div>
+              <div class="rail-item"><span>Disputes</span></div>
+              <div class="rail-item"><span>Crypto</span></div>
+              <div class="rail-item"><span>Coverage</span></div>
+            </aside>
+
+            <div class="acc">
+              <div class="cat-block">
+                <div class="cat-head">
+                  <span class="num">01</span>
+                  <span class="title">Trust &amp; safety</span>
+                </div>
+                <div class="qa open">
+                  <div class="qa-q">
+                    <span class="qid">Q.01</span>
+                    <span class="qt">Where does my money sit during a job?</span>
+                    <span class="toggle">−</span>
+                  </div>
+                  <div class="qa-a">
+                    <p>In the escrow contract on Solana — <strong>not in a Tenda bank account.</strong> Tenda has no admin key. Source &amp; audit are public.</p>
+                    <div class="qa-receipt">
+                      <span class="k">PROGRAM</span><span class="v hash">Tnd…esCrW1</span>
+                      <span class="k">VERIFIED</span><span class="v ok">PUBLIC</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.02</span>
+                    <span class="qt">What stops a worker disappearing?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.03</span>
+                    <span class="qt">What about a poster refusing to release?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="cat-block">
+                <div class="cat-head">
+                  <span class="num">02</span>
+                  <span class="title">Money &amp; fees</span>
+                </div>
+                <div class="qa open">
+                  <div class="qa-q">
+                    <span class="qid">Q.06</span>
+                    <span class="qt">What does Tenda charge?</span>
+                    <span class="toggle">−</span>
+                  </div>
+                  <div class="qa-a">
+                    <p><strong>1.5% on settled gigs, paid by the poster.</strong> Workers keep 100%. Network fee: <code>~$0.0001</code>.</p>
+                  </div>
+                </div>
+                <div class="qa">
+                  <div class="qa-q">
+                    <span class="qid">Q.07</span>
+                    <span class="qt">Can I get paid in local currency?</span>
+                    <span class="toggle">+</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-foot">
+            <div class="text">
+              <p class="h">Still have a question?</p>
+              <p class="b">Real humans. &lt; 4h response.</p>
+            </div>
+            <div class="channel">
+              <span class="k">DOCS</span><span class="v">docs.tenda.so →</span>
+            </div>
+            <div class="channel">
+              <span class="k">SUPPORT</span><span class="v">help@tenda.so →</span>
+            </div>
+            <div class="channel">
+              <span class="k">DISCORD</span><span class="v">discord.gg/tenda →</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">Sticky rail = scannable</p>
+        Five categories, never more. Active row gets accent-green left border + soft tint. Counts on the right ("5", "4", "3"…) signal scope at a glance. Bottom of rail: "can't find it?" docs CTA — keeps the rail useful even when you've already scrolled.
+      </div>
+      <div class="note">
+        <p class="note-title">Default-open hierarchy</p>
+        First Q in each category is open. Two more opened in CAT 01 (the most-asked: where's my money, and what stops a worker walking away). Everything else collapsed. This gives readers a content rhythm and a complete narrative without forcing them to click.
+      </div>
+      <div class="note">
+        <p class="note-title">Receipts inside answers</p>
+        Where a claim is on-chain, drop a <code>.qa-receipt</code> callout: program ID, verification status, links. Treat the answer like a short proof. The accent-green left bar matches the §3 escrow card vocabulary so the page reads as a single voice.
+      </div>
+      <div class="note">
+        <p class="note-title">Voice</p>
+        Direct, present-tense, one or two sentences before any list. "If we don't know, we say so." The questions themselves are written in the user's language ("What stops a worker from disappearing?") not marketing language ("How does Tenda ensure quality?"). This matches the §6 honesty pose.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Accordion: chevron rotates 0→180°, body height animates <code>0 → auto</code> over <code>240ms</code> with <code>ease-out</code>. Toggle pill swaps from <code>+</code> outline to filled green <code>−</code>. Sticky rail active state slides via <code>::before</code> indicator to follow the visible category as you scroll (scroll-spy). Receipt callouts fade-up on first reveal.
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Spacing</p>
+        Section <code>112 80 120</code>. Grid <code>280 / 1fr · gap 64</code>. Cat block <code>mb 56</code>, head <code>pb 18 mb 4</code>. QA padding <code>22 0</code>, body <code>pb 28 pl 48</code>. Rail item <code>12 14</code>, foot card <code>pad 16 14 14</code>. Foot strip <code>pad 32 36</code>.
+      </div>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>

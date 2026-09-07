@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Landing — §7 Coverage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../shared.css" />
+<link rel="stylesheet" href="../landing.css" />
+<style>
+  body { background: #e8e5de; padding: 56px 32px 120px; }
+  .frame-w { width: 1440px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.18); }
+  .frame-mw { width: 390px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.18); }
+
+  /* ===== §7 Coverage ===== */
+  .cov {
+    background: #FAF8F3;
+    color: #1a1813;
+    padding: 112px 80px 120px;
+    position: relative; overflow: hidden;
+  }
+  .cov-head {
+    display: grid; grid-template-columns: 1.2fr 1fr; align-items: end; gap: 64px;
+    margin-bottom: 56px;
+    position: relative; z-index: 2;
+  }
+  .cov-eyebrow {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.20em; font-weight: 600;
+    color: #156E4A; margin-bottom: 20px;
+  }
+  .cov-eyebrow .num { color: #1F9D6B; font-weight: 700; }
+  .cov-h {
+    font-family: var(--display); font-weight: 700;
+    font-size: 64px; line-height: 1.0; letter-spacing: -0.04em;
+    margin: 0; color: #1a1813;
+  }
+  .cov-h .accent { color: #1F9D6B; }
+  .cov-h .dim { color: #8A8E98; }
+  .cov-sub { font-family: var(--body); font-size: 16px; line-height: 1.55; color: #555; margin: 0; max-width: 50ch; }
+
+  /* === Map + sidebar layout === */
+  .cov-grid {
+    display: grid; grid-template-columns: 1fr 360px; gap: 48px;
+    position: relative; z-index: 2;
+    align-items: start;
+  }
+
+  .map-card {
+    background: #FFFEFA;
+    border: 1px solid rgba(20,17,10,0.10);
+    border-radius: 22px;
+    padding: 28px;
+    box-shadow: 0 1px 2px rgba(20,17,10,0.04), 0 12px 32px rgba(20,17,10,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .map-bar {
+    display: flex; align-items: center; gap: 16px;
+    padding-bottom: 18px; margin-bottom: 18px;
+    border-bottom: 1px solid rgba(20,17,10,0.08);
+  }
+  .map-bar .title {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.10em; font-weight: 600; color: #1a1813;
+  }
+  .map-bar .title .pth { color: #999; }
+  .map-bar .legend { margin-left: auto; display: flex; gap: 14px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: #555; }
+  .map-bar .legend .dot {
+    width: 9px; height: 9px; border-radius: 999px; display: inline-block;
+    vertical-align: middle; margin-right: 6px;
+  }
+  .map-bar .legend .live { background: #1F9D6B; box-shadow: 0 0 0 3px rgba(31,157,107,0.18); }
+  .map-bar .legend .soon { background: rgba(20,17,10,0.40); }
+
+  /* svg map sits inside this wrapper */
+  .map-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 8;
+    background: #FAF6EC;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .map-wrap::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(20,17,10,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20,17,10,0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+  }
+  .map-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* Continent blobs (rounded, soft beige). Coordinates approximate (mercator-ish, 1600x800 viewBox). */
+  .cont { fill: rgba(20,17,10,0.10); stroke: rgba(20,17,10,0.16); stroke-width: 1; }
+
+  /* market dots layer */
+  .mkt-dot {
+    cursor: pointer;
+  }
+  .mkt-dot .core { fill: #1F9D6B; }
+  .mkt-dot .ring { fill: none; stroke: #1F9D6B; stroke-opacity: 0.30; }
+  .mkt-dot.soon .core { fill: rgba(20,17,10,0.50); }
+  .mkt-dot.soon .ring { stroke: rgba(20,17,10,0.20); }
+  .mkt-dot text {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+    fill: #1a1813;
+  }
+  .mkt-dot .lbl-bg { fill: #FFFEFA; stroke: rgba(20,17,10,0.10); stroke-width: 1; }
+
+  /* corridor arcs */
+  .corr {
+    fill: none;
+    stroke: rgba(31,157,107,0.45);
+    stroke-width: 1.4;
+    stroke-dasharray: 4 4;
+  }
+  .corr-end { fill: #1F9D6B; }
+
+  /* === Sidebar — markets table === */
+  .markets {
+    background: #FFFEFA;
+    border: 1px solid rgba(20,17,10,0.10);
+    border-radius: 22px;
+    padding: 8px;
+    box-shadow: 0 1px 2px rgba(20,17,10,0.04), 0 12px 32px rgba(20,17,10,0.06);
+  }
+  .markets-head {
+    padding: 18px 20px 12px;
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 1px solid rgba(20,17,10,0.08);
+  }
+  .markets-head .h {
+    font-family: var(--display); font-weight: 700; font-size: 17px; color: #1a1813; letter-spacing: -0.01em;
+  }
+  .markets-head .ct {
+    font-family: var(--mono); font-size: 10.5px; color: #999; letter-spacing: 0.14em; font-weight: 600;
+  }
+  .market-row {
+    display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(20,17,10,0.05);
+  }
+  .market-row:last-of-type { border-bottom: 0; }
+  .market-row .flag { font-size: 18px; line-height: 1; }
+  .market-row .info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .market-row .ccy {
+    font-family: var(--mono); font-size: 13px; font-weight: 700; color: #1a1813; letter-spacing: 0.02em;
+  }
+  .market-row .place {
+    font-family: var(--body); font-size: 12px; color: #777;
+  }
+  .market-row .stat {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; font-weight: 700; text-transform: uppercase;
+    height: 22px; padding: 0 8px; border-radius: 999px;
+  }
+  .market-row.live .stat { background: rgba(31,157,107,0.12); color: #156E4A; }
+  .market-row.live .stat .d { width: 5px; height: 5px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 3px rgba(31,157,107,0.18); }
+  .market-row.soon .stat { background: rgba(20,17,10,0.06); color: #555; }
+  .market-row.soon .stat .d { width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+
+  .markets-foot {
+    padding: 16px 20px;
+    background: rgba(20,17,10,0.02);
+    border-top: 1px solid rgba(20,17,10,0.08);
+    border-radius: 0 0 18px 18px;
+    margin: 0 -8px -8px;
+  }
+  .markets-foot .row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); font-size: 11px; color: #555;
+  }
+  .markets-foot .row + .row { margin-top: 8px; }
+  .markets-foot b { color: #1a1813; }
+  .markets-foot .ask { display: block; margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(20,17,10,0.10); font-family: var(--body); font-size: 12.5px; color: #555; line-height: 1.5; }
+  .markets-foot .ask a { color: #2E5BD6; font-weight: 600; text-decoration: none; }
+
+  /* === Stats below map === */
+  .cov-stats {
+    margin-top: 28px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    background: #FFFEFA;
+    border: 1px solid rgba(20,17,10,0.10);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .cov-stat {
+    padding: 22px 24px; border-right: 1px solid rgba(20,17,10,0.08);
+  }
+  .cov-stat:last-child { border-right: 0; }
+  .cov-stat .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; font-weight: 700; color: #999; text-transform: uppercase; margin: 0 0 8px; }
+  .cov-stat .v { font-family: var(--mono); font-size: 26px; font-weight: 600; letter-spacing: -0.025em; color: #1a1813; margin: 0; line-height: 1; }
+  .cov-stat .v .unit { font-size: 13px; color: #999; margin-left: 4px; font-weight: 500; }
+
+  /* === Mobile === */
+  .cov-m { padding: 56px 20px 64px; }
+  .cov-m .cov-head { display: block; margin-bottom: 24px; }
+  .cov-m .cov-h { font-size: 36px; }
+  .cov-m .cov-sub { font-size: 14px; margin-top: 16px; }
+  .cov-m .cov-grid { grid-template-columns: 1fr; gap: 20px; }
+  .cov-m .map-card { padding: 18px; border-radius: 16px; }
+  .cov-m .map-bar { padding-bottom: 12px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
+  .cov-m .map-bar .legend { margin-left: 0; font-size: 9px; gap: 10px; }
+  .cov-m .markets { border-radius: 16px; }
+  .cov-m .cov-stats { grid-template-columns: 1fr 1fr; }
+  .cov-m .cov-stat:nth-child(2) { border-right: 0; }
+  .cov-m .cov-stat:nth-child(1), .cov-m .cov-stat:nth-child(2) { border-bottom: 1px solid rgba(20,17,10,0.08); }
+  .cov-m .cov-stat .v { font-size: 20px; }
+</style>
+</head>
+<body>
+
+<header class="canvas-header">
+  <p class="canvas-eyebrow">Tenda · Landing wireframes · §7</p>
+  <h1 class="canvas-title">§7 Coverage · world map</h1>
+  <p class="canvas-sub">Where it works today. A flat, honest map — soft continent blobs, market dots only where Tenda actually settles. Live markets in green; "coming" markets in muted ink. Sidebar lists every corridor with a status pill.</p>
+  <div class="canvas-meta">
+    <span>1440w desktop · 390w mobile (stacked)</span>
+    <span>Sits below §6 Why Tenda, above §8 Three columns</span>
+    <span>Map is intentionally schematic — credibility comes from the table, not cartographic accuracy</span>
+  </div>
+</header>
+
+<div class="frames">
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">§7</span>
+      <h2>Coverage · desktop · light</h2>
+      <span class="desc">Map left, markets table right. Stats strip below. Honest about scope: 6 live + 4 coming.</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-label"><span class="dot"></span>1440 · light</span>
+      <div class="frame-w">
+        <div class="cov">
+
+          <div class="cov-head">
+            <div>
+              <p class="cov-eyebrow"><span class="num">§ 07</span><span>·</span><span>COVERAGE</span></p>
+              <h2 class="cov-h">Live in <span class="accent">six markets.</span><br/><span class="dim">Four more, this year.</span></h2>
+            </div>
+            <div>
+              <p class="cov-sub">No "coming soon to your country" hand-wave. Tenda only marks a corridor live when escrow has actually settled there. Anything else is on the roadmap, dated.</p>
+            </div>
+          </div>
+
+          <div class="cov-grid">
+            <!-- ====== MAP ====== -->
+            <div class="map-card">
+              <div class="map-bar">
+                <span class="title"><span class="pth">tenda://</span>coverage.map</span>
+                <div class="legend">
+                  <span><span class="dot live"></span>LIVE · 6</span>
+                  <span><span class="dot soon"></span>COMING · 4</span>
+                </div>
+              </div>
+
+              <div class="map-wrap">
+                <svg class="map-svg" viewBox="0 0 1600 800" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Schematic continents — abstract rounded blobs -->
+                  <!-- North America -->
+                  <path class="cont" d="M120,180 Q180,120 280,140 Q380,140 420,200 Q440,260 400,320 Q360,360 280,360 Q180,340 140,300 Q90,240 120,180 Z" />
+                  <!-- South America -->
+                  <path class="cont" d="M340,420 Q380,400 420,420 Q450,470 440,560 Q420,640 380,680 Q340,690 320,640 Q300,560 320,490 Q330,440 340,420 Z" />
+                  <!-- Europe -->
+                  <path class="cont" d="M700,180 Q760,140 820,160 Q860,180 870,220 Q860,260 820,280 Q760,290 720,280 Q680,260 680,220 Q680,200 700,180 Z" />
+                  <!-- Africa -->
+                  <path class="cont" d="M740,310 Q800,290 860,310 Q900,360 900,440 Q890,540 850,610 Q810,650 770,640 Q730,610 720,540 Q710,440 720,370 Q725,330 740,310 Z" />
+                  <!-- Asia -->
+                  <path class="cont" d="M900,180 Q1020,130 1180,150 Q1320,170 1380,230 Q1400,290 1340,340 Q1240,380 1100,370 Q980,360 920,310 Q880,260 900,180 Z" />
+                  <!-- SE Asia / Indonesia / Philippines -->
+                  <path class="cont" d="M1280,400 Q1340,390 1380,420 Q1400,460 1370,490 Q1320,510 1280,490 Q1250,460 1280,400 Z" />
+                  <!-- Australia -->
+                  <path class="cont" d="M1340,560 Q1400,540 1450,560 Q1480,600 1460,640 Q1420,670 1380,660 Q1340,640 1330,610 Q1325,580 1340,560 Z" />
+
+                  <!-- ===== Corridor arcs (live ↔ live) ===== -->
+                  <!-- Lagos (NGN) ↔ Manila (PHP): big arc spanning whole map -->
+                  <path class="corr" d="M790,440 Q1120,180 1340,460" />
+                  <!-- Nairobi (KES) ↔ London (GBP) -->
+                  <path class="corr" d="M850,490 Q820,330 760,210" />
+                  <!-- Accra (GHS) ↔ Lagos (NGN) -->
+                  <path class="corr" d="M770,440 Q780,460 790,440" />
+                  <!-- Cape Town (ZAR) ↔ Lagos (NGN) -->
+                  <path class="corr" d="M820,610 Q800,540 790,440" />
+                  <!-- Manila ↔ London -->
+                  <path class="corr" d="M1340,460 Q1100,260 760,210" />
+
+                  <!-- ===== LIVE market dots ===== -->
+                  <!-- Lagos -->
+                  <g class="mkt-dot">
+                    <circle class="ring" cx="790" cy="440" r="14" />
+                    <circle class="ring" cx="790" cy="440" r="9" stroke-opacity="0.6" />
+                    <circle class="core" cx="790" cy="440" r="5" />
+                    <rect class="lbl-bg" x="800" y="426" width="76" height="22" rx="5" />
+                    <text x="838" y="442" text-anchor="middle">NGN · LAG</text>
+                  </g>
+                  <!-- Accra -->
+                  <g class="mkt-dot">
+                    <circle class="ring" cx="755" cy="430" r="11" />
+                    <circle class="core" cx="755" cy="430" r="5" />
+                    <rect class="lbl-bg" x="676" y="416" width="74" height="22" rx="5" />
+                    <text x="713" y="432" text-anchor="middle">GHS · ACC</text>
+                  </g>
+                  <!-- Nairobi -->
+                  <g class="mkt-dot">
+                    <circle class="ring" cx="855" cy="495" r="11" />
+                    <circle class="core" cx="855" cy="495" r="5" />
+                    <rect class="lbl-bg" x="868" y="481" width="74" height="22" rx="5" />
+                    <text x="905" y="497" text-anchor="middle">KES · NBO</text>
+                  </g>
+                  <!-- Cape Town -->
+                  <g class="mkt-dot">
+                    <circle class="ring" cx="820" cy="615" r="11" />
+                    <circle class="core" cx="820" cy="615" r="5" />
+                    <rect class="lbl-bg" x="833" y="601" width="74" height="22" rx="5" />
+                    <text x="870" y="617" text-anchor="middle">ZAR · CPT</text>
+                  </g>
+                  <!-- Manila -->
+                  <g class="mkt-dot">
+                    <circle class="ring" cx="1340" cy="460" r="14" />
+                    <circle class="ring" cx="1340" cy="460" r="9" stroke-opacity="0.6" />
+                    <circle class="core" cx="1340" cy="460" r="5" />
+                    <rect class="lbl-bg" x="1244" y="446" width="78" height="22" rx="5" />
+                    <text x="1283" y="462" text-anchor="middle">PHP · MNL</text>
+                  </g>
+                  <!-- London (GBP) — live -->
+                  <g class="mkt-dot">
+                    <circle class="ring" cx="760" cy="215" r="11" />
+                    <circle class="core" cx="760" cy="215" r="5" />
+                    <rect class="lbl-bg" x="772" y="201" width="76" height="22" rx="5" />
+                    <text x="810" y="217" text-anchor="middle">GBP · LON</text>
+                  </g>
+
+                  <!-- ===== COMING market dots ===== -->
+                  <!-- New York (USD) -->
+                  <g class="mkt-dot soon">
+                    <circle class="core" cx="320" cy="245" r="5" />
+                    <rect class="lbl-bg" x="330" y="231" width="76" height="22" rx="5" fill-opacity="0.85" />
+                    <text x="368" y="247" text-anchor="middle" fill="#555">USD · NYC</text>
+                  </g>
+                  <!-- Frankfurt (EUR) -->
+                  <g class="mkt-dot soon">
+                    <circle class="core" cx="800" cy="225" r="5" />
+                    <rect class="lbl-bg" x="812" y="211" width="76" height="22" rx="5" fill-opacity="0.85" />
+                    <text x="850" y="227" text-anchor="middle" fill="#555">EUR · FRA</text>
+                  </g>
+                  <!-- Mumbai (INR) -->
+                  <g class="mkt-dot soon">
+                    <circle class="core" cx="1110" cy="370" r="5" />
+                    <rect class="lbl-bg" x="1122" y="356" width="76" height="22" rx="5" fill-opacity="0.85" />
+                    <text x="1160" y="372" text-anchor="middle" fill="#555">INR · BOM</text>
+                  </g>
+                  <!-- São Paulo (BRL) -->
+                  <g class="mkt-dot soon">
+                    <circle class="core" cx="395" cy="565" r="5" />
+                    <rect class="lbl-bg" x="320" y="551" width="74" height="22" rx="5" fill-opacity="0.85" />
+                    <text x="357" y="567" text-anchor="middle" fill="#555">BRL · SAO</text>
+                  </g>
+
+                </svg>
+              </div>
+            </div>
+
+            <!-- ====== MARKETS TABLE ====== -->
+            <div class="markets">
+              <div class="markets-head">
+                <span class="h">Markets</span>
+                <span class="ct">10 · 6 LIVE · 4 SOON</span>
+              </div>
+
+              <!-- live -->
+              <div class="market-row live">
+                <span class="flag">🇳🇬</span>
+                <div class="info"><span class="ccy">NGN</span><span class="place">Nigeria · Lagos</span></div>
+                <span class="stat"><span class="d"></span>LIVE</span>
+              </div>
+              <div class="market-row live">
+                <span class="flag">🇬🇭</span>
+                <div class="info"><span class="ccy">GHS</span><span class="place">Ghana · Accra</span></div>
+                <span class="stat"><span class="d"></span>LIVE</span>
+              </div>
+              <div class="market-row live">
+                <span class="flag">🇰🇪</span>
+                <div class="info"><span class="ccy">KES</span><span class="place">Kenya · Nairobi</span></div>
+                <span class="stat"><span class="d"></span>LIVE</span>
+              </div>
+              <div class="market-row live">
+                <span class="flag">🇿🇦</span>
+                <div class="info"><span class="ccy">ZAR</span><span class="place">South Africa · Cape Town</span></div>
+                <span class="stat"><span class="d"></span>LIVE</span>
+              </div>
+              <div class="market-row live">
+                <span class="flag">🇵🇭</span>
+                <div class="info"><span class="ccy">PHP</span><span class="place">Philippines · Manila</span></div>
+                <span class="stat"><span class="d"></span>LIVE</span>
+              </div>
+              <div class="market-row live">
+                <span class="flag">🇬🇧</span>
+                <div class="info"><span class="ccy">GBP</span><span class="place">United Kingdom · London</span></div>
+                <span class="stat"><span class="d"></span>LIVE</span>
+              </div>
+              <!-- soon -->
+              <div class="market-row soon">
+                <span class="flag">🇺🇸</span>
+                <div class="info"><span class="ccy">USD</span><span class="place">United States · NYC</span></div>
+                <span class="stat"><span class="d"></span>Q3 '25</span>
+              </div>
+              <div class="market-row soon">
+                <span class="flag">🇪🇺</span>
+                <div class="info"><span class="ccy">EUR</span><span class="place">EU · Frankfurt</span></div>
+                <span class="stat"><span class="d"></span>Q3 '25</span>
+              </div>
+              <div class="market-row soon">
+                <span class="flag">🇮🇳</span>
+                <div class="info"><span class="ccy">INR</span><span class="place">India · Mumbai</span></div>
+                <span class="stat"><span class="d"></span>Q4 '25</span>
+              </div>
+              <div class="market-row soon">
+                <span class="flag">🇧🇷</span>
+                <div class="info"><span class="ccy">BRL</span><span class="place">Brazil · São Paulo</span></div>
+                <span class="stat"><span class="d"></span>Q4 '25</span>
+              </div>
+
+              <div class="markets-foot">
+                <div class="row"><span>Active corridors</span><b>22</b></div>
+                <div class="row"><span>Top corridor (30d)</span><b>NGN ↔ PHP</b></div>
+                <div class="row"><span>Largest single trade</span><b>184 SOL</b></div>
+                <span class="ask">Need a market we don't list yet? <a href="#">Tell us where →</a></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- stats strip -->
+          <div class="cov-stats">
+            <div class="cov-stat"><p class="k">CITIES SETTLING</p><p class="v">42<span class="unit">cities</span></p></div>
+            <div class="cov-stat"><p class="k">CORRIDORS LIVE</p><p class="v">22<span class="unit">pairs</span></p></div>
+            <div class="cov-stat"><p class="k">VOL · CROSS-BORDER</p><p class="v">68<span class="unit">% of volume</span></p></div>
+            <div class="cov-stat"><p class="k">MEDIAN TRADE SIZE</p><p class="v">1.4<span class="unit">SOL</span></p></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile -->
+    <div class="frame-wrap" style="margin-top: 28px;">
+      <span class="frame-label"><span class="dot"></span>390 · mobile · light</span>
+      <div class="frame-mw">
+        <div class="cov cov-m">
+          <div class="cov-head">
+            <p class="cov-eyebrow" style="font-size: 10px;"><span class="num">§ 07</span><span>·</span><span>COVERAGE</span></p>
+            <h2 class="cov-h">Live in <span class="accent">six markets.</span> <span class="dim">Four more, this year.</span></h2>
+            <p class="cov-sub">Tenda only marks a corridor live when escrow has actually settled there.</p>
+          </div>
+
+          <div class="cov-grid">
+            <div class="map-card">
+              <div class="map-bar">
+                <span class="title"><span class="pth">tenda://</span>coverage.map</span>
+                <div class="legend">
+                  <span><span class="dot live"></span>LIVE · 6</span>
+                  <span><span class="dot soon"></span>SOON · 4</span>
+                </div>
+              </div>
+              <div class="map-wrap">
+                <svg class="map-svg" viewBox="0 0 1600 800" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                  <path class="cont" d="M120,180 Q180,120 280,140 Q380,140 420,200 Q440,260 400,320 Q360,360 280,360 Q180,340 140,300 Q90,240 120,180 Z" />
+                  <path class="cont" d="M340,420 Q380,400 420,420 Q450,470 440,560 Q420,640 380,680 Q340,690 320,640 Q300,560 320,490 Q330,440 340,420 Z" />
+                  <path class="cont" d="M700,180 Q760,140 820,160 Q860,180 870,220 Q860,260 820,280 Q760,290 720,280 Q680,260 680,220 Q680,200 700,180 Z" />
+                  <path class="cont" d="M740,310 Q800,290 860,310 Q900,360 900,440 Q890,540 850,610 Q810,650 770,640 Q730,610 720,540 Q710,440 720,370 Q725,330 740,310 Z" />
+                  <path class="cont" d="M900,180 Q1020,130 1180,150 Q1320,170 1380,230 Q1400,290 1340,340 Q1240,380 1100,370 Q980,360 920,310 Q880,260 900,180 Z" />
+                  <path class="cont" d="M1280,400 Q1340,390 1380,420 Q1400,460 1370,490 Q1320,510 1280,490 Q1250,460 1280,400 Z" />
+                  <path class="cont" d="M1340,560 Q1400,540 1450,560 Q1480,600 1460,640 Q1420,670 1380,660 Q1340,640 1330,610 Q1325,580 1340,560 Z" />
+                  <path class="corr" d="M790,440 Q1120,180 1340,460" />
+                  <path class="corr" d="M850,490 Q820,330 760,210" />
+                  <path class="corr" d="M820,610 Q800,540 790,440" />
+                  <!-- live dots, no labels (mobile) -->
+                  <g class="mkt-dot"><circle class="ring" cx="790" cy="440" r="14"/><circle class="core" cx="790" cy="440" r="6"/></g>
+                  <g class="mkt-dot"><circle class="ring" cx="755" cy="430" r="11"/><circle class="core" cx="755" cy="430" r="5"/></g>
+                  <g class="mkt-dot"><circle class="ring" cx="855" cy="495" r="11"/><circle class="core" cx="855" cy="495" r="5"/></g>
+                  <g class="mkt-dot"><circle class="ring" cx="820" cy="615" r="11"/><circle class="core" cx="820" cy="615" r="5"/></g>
+                  <g class="mkt-dot"><circle class="ring" cx="1340" cy="460" r="14"/><circle class="core" cx="1340" cy="460" r="6"/></g>
+                  <g class="mkt-dot"><circle class="ring" cx="760" cy="215" r="11"/><circle class="core" cx="760" cy="215" r="5"/></g>
+                  <g class="mkt-dot soon"><circle class="core" cx="320" cy="245" r="5"/></g>
+                  <g class="mkt-dot soon"><circle class="core" cx="800" cy="225" r="5"/></g>
+                  <g class="mkt-dot soon"><circle class="core" cx="1110" cy="370" r="5"/></g>
+                  <g class="mkt-dot soon"><circle class="core" cx="395" cy="565" r="5"/></g>
+                </svg>
+              </div>
+            </div>
+
+            <div class="markets">
+              <div class="markets-head">
+                <span class="h">Markets</span>
+                <span class="ct" style="font-size: 9.5px;">6 LIVE · 4 SOON</span>
+              </div>
+              <div class="market-row live"><span class="flag">🇳🇬</span><div class="info"><span class="ccy">NGN</span><span class="place">Lagos</span></div><span class="stat"><span class="d"></span>LIVE</span></div>
+              <div class="market-row live"><span class="flag">🇬🇭</span><div class="info"><span class="ccy">GHS</span><span class="place">Accra</span></div><span class="stat"><span class="d"></span>LIVE</span></div>
+              <div class="market-row live"><span class="flag">🇰🇪</span><div class="info"><span class="ccy">KES</span><span class="place">Nairobi</span></div><span class="stat"><span class="d"></span>LIVE</span></div>
+              <div class="market-row live"><span class="flag">🇿🇦</span><div class="info"><span class="ccy">ZAR</span><span class="place">Cape Town</span></div><span class="stat"><span class="d"></span>LIVE</span></div>
+              <div class="market-row live"><span class="flag">🇵🇭</span><div class="info"><span class="ccy">PHP</span><span class="place">Manila</span></div><span class="stat"><span class="d"></span>LIVE</span></div>
+              <div class="market-row live"><span class="flag">🇬🇧</span><div class="info"><span class="ccy">GBP</span><span class="place">London</span></div><span class="stat"><span class="d"></span>LIVE</span></div>
+              <div class="market-row soon"><span class="flag">🇺🇸</span><div class="info"><span class="ccy">USD</span><span class="place">NYC</span></div><span class="stat"><span class="d"></span>Q3 '25</span></div>
+              <div class="market-row soon"><span class="flag">🇪🇺</span><div class="info"><span class="ccy">EUR</span><span class="place">Frankfurt</span></div><span class="stat"><span class="d"></span>Q3 '25</span></div>
+              <div class="market-row soon"><span class="flag">🇮🇳</span><div class="info"><span class="ccy">INR</span><span class="place">Mumbai</span></div><span class="stat"><span class="d"></span>Q4 '25</span></div>
+              <div class="market-row soon"><span class="flag">🇧🇷</span><div class="info"><span class="ccy">BRL</span><span class="place">São Paulo</span></div><span class="stat"><span class="d"></span>Q4 '25</span></div>
+              <div class="markets-foot">
+                <div class="row"><span>Corridors</span><b>22</b></div>
+                <div class="row"><span>Top 30d</span><b>NGN ↔ PHP</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cov-stats">
+            <div class="cov-stat"><p class="k">CITIES</p><p class="v">42</p></div>
+            <div class="cov-stat"><p class="k">CORRIDORS</p><p class="v">22</p></div>
+            <div class="cov-stat"><p class="k">CROSS-BORDER</p><p class="v">68<span class="unit">%</span></p></div>
+            <div class="cov-stat"><p class="k">MEDIAN</p><p class="v">1.4<span class="unit">SOL</span></p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">Schematic ≠ careless</p>
+        Continents are abstract rounded blobs, not a real Mercator outline. The map's job is to <em>locate</em> the dots, not to be a geography lesson. Real-map fidelity invites pedantic critique ("Madagascar is missing"); abstraction sidesteps it while keeping the spatial story.
+      </div>
+      <div class="note">
+        <p class="note-title">Honest scope</p>
+        Six live, four coming with quarters. No "globally available" weasel-claim. The "Need a market we don't list?" link in the sidebar is the single CTA — turns gaps into signal collection.
+      </div>
+      <div class="note">
+        <p class="note-title">Corridors as proof of life</p>
+        Dashed green arcs only between live markets. Pulls "we settle here" into "we settle <em>between</em> these." Top-corridor stat (NGN ↔ PHP) anchors the headline arc.
+      </div>
+      <div class="note">
+        <p class="note-title">Sidebar = receipts</p>
+        Every market gets a flag, currency code, city, and status pill — same anatomy as §5 ticker rows. Footer carries 22 corridors / top corridor / largest trade — three numbers that feel caught.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Continents fade in <code>0 → 1</code> over <code>400ms</code>. Live dots scale-in with double-ring pulse (rings 0.30 → 0 alpha, 1.6s loop, staggered <code>+200ms</code> each). Corridor arcs draw <code>stroke-dashoffset</code> over <code>1.4s</code> on viewport-enter. Coming dots fade in last (no pulse).
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Spacing</p>
+        Section <code>112 80 120</code>. Header grid <code>1.2fr 1fr · gap 64</code>. Cov grid <code>1fr 360 · gap 48</code>. Map card <code>pad 28 · radius 22</code>. Markets table <code>pad 8</code> outer, rows <code>12 16</code>. Stats strip <code>4 cells · pad 22 24</code>.
+      </div>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,4 @@
+export const MINIMUM_SHEET_BOTTOM_INSET = 16
+export const SHEET_CONTENT_BOTTOM_PADDING = 24
+export const SHEET_MAXIMUM_HEIGHT = '90%' as const
+export const ACCESSIBLE_FONT_SIZE_MULTIPLIER = 1.5

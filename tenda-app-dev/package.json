@@ -1,0 +1,34 @@
+{
+  "name": "tender-monorepo",
+  "version": "0.0.1",
+  "license": "BUSL-1.1",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "build:shared": "turbo run build --filter @tenda/shared",
+    "build:apk": "turbo run build:apk --filter tenda-mobile",
+    "build:aab": "turbo run build:aab --filter tenda-mobile",
+    "dev": "turbo run dev",
+    "dev:mobile": "turbo run android --filter tenda-mobile",
+    "dev:server": "turbo run dev --filter tenda-server",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "sync:idl": "node scripts/sync-idl.mjs",
+    "sync:abi": "node scripts/sync-abi.mjs",
+    "check:program-id": "node scripts/check-program-id.mjs",
+    "check:app-version": "node scripts/check-app-version.mjs",
+    "bump:version": "node scripts/bump-version.mjs",
+    "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
+    "test:scripts:coverage": "node --test --experimental-test-coverage \"scripts/**/*.test.mjs\"",
+    "prepare": "lefthook install || true"
+  },
+  "devDependencies": {
+    "lefthook": "^2.1.9",
+    "turbo": "^2.7.5"
+  },
+  "packageManager": "pnpm@10.22.0",
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,146 @@
+/* =============================================================================
+ * Keyframes
+ * =========================================================================== */
+@keyframes live-ping {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  70%  { transform: scale(2.2); opacity: 0;   }
+  100% { transform: scale(2.2); opacity: 0;   }
+}
+
+@keyframes marquee-x {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes marquee-x-reverse {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+
+/* ── §01 custody scene ───────────────────────────────────────────────
+   Styling for the hire-loop visual. It is an SVG, so it resolves `var()`
+   directly and follows the theme with no JavaScript. Sizing lives on the
+   element (`h-auto w-full` over a fixed viewBox), so nothing here can
+   change the section's height while the loop plays.
+
+   The Receipt palette: the event axis runs in brand blue on both lanes
+   (the agent lane dashes it), the money token is ink, it turns brand
+   blue while the contract holds it and settled green once paid. */
+.custody .cs-dash { stroke: var(--border-subtle); stroke-width: 1; stroke-dasharray: 3 6; fill: none; }
+.custody .cs-axis { stroke: var(--border-default); stroke-width: 2; stroke-linecap: round; fill: none; }
+.custody .cs-run  { stroke: var(--brand-primary); stroke-width: 2.5; stroke-linecap: round; fill: none; }
+.custody[data-lane='agent'] .cs-run { stroke-dasharray: 7 6; }
+
+.custody .cs-nd { fill: var(--surface-background); stroke: var(--border-strong); stroke-width: 2;
+  transition: stroke 0.4s var(--easing-standard); }
+.custody .cs-nd.is-on { stroke: var(--content-primary); }
+
+.custody .cs-halo { fill: var(--brand-primary); opacity: 0.18; }
+.custody .cs-head { fill: var(--brand-primary); }
+
+.custody .cs-vault { fill: none; stroke: var(--border-strong); stroke-width: 1.5; stroke-dasharray: 6 6;
+  transition: stroke 0.5s var(--easing-standard), fill 0.5s var(--easing-standard); }
+.custody[data-state='holding'] .cs-vault { stroke: var(--content-primary); stroke-dasharray: none;
+  fill: var(--brand-primary-surface); }
+
+.custody text { font-family: var(--font-mono); font-weight: 600; letter-spacing: 0.95px; }
+.custody .cs-lbl  { fill: var(--content-tertiary); font-size: 9.5px; }
+.custody .cs-num  { fill: var(--content-tertiary); font-size: 9.5px; }
+.custody .cs-vlbl { fill: var(--content-tertiary); font-size: 9.5px; text-transform: uppercase;
+  transition: fill 0.5s var(--easing-standard); }
+.custody[data-state='holding'] .cs-vlbl { fill: var(--content-primary); }
+
+.custody .cs-tok rect { fill: var(--content-primary);
+  transition: fill 0.55s var(--easing-standard); }
+.custody .cs-tok text { fill: var(--surface-background); font-size: 13px; font-weight: 700; letter-spacing: 0.01em; }
+.custody .cs-tok.is-holding rect { fill: var(--brand-solid); }
+.custody .cs-tok.is-released rect { fill: var(--feedback-success-base); }
+.custody .cs-tok.is-holding text,
+.custody .cs-tok.is-released text { fill: var(--brand-on-primary); }
+
+/* A fixed viewBox scales with its box, and at phone width that put the
+   scene's 9.5-unit labels at about 3px. Below 640px it keeps a readable
+   width and scrolls sideways instead — the same answer the §00 screens
+   give at 980px — bleeding to the column's edges so the first node is
+   not clipped by the padding. */
+@media (max-width: 640px) {
+  .custody-scroll { overflow-x: auto; scrollbar-width: none; margin-inline: -20px; padding-inline: 20px; }
+  .custody-scroll::-webkit-scrollbar { display: none; }
+  .custody { min-width: 880px; }
+}
+
+/* ── the hero receipt's stage line ───────────────────────────────────
+   The four contract states along the foot of the escrow receipt, and the
+   pip that walks them on a 6.5 s cycle. Each stop lights as the pip
+   passes; the last one, Release, is the settled green. The stops are
+   children 2–5 (the track is the first child), which is why the selectors
+   count with nth-child rather than nth-of-type.
+
+   Stops and pip are both centred on their `left`, so the keyframe's first
+   and last `left` (8% and 92%) are exactly where EscrowReceipt places the
+   first and last stop — its rendered test reads them from this file. */
+.stage-line { position: relative; height: 44px; margin-top: 18px; padding-top: 20px;
+  border-top: 1px dashed var(--border-strong); }
+.stage-line .track { position: absolute; left: 0; right: 0; top: 41px; height: 1px; background: var(--border-default); }
+.stage-line .stop {
+  position: absolute; top: 41px; z-index: 1; transform: translate(-50%, -50%);
+  background: var(--surface-card-elevated); border: 1px solid var(--border-default); border-radius: 9999px;
+  padding: 4px 10px; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.95px; text-transform: uppercase;
+  color: var(--content-tertiary);
+  animation: stage-stop 6.5s var(--easing-standard) infinite;
+}
+.stage-line .stop:nth-child(2) { animation-delay: 0s; }
+.stage-line .stop:nth-child(3) { animation-delay: 1.7s; }
+.stage-line .stop:nth-child(4) { animation-delay: 3.4s; }
+.stage-line .stop:nth-child(5) {
+  animation-name: stage-stop-last; animation-delay: 5.1s;
+  color: var(--feedback-success-text); border-color: color-mix(in srgb, var(--feedback-success-base) 42%, transparent);
+}
+@keyframes stage-stop {
+  0%, 6%   { color: var(--content-tertiary); border-color: var(--border-default); }
+  9%, 30%  { color: var(--content-primary);  border-color: var(--content-primary); }
+  40%, 100% { color: var(--content-tertiary); border-color: var(--border-default); }
+}
+@keyframes stage-stop-last {
+  0%, 6%   { border-color: color-mix(in srgb, var(--feedback-success-base) 42%, transparent); }
+  9%, 30%  { border-color: var(--feedback-success-base); }
+  40%, 100% { border-color: color-mix(in srgb, var(--feedback-success-base) 42%, transparent); }
+}
+.stage-line .pip {
+  position: absolute; top: 41px; z-index: 0; width: 8px; height: 8px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: var(--brand-primary); box-shadow: 0 0 0 4px var(--brand-primary-surface);
+  animation: stage-pip 6.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+@keyframes stage-pip {
+  0%   { left: 8%;  opacity: 0; }
+  6%   { opacity: 1; }
+  88%  { left: 92%; opacity: 1; }
+  100% { left: 92%; opacity: 0; }
+}
+
+/* ── §02 ticker ──────────────────────────────────────────────────────
+   A ruled feed running past both page edges. The fades take the section's
+   OWN ground — `--tick-ground`, set by TaskWall from the surface the page
+   hands it (#55) — so the rows dissolve into whichever paper the section
+   is on, not into a colour pinned to one position in the spine. */
+.tick { position: relative; border-top: 1px solid var(--border-default); padding: 6px 0; overflow: hidden; }
+.tick:last-of-type { border-bottom: 1px solid var(--border-default); }
+.tick::before, .tick::after { content: ''; position: absolute; top: 0; bottom: 0; width: 90px; z-index: 2; pointer-events: none; }
+.tick::before { left: 0; background: linear-gradient(90deg, var(--tick-ground), transparent); }
+.tick::after  { right: 0; background: linear-gradient(270deg, var(--tick-ground), transparent); }
+
+/* ── full-bleed ───────────────────────────────────────────────────────
+   Escape the content column and run to both edges of the viewport. The
+   tasks ticker uses it: the section's claim is BREADTH, and a marquee
+   that stops short of the page edge reads as a widget rather than as a
+   feed running past. `overflow-x: clip` on the root is what makes the
+   100vw safe — `hidden` would also work but it silently breaks
+   `position: sticky` on the navbar, which `clip` does not. */
+html { overflow-x: clip; }
+.full-bleed { margin-inline: calc(50% - 50vw); width: 100vw; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; }
+  html { scroll-behavior: auto; }
+}

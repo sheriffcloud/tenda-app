@@ -1,0 +1,2 @@
+ALTER TABLE "platform_config" ADD COLUMN "max_pending_gigs" integer DEFAULT 2 NOT NULL;--> statement-breakpoint
+ALTER TABLE "platform_config" ADD CONSTRAINT "platform_config_max_pending_gigs_range_chk" CHECK ("platform_config"."max_pending_gigs" BETWEEN 1 AND 100);

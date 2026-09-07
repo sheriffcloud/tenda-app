@@ -1,0 +1,1 @@
+DROP INDEX "user_wallets_address_prefix_idx";

@@ -1,0 +1,32 @@
+# Build context = repo root (see apps/server/Dockerfile). Keep the context to
+# what the server image actually needs: workspace manifests + lockfile,
+# packages/shared, apps/server.
+.git
+.turbo
+**/node_modules
+**/dist
+**/coverage
+**/*.log
+
+# NEVER ship env files — dev .env holds live provider keys; the container gets
+# its config from the orchestrator environment (dotenv no-ops when absent).
+**/.env
+**/.env.*
+
+# Workspaces the server image only needs the package.json of (lockfile
+# validation requires every importer manifest to be present).
+apps/mobile/*
+!apps/mobile/package.json
+apps/admin/*
+!apps/admin/package.json
+apps/tendahq/*
+!apps/tendahq/package.json
+contracts/evm/*
+!contracts/evm/package.json
+contracts/solana/*
+!contracts/solana/package.json
+
+# Not compiled into the image; keeps the build stage lean.
+apps/server/test
+packages/shared/test
+docker-compose.dev.yml

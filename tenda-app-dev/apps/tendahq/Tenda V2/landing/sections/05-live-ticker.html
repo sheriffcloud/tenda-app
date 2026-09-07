@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Landing — §5 Live ticker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../shared.css" />
+<link rel="stylesheet" href="../landing.css" />
+<style>
+  body { background: #0A0C12; padding: 56px 32px 120px; }
+  .canvas-eyebrow, .canvas-meta { color: #6F7488; }
+  .canvas-title { color: #F4F2ED; }
+  .canvas-sub { color: #B6BAC5; }
+  .frame-row-title h2 { color: #F4F2ED; }
+  .frame-row-title .desc { color: #8A8E98; }
+  .frame-label { color: #8A8E98; }
+  .frame-label .dot { background: #4E525B; }
+  .frame-w { width: 1440px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.4); }
+  .frame-mw { width: 390px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.4); }
+
+  /* ===== §5 Live ticker ===== */
+  .tk {
+    background: #07090F;
+    color: #F4F2ED;
+    padding: 80px 0 88px;
+    position: relative; overflow: hidden;
+  }
+  .tk::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 100% 32px;
+    pointer-events: none;
+  }
+
+  .tk-head {
+    display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 48px;
+    padding: 0 80px;
+    margin-bottom: 48px;
+    position: relative; z-index: 2;
+  }
+  .tk-eyebrow {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.20em; font-weight: 600;
+    color: #6F7488; margin-bottom: 18px;
+  }
+  .tk-eyebrow .num { color: #3ACB8E; font-weight: 700; }
+  .tk-eyebrow .live {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(58,203,142,0.14); color: #5DDDA6;
+    padding: 4px 8px; border-radius: 999px; letter-spacing: 0.10em;
+  }
+  .tk-eyebrow .live .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 3px rgba(58,203,142,0.22); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .tk-h {
+    font-family: var(--display); font-weight: 700;
+    font-size: 56px; line-height: 1.0; letter-spacing: -0.04em;
+    margin: 0; color: #F4F2ED; max-width: 22ch;
+  }
+  .tk-h .dim { color: #5C6275; }
+  .tk-sub { font-family: var(--body); font-size: 16px; line-height: 1.55; color: #B6BAC5; margin: 16px 0 0; max-width: 50ch; }
+
+  .tk-meta {
+    display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
+    font-family: var(--mono); font-size: 11px; color: #6F7488;
+  }
+  .tk-meta-row { display: flex; gap: 8px; align-items: baseline; }
+  .tk-meta-row .k { color: #6F7488; letter-spacing: 0.14em; font-weight: 600; }
+  .tk-meta-row .v { color: #F4F2ED; font-weight: 600; }
+  .tk-meta-row .v.gn { color: #3ACB8E; }
+  .tk-meta-row .v code {
+    font-size: 10.5px; padding: 2px 6px; border-radius: 4px;
+    background: rgba(94,135,232,0.14); color: #B6CFFF;
+  }
+
+  /* ===== Streaming feed (the centerpiece) ===== */
+  .feed-wrap {
+    position: relative; z-index: 2;
+    margin: 0 80px;
+    background: linear-gradient(180deg, rgba(22,27,41,0.96), rgba(13,16,24,0.96));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.40);
+  }
+  .feed-wrap::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(58,203,142,0.6), transparent);
+  }
+  /* feed header bar (table-ish) */
+  .feed-bar {
+    display: grid;
+    grid-template-columns: 96px 100px 1.2fr 130px 140px 110px 120px;
+    gap: 16px;
+    padding: 14px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: rgba(0,0,0,0.30);
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.18em; font-weight: 700;
+    color: #6F7488; text-transform: uppercase;
+  }
+  .feed-bar .left-cluster {
+    display: flex; align-items: center; gap: 14px;
+    color: #F4F2ED; letter-spacing: 0;
+  }
+  .feed-bar .terminal-dots { display: inline-flex; gap: 5px; }
+  .feed-bar .terminal-dots .d { width: 8px; height: 8px; border-radius: 999px; background: rgba(255,255,255,0.16); }
+  .feed-bar .terminal-dots .d.r { background: #E7544A; }
+  .feed-bar .terminal-dots .d.y { background: #E0B33C; }
+  .feed-bar .terminal-dots .d.g { background: #3ACB8E; }
+  .feed-bar .title {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.10em; font-weight: 600; color: #F4F2ED;
+  }
+  .feed-bar .title .pth { color: #6F7488; }
+  .feed-bar .filters { margin-left: auto; display: flex; gap: 6px; }
+  .feed-bar .filters .chip {
+    height: 22px; padding: 0 10px; border-radius: 999px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; font-weight: 600;
+    color: #B6BAC5; text-transform: uppercase;
+  }
+  .feed-bar .filters .chip.active { background: rgba(94,135,232,0.16); color: #B6CFFF; border-color: rgba(94,135,232,0.34); }
+  .feed-bar .filters .chip .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+
+  /* column headers row */
+  .feed-cols {
+    display: grid;
+    grid-template-columns: 96px 100px 1.2fr 130px 140px 110px 120px;
+    gap: 16px;
+    padding: 10px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.20em; font-weight: 700;
+    color: #4E525B; text-transform: uppercase;
+  }
+
+  .feed-rows { display: flex; flex-direction: column; }
+  .feed-row {
+    display: grid;
+    grid-template-columns: 96px 100px 1.2fr 130px 140px 110px 120px;
+    gap: 16px;
+    padding: 14px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    align-items: center;
+    font-family: var(--mono); font-size: 12.5px;
+    color: #F4F2ED;
+    transition: background 0.2s;
+    position: relative;
+  }
+  .feed-row:hover { background: rgba(255,255,255,0.02); }
+  .feed-row.fresh::after {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: #3ACB8E;
+    box-shadow: 0 0 12px rgba(58,203,142,0.6);
+  }
+
+  .ts {
+    color: #6F7488; font-size: 11px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ts .now { color: #5DDDA6; font-weight: 600; }
+
+  .ev {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 22px; padding: 0 10px; border-radius: 999px;
+    font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase;
+    width: fit-content;
+  }
+  .ev .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+  .ev.lock { background: rgba(94,135,232,0.16); color: #79A6FF; }
+  .ev.proof { background: rgba(240,163,101,0.16); color: #F8B987; }
+  .ev.appr { background: rgba(58,203,142,0.16); color: #5DDDA6; }
+  .ev.set { background: #F4F2ED; color: #07090F; }
+  .ev.disp { background: rgba(231,84,74,0.16); color: #FF8278; }
+  .ev.canc { background: rgba(255,255,255,0.06); color: #8A8E98; }
+
+  .ctx {
+    color: #B6BAC5; font-size: 13px; font-family: var(--body);
+    display: flex; align-items: center; gap: 8px; min-width: 0;
+  }
+  .ctx .who { color: #F4F2ED; font-weight: 600; font-family: var(--mono); font-size: 12px; }
+  .ctx .arr { color: #4E525B; }
+  .ctx .gig {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 2px 8px; border-radius: 6px;
+    font-family: var(--body); font-size: 11.5px;
+    color: #B6BAC5;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 100%;
+  }
+  .ctx .cat {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 6px; border-radius: 4px;
+    font-family: var(--body); font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .cat.del { background: rgba(94,135,232,0.16); color: #79A6FF; }
+  .cat.pho { background: rgba(139,92,246,0.18); color: #B69DFF; }
+  .cat.svc { background: rgba(58,203,142,0.16); color: #5DDDA6; }
+  .cat.err { background: rgba(240,163,101,0.16); color: #F8B987; }
+  .cat.dig { background: rgba(224,87,157,0.18); color: #FF8FBC; }
+  .cat.fx  { background: rgba(255,255,255,0.06); color: #B6BAC5; }
+
+  .amt { color: #F4F2ED; font-weight: 600; font-size: 13.5px; letter-spacing: -0.01em; }
+  .amt.dim { color: #6F7488; font-weight: 500; }
+
+  .pair {
+    color: #B6BAC5; font-size: 12px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .pair .ar { color: #4E525B; }
+  .pair .fiat { color: #3ACB8E; }
+
+  .geo {
+    color: #B6BAC5; font-size: 11.5px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .geo .flag { font-family: var(--body); }
+  .geo .corr { color: #6F7488; font-size: 10px; }
+
+  .tx {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px;
+    color: #6F7488;
+    background: rgba(255,255,255,0.03);
+    padding: 4px 8px; border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+    width: fit-content;
+    cursor: pointer;
+    transition: color 0.15s, border 0.15s;
+  }
+  .tx:hover { color: #B6CFFF; border-color: rgba(94,135,232,0.34); }
+  .tx .arr { font-size: 9px; }
+
+  /* feed footer (live counter + tick line) */
+  .feed-foot {
+    display: grid; grid-template-columns: auto 1fr auto auto; gap: 24px; align-items: center;
+    padding: 14px 24px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    background: rgba(0,0,0,0.20);
+    font-family: var(--mono); font-size: 11px; color: #6F7488;
+  }
+  .foot-pill { display: inline-flex; align-items: center; gap: 8px; color: #5DDDA6; font-weight: 600; letter-spacing: 0.08em; }
+  .foot-pill .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 3px rgba(58,203,142,0.22); animation: pulse 1.6s infinite; }
+  .foot-spark { height: 24px; display: flex; align-items: end; gap: 2px; }
+  .foot-spark .b { width: 3px; background: rgba(58,203,142,0.40); border-radius: 1px; }
+  .foot-counter {
+    color: #F4F2ED; font-weight: 600; font-size: 12px;
+    display: inline-flex; align-items: baseline; gap: 6px;
+  }
+  .foot-counter .lbl { color: #6F7488; font-weight: 500; font-size: 10px; letter-spacing: 0.14em; }
+  .foot-link { color: #79A6FF; font-weight: 600; cursor: pointer; }
+
+  /* ===== Aggregate strip (numbers next to feed) ===== */
+  .agg {
+    margin: 32px 80px 0;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative; z-index: 2;
+  }
+  .agg-cell {
+    padding: 24px 28px;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+  }
+  .agg-cell:last-child { border-right: 0; }
+  .agg-k {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; font-weight: 700;
+    color: #6F7488; text-transform: uppercase; margin: 0 0 10px;
+  }
+  .agg-v {
+    font-family: var(--mono); font-size: 32px; font-weight: 600; letter-spacing: -0.025em;
+    color: #F4F2ED; margin: 0; line-height: 1;
+  }
+  .agg-v .unit { font-size: 14px; color: #6F7488; font-weight: 500; margin-left: 4px; }
+  .agg-delta {
+    margin-top: 10px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600; color: #5DDDA6;
+  }
+  .agg-delta .lbl { color: #6F7488; font-weight: 500; }
+
+  /* ===== Mobile compact ===== */
+  .tk-m { padding: 56px 0 64px; }
+  .tk-m .tk-head { padding: 0 20px; grid-template-columns: 1fr; gap: 20px; align-items: start; margin-bottom: 24px; }
+  .tk-m .tk-meta { align-items: flex-start; }
+  .tk-m .tk-h { font-size: 32px; }
+  .tk-m .tk-sub { font-size: 14px; }
+  .tk-m .feed-wrap { margin: 0 16px; border-radius: 14px; }
+  .tk-m .feed-bar {
+    grid-template-columns: 1fr;
+    padding: 12px 14px; gap: 8px;
+  }
+  .tk-m .feed-cols { display: none; }
+  .tk-m .feed-bar .filters { margin-left: 0; flex-wrap: wrap; }
+  .tk-m .feed-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 12px 14px;
+  }
+  .tk-m .feed-row .ctx { font-size: 12.5px; }
+  .tk-m .feed-row .row-meta {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    font-size: 11px;
+  }
+  .tk-m .feed-row .row-meta .l { display: flex; gap: 8px; align-items: center; }
+  .tk-m .feed-row .row-meta .r { display: flex; gap: 8px; align-items: center; color: #6F7488; }
+  .tk-m .feed-foot { grid-template-columns: 1fr; gap: 8px; padding: 12px 14px; }
+  .tk-m .foot-spark { width: 100%; }
+  .tk-m .agg { margin: 20px 16px 0; grid-template-columns: 1fr 1fr; }
+  .tk-m .agg-cell:nth-child(2) { border-right: 0; }
+  .tk-m .agg-cell:nth-child(1), .tk-m .agg-cell:nth-child(2) { border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .tk-m .agg-v { font-size: 24px; }
+</style>
+</head>
+<body>
+
+<header class="canvas-header">
+  <p class="canvas-eyebrow">Tenda · Landing wireframes · §5</p>
+  <h1 class="canvas-title">§5 Live ticker</h1>
+  <p class="canvas-sub">Receipts in motion. A faux-terminal feed of recent on-chain events — gigs locking, proof submitting, trades settling — rendered as an explorer-style table. Continues the dark spine from §3 → §4. Aggregate strip below shows 24h totals.</p>
+  <div class="canvas-meta">
+    <span>1440w desktop · 390w mobile (compressed row)</span>
+    <span>Sits below §4, above §6 Why Tenda</span>
+    <span>Mocked data — every row is plausible (real categories, real corridors, real fee math)</span>
+  </div>
+</header>
+
+<div class="frames">
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">§5</span>
+      <h2>Live ticker · desktop · dark</h2>
+      <span class="desc">Streaming feed inside an explorer card. Latest row glows green-edge. 24h aggregates below.</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-label dark-tag"><span class="dot"></span>1440 · dark</span>
+      <div class="frame-w">
+        <div class="tk">
+
+          <div class="tk-head">
+            <div>
+              <p class="tk-eyebrow"><span class="num">§ 05</span><span>·</span><span>LIVE</span><span class="live"><span class="d"></span>STREAMING</span></p>
+              <h2 class="tk-h">The receipts <span class="dim">don't stop.</span></h2>
+              <p class="tk-sub">Every gig and trade emits one or more on-chain events. This is a live tail — what's settling on Tenda right now.</p>
+            </div>
+            <div class="tk-meta">
+              <div class="tk-meta-row"><span class="k">PROGRAM</span><span class="v"><code>TEnDa…7r2K</code></span></div>
+              <div class="tk-meta-row"><span class="k">BLOCK</span><span class="v">312,481,907</span></div>
+              <div class="tk-meta-row"><span class="k">TPS</span><span class="v gn">~2,840</span></div>
+              <div class="tk-meta-row"><span class="k">SOL</span><span class="v">$182.40 <span style="color:#5DDDA6;">▲ 0.8%</span></span></div>
+            </div>
+          </div>
+
+          <div class="feed-wrap">
+            <div class="feed-bar">
+              <div class="left-cluster">
+                <span class="terminal-dots"><span class="d r"></span><span class="d y"></span><span class="d g"></span></span>
+                <span class="title"><span class="pth">tenda://</span>events.tail</span>
+              </div>
+              <div class="filters">
+                <span class="chip active"><span class="d"></span>ALL</span>
+                <span class="chip">GIGS</span>
+                <span class="chip">EXCHANGE</span>
+                <span class="chip">DISPUTES</span>
+              </div>
+            </div>
+
+            <div class="feed-cols">
+              <span>Time</span>
+              <span>Event</span>
+              <span>Context</span>
+              <span>Amount</span>
+              <span>Pair / Fee</span>
+              <span>Region</span>
+              <span>Tx</span>
+            </div>
+
+            <div class="feed-rows">
+
+              <!-- Latest, glow -->
+              <div class="feed-row fresh">
+                <span class="ts"><span class="now">▸ now</span></span>
+                <span class="ev set"><span class="d"></span>SETTLED</span>
+                <span class="ctx"><span class="cat fx">EXCHG</span><span class="who">@adaeze</span><span class="arr">→</span><span class="who">@kunle</span></span>
+                <span class="amt">2.000 SOL</span>
+                <span class="pair">SOL <span class="ar">↔</span> <span class="fiat">490,000 NGN</span></span>
+                <span class="geo"><span class="flag">🇳🇬</span><span>Lagos</span><span class="corr">· bank</span></span>
+                <span class="tx">5Qf…aL2 <span class="arr">↗</span></span>
+              </div>
+
+              <div class="feed-row">
+                <span class="ts">2s ago</span>
+                <span class="ev lock"><span class="d"></span>LOCKED</span>
+                <span class="ctx"><span class="cat del">DEL</span><span class="gig">Drop laptop · Yaba → Surulere</span></span>
+                <span class="amt">0.50 SOL</span>
+                <span class="pair"><span class="amt dim">fee</span> 0.0125</span>
+                <span class="geo"><span class="flag">🇳🇬</span><span>Lagos</span></span>
+                <span class="tx">9Tk…rNx <span class="arr">↗</span></span>
+              </div>
+
+              <div class="feed-row">
+                <span class="ts">7s ago</span>
+                <span class="ev appr"><span class="d"></span>APPROVED</span>
+                <span class="ctx"><span class="cat svc">SVC</span><span class="gig">Fix bathroom faucet leak · @rashim</span></span>
+                <span class="amt">0.80 SOL</span>
+                <span class="pair"><span class="amt dim">fee</span> 0.0200</span>
+                <span class="geo"><span class="flag">🇰🇪</span><span>Nairobi</span></span>
+                <span class="tx">3Mw…pXq <span class="arr">↗</span></span>
+              </div>
+
+              <div class="feed-row">
+                <span class="ts">14s ago</span>
+                <span class="ev proof"><span class="d"></span>PROOF</span>
+                <span class="ctx"><span class="cat pho">PHOTO</span><span class="gig">Event photos · 2hr shoot</span></span>
+                <span class="amt">1.20 SOL</span>
+                <span class="pair"><span class="amt dim">cid</span> bafy…q9w</span>
+                <span class="geo"><span class="flag">🇬🇭</span><span>Accra</span></span>
+                <span class="tx">7Pa…eN3 <span class="arr">↗</span></span>
+              </div>
+
+              <div class="feed-row">
+                <span class="ts">22s ago</span>
+                <span class="ev set"><span class="d"></span>SETTLED</span>
+                <span class="ctx"><span class="cat fx">EXCHG</span><span class="who">@maya</span><span class="arr">→</span><span class="who">@bongani</span></span>
+                <span class="amt">0.500 SOL</span>
+                <span class="pair">SOL <span class="ar">↔</span> <span class="fiat">1,720 ZAR</span></span>
+                <span class="geo"><span class="flag">🇿🇦</span><span>Cape Town</span><span class="corr">· bank</span></span>
+                <span class="tx">2Hb…yKd <span class="arr">↗</span></span>
+              </div>
+
+              <div class="feed-row">
+                <span class="ts">31s ago</span>
+                <span class="ev lock"><span class="d"></span>LOCKED</span>
+                <span class="ctx"><span class="cat err">ERR</span><span class="gig">Pickup groceries from Shoprite</span></span>
+                <span class="amt">0.18 SOL</span>
+                <span class="pair"><span class="amt dim">fee</span> 0.0045</span>
+                <span class="geo"><span class="flag">🇰🇪</span><span>Nairobi</span></span>
+                <span class="tx">8Yz…cM1 <span class="arr">↗</span></span>
+              </div>
+
+              <div class="feed-row">
+                <span class="ts">47s ago</span>
+                <span class="ev appr"><span class="d"></span>APPROVED</span>
+                <span class="ctx"><span class="cat dig">DIG</span><span class="gig">Translate 3 docs · EN → FR</span></span>
+                <span class="amt">0.35 SOL</span>
+                <span class="pair"><span class="amt dim">fee</span> 0.0087</span>
+                <span class="geo"><span class="flag">🇸🇳</span><span>Dakar</span></span>
+                <span class="tx">4Ww…tQs <span class="arr">↗</span></span>
+              </div>
+
+              <div class="feed-row">
+                <span class="ts">1m ago</span>
+                <span class="ev set"><span class="d"></span>SETTLED</span>
+                <span class="ctx"><span class="cat fx">EXCHG</span><span class="who">@chen</span><span class="arr">→</span><span class="who">@maria</span></span>
+                <span class="amt">5.000 SOL</span>
+                <span class="pair">SOL <span class="ar">↔</span> <span class="fiat">52,400 PHP</span></span>
+                <span class="geo"><span class="flag">🇵🇭</span><span>Manila</span><span class="corr">· GCash</span></span>
+                <span class="tx">6Df…iRu <span class="arr">↗</span></span>
+              </div>
+
+              <div class="feed-row">
+                <span class="ts">1m ago</span>
+                <span class="ev disp"><span class="d"></span>DISPUTE</span>
+                <span class="ctx"><span class="cat del">DEL</span><span class="gig">Package opened on arrival · @lola</span></span>
+                <span class="amt">0.40 SOL</span>
+                <span class="pair"><span class="amt dim">held</span> 0.40</span>
+                <span class="geo"><span class="flag">🇳🇬</span><span>Abuja</span></span>
+                <span class="tx">1Cv…oPt <span class="arr">↗</span></span>
+              </div>
+
+              <div class="feed-row">
+                <span class="ts">2m ago</span>
+                <span class="ev canc"><span class="d"></span>CANCELLED</span>
+                <span class="ctx"><span class="cat svc">SVC</span><span class="gig">Wash 3 shirts · scheduling conflict</span></span>
+                <span class="amt dim">0.12 SOL</span>
+                <span class="pair"><span class="amt dim">refund</span> 0.12</span>
+                <span class="geo"><span class="flag">🇬🇭</span><span>Kumasi</span></span>
+                <span class="tx">0Bn…gWa <span class="arr">↗</span></span>
+              </div>
+            </div>
+
+            <div class="feed-foot">
+              <span class="foot-pill"><span class="d"></span>TAILING · LAST 60s</span>
+              <div class="foot-spark">
+                <span class="b" style="height:30%"></span><span class="b" style="height:55%"></span><span class="b" style="height:42%"></span>
+                <span class="b" style="height:70%"></span><span class="b" style="height:38%"></span><span class="b" style="height:62%"></span>
+                <span class="b" style="height:48%"></span><span class="b" style="height:80%"></span><span class="b" style="height:54%"></span>
+                <span class="b" style="height:65%"></span><span class="b" style="height:44%"></span><span class="b" style="height:72%"></span>
+                <span class="b" style="height:58%"></span><span class="b" style="height:88%"></span><span class="b" style="height:50%"></span>
+                <span class="b" style="height:68%"></span><span class="b" style="height:46%"></span><span class="b" style="height:78%"></span>
+                <span class="b" style="height:60%"></span><span class="b" style="height:92%"></span>
+              </div>
+              <span class="foot-counter"><span class="lbl">EVENTS / MIN</span><b>147</b></span>
+              <span class="foot-link">View on Solscan ↗</span>
+            </div>
+          </div>
+
+          <!-- Aggregate strip -->
+          <div class="agg">
+            <div class="agg-cell">
+              <p class="agg-k">SETTLED · 24h</p>
+              <p class="agg-v">8,412<span class="unit">events</span></p>
+              <span class="agg-delta">▲ 12.4% <span class="lbl">vs yesterday</span></span>
+            </div>
+            <div class="agg-cell">
+              <p class="agg-k">VOLUME · 24h</p>
+              <p class="agg-v">1,847<span class="unit">SOL</span></p>
+              <span class="agg-delta">▲ 8.1% <span class="lbl">≈ $336,876</span></span>
+            </div>
+            <div class="agg-cell">
+              <p class="agg-k">AVG · TIME-TO-RELEASE</p>
+              <p class="agg-v">1.7<span class="unit">sec</span></p>
+              <span class="agg-delta" style="color:#6F7488;">▼ 0.1s <span class="lbl">vs 30d avg</span></span>
+            </div>
+            <div class="agg-cell">
+              <p class="agg-k">DISPUTE · RATE</p>
+              <p class="agg-v">0.31<span class="unit">%</span></p>
+              <span class="agg-delta" style="color:#5DDDA6;">▼ 0.05% <span class="lbl">vs 30d avg</span></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile -->
+    <div class="frame-wrap" style="margin-top: 28px;">
+      <span class="frame-label dark-tag"><span class="dot"></span>390 · dark · mobile</span>
+      <div class="frame-mw">
+        <div class="tk tk-m">
+          <div class="tk-head">
+            <div>
+              <p class="tk-eyebrow" style="font-size: 10px;"><span class="num">§ 05</span><span>·</span><span class="live"><span class="d"></span>STREAMING</span></p>
+              <h2 class="tk-h">The receipts <span class="dim">don't stop.</span></h2>
+              <p class="tk-sub">Live tail of on-chain events — what's settling on Tenda right now.</p>
+            </div>
+            <div class="tk-meta">
+              <div class="tk-meta-row"><span class="k">BLOCK</span><span class="v">312,481,907</span></div>
+              <div class="tk-meta-row"><span class="k">TPS</span><span class="v gn">~2,840</span></div>
+            </div>
+          </div>
+
+          <div class="feed-wrap">
+            <div class="feed-bar">
+              <div class="left-cluster">
+                <span class="terminal-dots"><span class="d r"></span><span class="d y"></span><span class="d g"></span></span>
+                <span class="title"><span class="pth">tenda://</span>events.tail</span>
+              </div>
+              <div class="filters">
+                <span class="chip active"><span class="d"></span>ALL</span>
+                <span class="chip">GIGS</span>
+                <span class="chip">FX</span>
+              </div>
+            </div>
+
+            <div class="feed-rows">
+              <div class="feed-row fresh">
+                <span class="ctx"><span class="cat fx">EXCHG</span><span class="who">@adaeze→@kunle</span></span>
+                <div class="row-meta">
+                  <span class="l"><span class="ev set"><span class="d"></span>SETTLED</span><span class="amt">2.000 SOL</span></span>
+                  <span class="r">🇳🇬 · now</span>
+                </div>
+              </div>
+              <div class="feed-row">
+                <span class="ctx"><span class="cat del">DEL</span><span class="gig">Drop laptop · Yaba</span></span>
+                <div class="row-meta">
+                  <span class="l"><span class="ev lock"><span class="d"></span>LOCKED</span><span class="amt">0.50</span></span>
+                  <span class="r">🇳🇬 · 2s</span>
+                </div>
+              </div>
+              <div class="feed-row">
+                <span class="ctx"><span class="cat svc">SVC</span><span class="gig">Fix faucet · @rashim</span></span>
+                <div class="row-meta">
+                  <span class="l"><span class="ev appr"><span class="d"></span>APPROVED</span><span class="amt">0.80</span></span>
+                  <span class="r">🇰🇪 · 7s</span>
+                </div>
+              </div>
+              <div class="feed-row">
+                <span class="ctx"><span class="cat pho">PHOTO</span><span class="gig">Event photos · 2hr</span></span>
+                <div class="row-meta">
+                  <span class="l"><span class="ev proof"><span class="d"></span>PROOF</span><span class="amt">1.20</span></span>
+                  <span class="r">🇬🇭 · 14s</span>
+                </div>
+              </div>
+              <div class="feed-row">
+                <span class="ctx"><span class="cat fx">EXCHG</span><span class="who">@maya→@bongani</span></span>
+                <div class="row-meta">
+                  <span class="l"><span class="ev set"><span class="d"></span>SETTLED</span><span class="amt">0.500</span></span>
+                  <span class="r">🇿🇦 · 22s</span>
+                </div>
+              </div>
+              <div class="feed-row">
+                <span class="ctx"><span class="cat del">DEL</span><span class="gig">Package opened · @lola</span></span>
+                <div class="row-meta">
+                  <span class="l"><span class="ev disp"><span class="d"></span>DISPUTE</span><span class="amt">0.40</span></span>
+                  <span class="r">🇳🇬 · 1m</span>
+                </div>
+              </div>
+            </div>
+            <div class="feed-foot">
+              <span class="foot-pill"><span class="d"></span>TAILING · LAST 60s · 147 / min</span>
+            </div>
+          </div>
+
+          <div class="agg">
+            <div class="agg-cell">
+              <p class="agg-k">SETTLED 24h</p>
+              <p class="agg-v">8,412</p>
+              <span class="agg-delta">▲ 12.4%</span>
+            </div>
+            <div class="agg-cell">
+              <p class="agg-k">VOLUME 24h</p>
+              <p class="agg-v">1,847<span class="unit">SOL</span></p>
+              <span class="agg-delta">▲ 8.1%</span>
+            </div>
+            <div class="agg-cell">
+              <p class="agg-k">AVG RELEASE</p>
+              <p class="agg-v">1.7<span class="unit">s</span></p>
+              <span class="agg-delta" style="color:#6F7488;">▼ 0.1s</span>
+            </div>
+            <div class="agg-cell">
+              <p class="agg-k">DISPUTE</p>
+              <p class="agg-v">0.31<span class="unit">%</span></p>
+              <span class="agg-delta">▼ 0.05%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">Why a feed, not a stat row</p>
+        Stats can be made up. A feed feels caught — every row is an event with an actor, a place, and a hash. Same persuasion goal as the Hero stat row but with motion + specificity. Where Hero says "fast," this section <em>shows</em> fast.
+      </div>
+      <div class="note">
+        <p class="note-title">Six event types, six pill colors</p>
+        <code>LOCKED</code> blue · <code>PROOF</code> orange · <code>APPROVED</code> green · <code>SETTLED</code> bone-on-black · <code>DISPUTE</code> red · <code>CANCELLED</code> grey. Mirrors the §4 stage palette plus two failure states. Reader builds the lexicon by row 3.
+      </div>
+      <div class="note">
+        <p class="note-title">Plausible data only</p>
+        Every row is checkable: real Tenda category (DEL/PHOTO/SVC/ERR/DIG/EXCHG), real fiat corridor (NGN/GHS/KES/ZAR/PHP), real fee math (2.5%). Includes one DISPUTE and one CANCELLED — failure modes are part of the proof.
+      </div>
+      <div class="note">
+        <p class="note-title">Header chrome = explorer</p>
+        Terminal dots, <code>tenda://events.tail</code> path, filter chips, sparkline footer, "View on Solscan ↗". Visual loan from block-explorer UIs (Solscan, Etherscan) — borrows their authority for free.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Top row slides down from <code>-100%</code>, opacity <code>0→1</code>, green edge fades over <code>1.6s</code>, bottom row drops off — every <code>~3s</code>. <code>prefers-reduced-motion</code> swaps to a static "last 10 events." Sparkline cycles bars left→right (<code>200ms</code> step). LIVE dot pulses (1.6s).
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Spacing</p>
+        Section <code>80 0 88</code>. Head pad <code>0 80</code>. Feed margin <code>0 80</code>. Card radius <code>20</code>. Row grid <code>96·100·1.2fr·130·140·110·120</code> gap <code>16</code> pad <code>14 24</code>. Aggregate <code>4 cells · 24 28</code>.
+      </div>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>

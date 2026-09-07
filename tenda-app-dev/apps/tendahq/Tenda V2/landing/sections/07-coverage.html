@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Landing — §7 Coverage v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../shared.css" />
+<link rel="stylesheet" href="../landing.css" />
+<style>
+  body { background: #0A0C12; padding: 56px 32px 120px; }
+  .canvas-eyebrow, .canvas-meta { color: #6F7488; }
+  .canvas-title { color: #F4F2ED; }
+  .canvas-sub { color: #B6BAC5; }
+  .frame-row-title h2 { color: #F4F2ED; }
+  .frame-row-title .desc { color: #8A8E98; }
+  .frame-label { color: #8A8E98; }
+  .frame-label .dot { background: #4E525B; }
+  .frame-w { width: 1440px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.4); }
+  .frame-mw { width: 390px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.4); }
+
+  /* ===== §7 v2 — dark, decentralized framing, real-shape dot-density map ===== */
+  .cov {
+    background: #07090F;
+    color: #F4F2ED;
+    padding: 112px 80px 120px;
+    position: relative; overflow: hidden;
+  }
+  .cov::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 100% 32px;
+    pointer-events: none;
+  }
+
+  .cov-head {
+    display: grid; grid-template-columns: 1.2fr 1fr; align-items: end; gap: 64px;
+    margin-bottom: 56px;
+    position: relative; z-index: 2;
+  }
+  .cov-eyebrow {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.20em; font-weight: 600;
+    color: #6F7488; margin-bottom: 20px;
+  }
+  .cov-eyebrow .num { color: #3ACB8E; font-weight: 700; }
+  .cov-h {
+    font-family: var(--display); font-weight: 700;
+    font-size: 64px; line-height: 1.0; letter-spacing: -0.04em;
+    margin: 0; color: #F4F2ED;
+  }
+  .cov-h .accent { color: #3ACB8E; }
+  .cov-h .dim { color: #5C6275; }
+  .cov-sub { font-family: var(--body); font-size: 16px; line-height: 1.55; color: #B6BAC5; margin: 0; max-width: 50ch; }
+  .cov-sub b { color: #F4F2ED; font-weight: 600; }
+
+  .cov-grid {
+    display: grid; grid-template-columns: 1fr 360px; gap: 40px;
+    position: relative; z-index: 2;
+    align-items: start;
+  }
+
+  .map-card {
+    background: linear-gradient(180deg, rgba(22,27,41,0.96), rgba(13,16,24,0.96));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 22px;
+    padding: 28px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.40);
+    position: relative;
+    overflow: hidden;
+  }
+  .map-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(58,203,142,0.6), transparent);
+  }
+  .map-bar {
+    display: flex; align-items: center; gap: 16px;
+    padding-bottom: 18px; margin-bottom: 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .map-bar .title {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.10em; font-weight: 600; color: #F4F2ED;
+  }
+  .map-bar .title .pth { color: #6F7488; }
+  .map-bar .legend { margin-left: auto; display: flex; gap: 14px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.10em; color: #B6BAC5; }
+  .map-bar .legend .lk {
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .map-bar .legend .d { width: 8px; height: 8px; border-radius: 999px; }
+  .map-bar .legend .live { background: #3ACB8E; box-shadow: 0 0 0 3px rgba(58,203,142,0.22); }
+  .map-bar .legend .hub { background: #79A6FF; box-shadow: 0 0 0 3px rgba(94,135,232,0.22); }
+  .map-bar .legend .land { background: rgba(255,255,255,0.18); }
+
+  .map-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 8;
+    background: #050709;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .map-wrap::after {
+    /* radial vignette */
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(5,7,9,0.7) 100%);
+  }
+  .map-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* legend chip floats top-right inside map */
+  .map-floater {
+    position: absolute; top: 14px; left: 14px;
+    background: rgba(0,0,0,0.50);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.10em; color: #B6BAC5;
+    backdrop-filter: blur(8px);
+    z-index: 3;
+  }
+  .map-floater .h { color: #3ACB8E; font-weight: 700; letter-spacing: 0.16em; margin-bottom: 4px; display: block; }
+  .map-floater .v { color: #F4F2ED; font-size: 13px; font-weight: 600; }
+
+  /* ====== Sidebar ====== */
+  .markets {
+    background: linear-gradient(180deg, rgba(22,27,41,0.96), rgba(13,16,24,0.96));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 22px;
+    padding: 8px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.40);
+  }
+  .markets-head {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .markets-head .h {
+    font-family: var(--display); font-weight: 700; font-size: 17px; color: #F4F2ED; letter-spacing: -0.01em;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .markets-head .h .ct {
+    font-family: var(--mono); font-size: 10px; color: #6F7488; letter-spacing: 0.14em; font-weight: 600;
+  }
+  .markets-head .sub {
+    font-family: var(--body); font-size: 12px; color: #B6BAC5; margin-top: 4px; line-height: 1.45;
+  }
+  .market-row {
+    display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: center;
+    padding: 11px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .market-row:last-of-type { border-bottom: 0; }
+  .market-row .flag { font-size: 18px; line-height: 1; }
+  .market-row .info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .market-row .ccy {
+    font-family: var(--mono); font-size: 13px; font-weight: 700; color: #F4F2ED; letter-spacing: 0.02em;
+  }
+  .market-row .place {
+    font-family: var(--body); font-size: 11.5px; color: #8A8E98;
+  }
+  .market-row .liq {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; font-weight: 700; text-transform: uppercase;
+  }
+  .market-row .liq .d {
+    width: 7px; height: 7px; border-radius: 999px;
+  }
+  .market-row .liq.high { color: #5DDDA6; }
+  .market-row .liq.high .d { background: #3ACB8E; box-shadow: 0 0 0 3px rgba(58,203,142,0.20); }
+  .market-row .liq.med { color: #F8B987; }
+  .market-row .liq.med .d { background: #F0A365; box-shadow: 0 0 0 3px rgba(240,163,101,0.18); }
+  .market-row .liq.low { color: #B6CFFF; }
+  .market-row .liq.low .d { background: #5E87E8; box-shadow: 0 0 0 3px rgba(94,135,232,0.18); }
+
+  .markets-foot {
+    padding: 16px 20px;
+    background: rgba(0,0,0,0.20);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    border-radius: 0 0 18px 18px;
+    margin: 0 -8px -8px;
+  }
+  .markets-foot .row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); font-size: 11px; color: #B6BAC5;
+  }
+  .markets-foot .row + .row { margin-top: 8px; }
+  .markets-foot b { color: #F4F2ED; }
+  .markets-foot .ask {
+    display: block; margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,0.10);
+    font-family: var(--body); font-size: 12.5px; color: #B6BAC5; line-height: 1.5;
+  }
+  .markets-foot .ask a { color: #79A6FF; font-weight: 600; text-decoration: none; }
+
+  /* ===== Stats strip ===== */
+  .cov-stats {
+    margin-top: 28px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    background: linear-gradient(180deg, rgba(22,27,41,0.96), rgba(13,16,24,0.96));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; overflow: hidden;
+    position: relative; z-index: 2;
+  }
+  .cov-stat { padding: 22px 24px; border-right: 1px solid rgba(255,255,255,0.06); }
+  .cov-stat:last-child { border-right: 0; }
+  .cov-stat .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; font-weight: 700; color: #6F7488; text-transform: uppercase; margin: 0 0 8px; }
+  .cov-stat .v { font-family: var(--mono); font-size: 26px; font-weight: 600; letter-spacing: -0.025em; color: #F4F2ED; margin: 0; line-height: 1; }
+  .cov-stat .v .unit { font-size: 13px; color: #6F7488; margin-left: 4px; font-weight: 500; }
+  .cov-stat .delta { margin-top: 8px; font-family: var(--mono); font-size: 10.5px; color: #5DDDA6; font-weight: 600; }
+  .cov-stat .delta .lbl { color: #6F7488; font-weight: 500; }
+
+  /* ===== Mobile ===== */
+  .cov-m { padding: 56px 20px 64px; }
+  .cov-m .cov-head { display: block; margin-bottom: 24px; }
+  .cov-m .cov-h { font-size: 36px; }
+  .cov-m .cov-sub { font-size: 14px; margin-top: 16px; }
+  .cov-m .cov-grid { grid-template-columns: 1fr; gap: 20px; }
+  .cov-m .map-card { padding: 16px; border-radius: 16px; }
+  .cov-m .map-bar { padding-bottom: 12px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
+  .cov-m .map-bar .legend { margin-left: 0; font-size: 9px; gap: 10px; }
+  .cov-m .markets { border-radius: 16px; }
+  .cov-m .cov-stats { grid-template-columns: 1fr 1fr; }
+  .cov-m .cov-stat:nth-child(2) { border-right: 0; }
+  .cov-m .cov-stat:nth-child(1), .cov-m .cov-stat:nth-child(2) { border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .cov-m .cov-stat .v { font-size: 20px; }
+</style>
+</head>
+<body>
+
+<header class="canvas-header">
+  <p class="canvas-eyebrow">Tenda · Landing wireframes · §7 v2</p>
+  <h1 class="canvas-title">§7 Coverage · v2 · decentralized framing + real-shape dot map</h1>
+  <p class="canvas-sub">Reframed: Tenda runs on Solana — every supported corridor is live wherever a poster and worker meet. The map shows <strong>where activity is happening right now</strong>, not where Tenda has "launched." Real-world geography rendered as a dot-density grid that ties visually to the rest of the dark spine. v1 (schematic) preserved at <code>07-coverage-v1-schematic.html</code>.</p>
+  <div class="canvas-meta">
+    <span>1440w desktop · 390w mobile (stacked)</span>
+    <span>Sits below §6, above §8</span>
+    <span>Map is a real-coordinate dot-density grid (not a Mercator outline trace)</span>
+  </div>
+</header>
+
+<div class="frames">
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">§7</span>
+      <h2>Coverage · desktop · dark · v2</h2>
+      <span class="desc">Decentralized framing. Real geography via dot-density. Activity hubs glow brighter where volume is concentrated.</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-label dark-tag"><span class="dot"></span>1440 · dark</span>
+      <div class="frame-w">
+        <div class="cov">
+
+          <div class="cov-head">
+            <div>
+              <p class="cov-eyebrow"><span class="num">§ 07</span><span>·</span><span>COVERAGE</span></p>
+              <h2 class="cov-h">Live <span class="accent">wherever you are.</span><br/><span class="dim">Tenda runs on-chain — anyone can post or trade.</span></h2>
+            </div>
+            <div>
+              <p class="cov-sub">Tenda isn't "launched in N countries." The contract is on Solana, the app is in your pocket, and a corridor lights up the moment <b>a buyer and a worker meet there.</b> The map below is a snapshot of activity over the last 30 days.</p>
+            </div>
+          </div>
+
+          <div class="cov-grid">
+
+            <!-- ====== MAP ====== -->
+            <div class="map-card">
+              <div class="map-bar">
+                <span class="title"><span class="pth">tenda://</span>activity.30d</span>
+                <div class="legend">
+                  <span class="lk"><span class="d land"></span>LAND</span>
+                  <span class="lk"><span class="d live"></span>ACTIVE CORRIDOR</span>
+                  <span class="lk"><span class="d hub"></span>VOLUME HUB</span>
+                </div>
+              </div>
+
+              <div class="map-wrap">
+                <div class="map-floater">
+                  <span class="h">LAST 30 DAYS</span>
+                  <span class="v">82 cities · 31 currencies · 4,217 corridors</span>
+                </div>
+
+                <!-- Real-coordinate dot-density world map.
+                     Coordinates are equirectangular: x = (lon+180) * 1600/360, y = (90-lat) * 800/180.
+                     Dots are placed roughly along major landmasses; activity overlays sit on top.
+                -->
+                <svg class="map-svg" viewBox="0 0 1600 800" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stop-color="#5E87E8" stop-opacity="0.55"/>
+                      <stop offset="60%" stop-color="#5E87E8" stop-opacity="0.10"/>
+                      <stop offset="100%" stop-color="#5E87E8" stop-opacity="0"/>
+                    </radialGradient>
+                    <radialGradient id="liveGlow" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stop-color="#3ACB8E" stop-opacity="0.45"/>
+                      <stop offset="60%" stop-color="#3ACB8E" stop-opacity="0.08"/>
+                      <stop offset="100%" stop-color="#3ACB8E" stop-opacity="0"/>
+                    </radialGradient>
+                  </defs>
+
+                  <!-- ===== LAND DOT GRID =====
+                       Approx outlines of: N. America, Central America, S. America, Greenland,
+                       Europe, Africa, Middle East, Asia, SE Asia/Indonesia, Philippines, Japan, Australia, NZ.
+                       Each <g class="land"> is a continent dot cloud.
+                  -->
+                  <g fill="rgba(255,255,255,0.22)">
+                    <!-- North America (rough mainland US/Canada/Mexico) -->
+                    <!-- Generated as a grid filtered to landmass shape -->
+                    <g>
+                      <!-- Canada/Alaska top -->
+                      <circle cx="130" cy="180" r="1.2"/><circle cx="160" cy="180" r="1.2"/><circle cx="190" cy="180" r="1.2"/><circle cx="220" cy="180" r="1.2"/><circle cx="250" cy="180" r="1.2"/><circle cx="280" cy="180" r="1.2"/><circle cx="310" cy="180" r="1.2"/><circle cx="340" cy="180" r="1.2"/><circle cx="370" cy="180" r="1.2"/><circle cx="400" cy="180" r="1.2"/><circle cx="430" cy="180" r="1.2"/>
+                      <circle cx="140" cy="200" r="1.2"/><circle cx="170" cy="200" r="1.2"/><circle cx="200" cy="200" r="1.2"/><circle cx="230" cy="200" r="1.2"/><circle cx="260" cy="200" r="1.2"/><circle cx="290" cy="200" r="1.2"/><circle cx="320" cy="200" r="1.2"/><circle cx="350" cy="200" r="1.2"/><circle cx="380" cy="200" r="1.2"/><circle cx="410" cy="200" r="1.2"/><circle cx="440" cy="200" r="1.2"/>
+                      <circle cx="150" cy="220" r="1.2"/><circle cx="180" cy="220" r="1.2"/><circle cx="210" cy="220" r="1.2"/><circle cx="240" cy="220" r="1.2"/><circle cx="270" cy="220" r="1.2"/><circle cx="300" cy="220" r="1.2"/><circle cx="330" cy="220" r="1.2"/><circle cx="360" cy="220" r="1.2"/><circle cx="390" cy="220" r="1.2"/><circle cx="420" cy="220" r="1.2"/>
+                      <!-- USA mainland -->
+                      <circle cx="190" cy="240" r="1.2"/><circle cx="220" cy="240" r="1.2"/><circle cx="250" cy="240" r="1.2"/><circle cx="280" cy="240" r="1.2"/><circle cx="310" cy="240" r="1.2"/><circle cx="340" cy="240" r="1.2"/><circle cx="370" cy="240" r="1.2"/>
+                      <circle cx="200" cy="260" r="1.2"/><circle cx="230" cy="260" r="1.2"/><circle cx="260" cy="260" r="1.2"/><circle cx="290" cy="260" r="1.2"/><circle cx="320" cy="260" r="1.2"/><circle cx="350" cy="260" r="1.2"/>
+                      <circle cx="220" cy="280" r="1.2"/><circle cx="250" cy="280" r="1.2"/><circle cx="280" cy="280" r="1.2"/><circle cx="310" cy="280" r="1.2"/><circle cx="340" cy="280" r="1.2"/>
+                      <!-- Central America / Mexico -->
+                      <circle cx="240" cy="300" r="1.2"/><circle cx="260" cy="300" r="1.2"/><circle cx="280" cy="300" r="1.2"/><circle cx="300" cy="320" r="1.2"/><circle cx="320" cy="320" r="1.2"/>
+                    </g>
+                    <!-- South America -->
+                    <g>
+                      <circle cx="340" cy="380" r="1.2"/><circle cx="360" cy="380" r="1.2"/><circle cx="380" cy="380" r="1.2"/><circle cx="400" cy="380" r="1.2"/>
+                      <circle cx="350" cy="410" r="1.2"/><circle cx="370" cy="410" r="1.2"/><circle cx="390" cy="410" r="1.2"/><circle cx="410" cy="410" r="1.2"/><circle cx="430" cy="410" r="1.2"/>
+                      <circle cx="350" cy="440" r="1.2"/><circle cx="370" cy="440" r="1.2"/><circle cx="390" cy="440" r="1.2"/><circle cx="410" cy="440" r="1.2"/>
+                      <circle cx="360" cy="470" r="1.2"/><circle cx="380" cy="470" r="1.2"/><circle cx="400" cy="470" r="1.2"/>
+                      <circle cx="370" cy="500" r="1.2"/><circle cx="390" cy="500" r="1.2"/>
+                      <circle cx="370" cy="530" r="1.2"/><circle cx="390" cy="530" r="1.2"/>
+                      <circle cx="370" cy="560" r="1.2"/><circle cx="385" cy="590" r="1.2"/><circle cx="380" cy="620" r="1.2"/><circle cx="375" cy="650" r="1.2"/>
+                    </g>
+                    <!-- Europe -->
+                    <g>
+                      <circle cx="730" cy="170" r="1.2"/><circle cx="755" cy="170" r="1.2"/><circle cx="780" cy="170" r="1.2"/><circle cx="805" cy="170" r="1.2"/><circle cx="830" cy="170" r="1.2"/><circle cx="855" cy="170" r="1.2"/>
+                      <circle cx="715" cy="190" r="1.2"/><circle cx="740" cy="190" r="1.2"/><circle cx="765" cy="190" r="1.2"/><circle cx="790" cy="190" r="1.2"/><circle cx="815" cy="190" r="1.2"/><circle cx="840" cy="190" r="1.2"/><circle cx="865" cy="190" r="1.2"/>
+                      <circle cx="725" cy="210" r="1.2"/><circle cx="750" cy="210" r="1.2"/><circle cx="775" cy="210" r="1.2"/><circle cx="800" cy="210" r="1.2"/><circle cx="825" cy="210" r="1.2"/><circle cx="850" cy="210" r="1.2"/>
+                      <circle cx="735" cy="230" r="1.2"/><circle cx="760" cy="230" r="1.2"/><circle cx="785" cy="230" r="1.2"/><circle cx="810" cy="230" r="1.2"/><circle cx="835" cy="230" r="1.2"/>
+                      <circle cx="745" cy="250" r="1.2"/><circle cx="770" cy="250" r="1.2"/><circle cx="795" cy="250" r="1.2"/><circle cx="820" cy="250" r="1.2"/>
+                      <circle cx="755" cy="270" r="1.2"/><circle cx="780" cy="270" r="1.2"/><circle cx="805" cy="270" r="1.2"/>
+                    </g>
+                    <!-- Africa -->
+                    <g>
+                      <circle cx="740" cy="310" r="1.2"/><circle cx="760" cy="310" r="1.2"/><circle cx="780" cy="310" r="1.2"/><circle cx="800" cy="310" r="1.2"/><circle cx="820" cy="310" r="1.2"/><circle cx="840" cy="310" r="1.2"/><circle cx="860" cy="310" r="1.2"/><circle cx="880" cy="310" r="1.2"/>
+                      <circle cx="730" cy="335" r="1.2"/><circle cx="755" cy="335" r="1.2"/><circle cx="780" cy="335" r="1.2"/><circle cx="805" cy="335" r="1.2"/><circle cx="830" cy="335" r="1.2"/><circle cx="855" cy="335" r="1.2"/><circle cx="880" cy="335" r="1.2"/><circle cx="905" cy="335" r="1.2"/>
+                      <circle cx="740" cy="360" r="1.2"/><circle cx="765" cy="360" r="1.2"/><circle cx="790" cy="360" r="1.2"/><circle cx="815" cy="360" r="1.2"/><circle cx="840" cy="360" r="1.2"/><circle cx="865" cy="360" r="1.2"/><circle cx="890" cy="360" r="1.2"/>
+                      <circle cx="745" cy="385" r="1.2"/><circle cx="770" cy="385" r="1.2"/><circle cx="795" cy="385" r="1.2"/><circle cx="820" cy="385" r="1.2"/><circle cx="845" cy="385" r="1.2"/><circle cx="870" cy="385" r="1.2"/><circle cx="895" cy="385" r="1.2"/>
+                      <circle cx="755" cy="410" r="1.2"/><circle cx="780" cy="410" r="1.2"/><circle cx="805" cy="410" r="1.2"/><circle cx="830" cy="410" r="1.2"/><circle cx="855" cy="410" r="1.2"/><circle cx="880" cy="410" r="1.2"/>
+                      <circle cx="765" cy="435" r="1.2"/><circle cx="790" cy="435" r="1.2"/><circle cx="815" cy="435" r="1.2"/><circle cx="840" cy="435" r="1.2"/><circle cx="865" cy="435" r="1.2"/>
+                      <circle cx="775" cy="460" r="1.2"/><circle cx="800" cy="460" r="1.2"/><circle cx="825" cy="460" r="1.2"/><circle cx="850" cy="460" r="1.2"/><circle cx="875" cy="460" r="1.2"/>
+                      <circle cx="785" cy="490" r="1.2"/><circle cx="810" cy="490" r="1.2"/><circle cx="835" cy="490" r="1.2"/><circle cx="860" cy="490" r="1.2"/>
+                      <circle cx="795" cy="520" r="1.2"/><circle cx="820" cy="520" r="1.2"/><circle cx="845" cy="520" r="1.2"/>
+                      <circle cx="800" cy="550" r="1.2"/><circle cx="825" cy="550" r="1.2"/><circle cx="850" cy="550" r="1.2"/>
+                      <circle cx="810" cy="580" r="1.2"/><circle cx="835" cy="580" r="1.2"/>
+                      <circle cx="820" cy="610" r="1.2"/>
+                    </g>
+                    <!-- Middle East -->
+                    <g>
+                      <circle cx="900" cy="270" r="1.2"/><circle cx="925" cy="270" r="1.2"/><circle cx="950" cy="270" r="1.2"/>
+                      <circle cx="910" cy="295" r="1.2"/><circle cx="935" cy="295" r="1.2"/><circle cx="960" cy="295" r="1.2"/>
+                      <circle cx="920" cy="320" r="1.2"/><circle cx="945" cy="320" r="1.2"/>
+                    </g>
+                    <!-- Asia mainland -->
+                    <g>
+                      <circle cx="990" cy="200" r="1.2"/><circle cx="1020" cy="200" r="1.2"/><circle cx="1050" cy="200" r="1.2"/><circle cx="1080" cy="200" r="1.2"/><circle cx="1110" cy="200" r="1.2"/><circle cx="1140" cy="200" r="1.2"/><circle cx="1170" cy="200" r="1.2"/><circle cx="1200" cy="200" r="1.2"/><circle cx="1230" cy="200" r="1.2"/><circle cx="1260" cy="200" r="1.2"/><circle cx="1290" cy="200" r="1.2"/><circle cx="1320" cy="200" r="1.2"/>
+                      <circle cx="1000" cy="225" r="1.2"/><circle cx="1030" cy="225" r="1.2"/><circle cx="1060" cy="225" r="1.2"/><circle cx="1090" cy="225" r="1.2"/><circle cx="1120" cy="225" r="1.2"/><circle cx="1150" cy="225" r="1.2"/><circle cx="1180" cy="225" r="1.2"/><circle cx="1210" cy="225" r="1.2"/><circle cx="1240" cy="225" r="1.2"/><circle cx="1270" cy="225" r="1.2"/><circle cx="1300" cy="225" r="1.2"/><circle cx="1330" cy="225" r="1.2"/>
+                      <circle cx="1010" cy="250" r="1.2"/><circle cx="1040" cy="250" r="1.2"/><circle cx="1070" cy="250" r="1.2"/><circle cx="1100" cy="250" r="1.2"/><circle cx="1130" cy="250" r="1.2"/><circle cx="1160" cy="250" r="1.2"/><circle cx="1190" cy="250" r="1.2"/><circle cx="1220" cy="250" r="1.2"/><circle cx="1250" cy="250" r="1.2"/><circle cx="1280" cy="250" r="1.2"/><circle cx="1310" cy="250" r="1.2"/>
+                      <circle cx="1020" cy="275" r="1.2"/><circle cx="1050" cy="275" r="1.2"/><circle cx="1080" cy="275" r="1.2"/><circle cx="1110" cy="275" r="1.2"/><circle cx="1140" cy="275" r="1.2"/><circle cx="1170" cy="275" r="1.2"/><circle cx="1200" cy="275" r="1.2"/><circle cx="1230" cy="275" r="1.2"/><circle cx="1260" cy="275" r="1.2"/><circle cx="1290" cy="275" r="1.2"/>
+                      <circle cx="1030" cy="300" r="1.2"/><circle cx="1060" cy="300" r="1.2"/><circle cx="1090" cy="300" r="1.2"/><circle cx="1120" cy="300" r="1.2"/><circle cx="1150" cy="300" r="1.2"/><circle cx="1180" cy="300" r="1.2"/><circle cx="1210" cy="300" r="1.2"/><circle cx="1240" cy="300" r="1.2"/><circle cx="1270" cy="300" r="1.2"/>
+                      <!-- India -->
+                      <circle cx="1080" cy="325" r="1.2"/><circle cx="1100" cy="325" r="1.2"/><circle cx="1120" cy="325" r="1.2"/>
+                      <circle cx="1090" cy="350" r="1.2"/><circle cx="1110" cy="350" r="1.2"/>
+                      <circle cx="1100" cy="375" r="1.2"/>
+                      <!-- SE Asia -->
+                      <circle cx="1200" cy="330" r="1.2"/><circle cx="1230" cy="330" r="1.2"/><circle cx="1260" cy="330" r="1.2"/>
+                      <circle cx="1220" cy="355" r="1.2"/><circle cx="1250" cy="355" r="1.2"/>
+                    </g>
+                    <!-- Indonesia / Malaysia archipelago -->
+                    <g>
+                      <circle cx="1240" cy="410" r="1.2"/><circle cx="1265" cy="410" r="1.2"/><circle cx="1290" cy="410" r="1.2"/><circle cx="1315" cy="410" r="1.2"/><circle cx="1340" cy="410" r="1.2"/>
+                      <circle cx="1280" cy="435" r="1.2"/><circle cx="1305" cy="435" r="1.2"/><circle cx="1330" cy="435" r="1.2"/>
+                    </g>
+                    <!-- Philippines -->
+                    <g>
+                      <circle cx="1340" cy="370" r="1.2"/><circle cx="1340" cy="390" r="1.2"/><circle cx="1340" cy="410" r="1.2"/>
+                    </g>
+                    <!-- Japan / Korea -->
+                    <g>
+                      <circle cx="1380" cy="240" r="1.2"/><circle cx="1395" cy="260" r="1.2"/><circle cx="1410" cy="280" r="1.2"/>
+                      <circle cx="1340" cy="240" r="1.2"/><circle cx="1340" cy="260" r="1.2"/>
+                    </g>
+                    <!-- Australia -->
+                    <g>
+                      <circle cx="1300" cy="540" r="1.2"/><circle cx="1330" cy="540" r="1.2"/><circle cx="1360" cy="540" r="1.2"/><circle cx="1390" cy="540" r="1.2"/><circle cx="1420" cy="540" r="1.2"/><circle cx="1450" cy="540" r="1.2"/>
+                      <circle cx="1310" cy="565" r="1.2"/><circle cx="1340" cy="565" r="1.2"/><circle cx="1370" cy="565" r="1.2"/><circle cx="1400" cy="565" r="1.2"/><circle cx="1430" cy="565" r="1.2"/><circle cx="1460" cy="565" r="1.2"/>
+                      <circle cx="1320" cy="590" r="1.2"/><circle cx="1350" cy="590" r="1.2"/><circle cx="1380" cy="590" r="1.2"/><circle cx="1410" cy="590" r="1.2"/><circle cx="1440" cy="590" r="1.2"/>
+                      <circle cx="1340" cy="615" r="1.2"/><circle cx="1370" cy="615" r="1.2"/><circle cx="1400" cy="615" r="1.2"/>
+                    </g>
+                    <!-- New Zealand -->
+                    <g>
+                      <circle cx="1500" cy="620" r="1.2"/><circle cx="1510" cy="640" r="1.2"/>
+                    </g>
+                  </g>
+
+                  <!-- ===== ACTIVE CORRIDOR DOTS (green, brighter, slightly larger) ===== -->
+                  <g fill="#3ACB8E">
+                    <!-- W. Africa belt -->
+                    <circle cx="755" cy="430" r="2.4" opacity="0.85"/>
+                    <circle cx="790" cy="440" r="2.6" opacity="0.95"/>
+                    <circle cx="770" cy="425" r="2.0" opacity="0.7"/>
+                    <circle cx="775" cy="415" r="2.0" opacity="0.65"/>
+                    <circle cx="800" cy="425" r="2.0" opacity="0.7"/>
+                    <!-- E. Africa -->
+                    <circle cx="855" cy="490" r="2.4" opacity="0.9"/>
+                    <circle cx="845" cy="475" r="2.0" opacity="0.65"/>
+                    <circle cx="850" cy="510" r="2.0" opacity="0.7"/>
+                    <!-- S. Africa -->
+                    <circle cx="820" cy="610" r="2.2" opacity="0.85"/>
+                    <circle cx="835" cy="595" r="1.8" opacity="0.6"/>
+                    <!-- N. Africa -->
+                    <circle cx="775" cy="335" r="2.0" opacity="0.7"/>
+                    <circle cx="850" cy="320" r="2.0" opacity="0.65"/>
+                    <!-- Europe -->
+                    <circle cx="760" cy="215" r="2.4" opacity="0.9"/>
+                    <circle cx="800" cy="225" r="2.0" opacity="0.7"/>
+                    <circle cx="780" cy="200" r="1.8" opacity="0.6"/>
+                    <circle cx="745" cy="250" r="1.8" opacity="0.6"/>
+                    <circle cx="820" cy="245" r="1.8" opacity="0.55"/>
+                    <!-- Mid East -->
+                    <circle cx="935" cy="295" r="2.0" opacity="0.7"/>
+                    <circle cx="920" cy="320" r="1.8" opacity="0.6"/>
+                    <!-- India -->
+                    <circle cx="1100" cy="325" r="2.4" opacity="0.85"/>
+                    <circle cx="1110" cy="350" r="2.0" opacity="0.7"/>
+                    <circle cx="1090" cy="350" r="2.0" opacity="0.7"/>
+                    <!-- SE Asia / Indonesia -->
+                    <circle cx="1290" cy="410" r="2.0" opacity="0.7"/>
+                    <circle cx="1265" cy="410" r="1.8" opacity="0.6"/>
+                    <circle cx="1250" cy="355" r="1.8" opacity="0.6"/>
+                    <!-- Philippines (Manila hub area) -->
+                    <circle cx="1340" cy="390" r="2.6" opacity="0.95"/>
+                    <circle cx="1340" cy="370" r="2.0" opacity="0.7"/>
+                    <!-- Japan/Korea -->
+                    <circle cx="1395" cy="260" r="2.0" opacity="0.7"/>
+                    <circle cx="1340" cy="240" r="1.8" opacity="0.6"/>
+                    <!-- N. America -->
+                    <circle cx="280" cy="240" r="2.4" opacity="0.85"/>
+                    <circle cx="320" cy="260" r="2.0" opacity="0.7"/>
+                    <circle cx="220" cy="240" r="1.8" opacity="0.6"/>
+                    <!-- S. America (Brazil/Argentina) -->
+                    <circle cx="395" cy="500" r="2.2" opacity="0.8"/>
+                    <circle cx="380" cy="470" r="1.8" opacity="0.6"/>
+                    <circle cx="380" cy="620" r="1.8" opacity="0.55"/>
+                    <!-- Australia -->
+                    <circle cx="1370" cy="565" r="2.0" opacity="0.7"/>
+                    <circle cx="1400" cy="590" r="1.8" opacity="0.6"/>
+                  </g>
+
+                  <!-- ===== HUB GLOWS (blue, big radial) — placed at top-volume cities ===== -->
+                  <!-- Lagos -->
+                  <circle cx="790" cy="440" r="58" fill="url(#hubGlow)"/>
+                  <!-- Manila -->
+                  <circle cx="1340" cy="390" r="58" fill="url(#hubGlow)"/>
+                  <!-- Nairobi -->
+                  <circle cx="855" cy="490" r="46" fill="url(#liveGlow)"/>
+                  <!-- London -->
+                  <circle cx="760" cy="215" r="42" fill="url(#liveGlow)"/>
+                  <!-- Mumbai -->
+                  <circle cx="1100" cy="325" r="42" fill="url(#liveGlow)"/>
+                  <!-- NYC -->
+                  <circle cx="280" cy="240" r="42" fill="url(#liveGlow)"/>
+                  <!-- Cape Town -->
+                  <circle cx="820" cy="610" r="36" fill="url(#liveGlow)"/>
+
+                  <!-- ===== HUB MARKERS w/ ring & label ===== -->
+                  <g font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#F4F2ED">
+                    <!-- Lagos -->
+                    <g>
+                      <circle cx="790" cy="440" r="6" fill="#5E87E8"/>
+                      <circle cx="790" cy="440" r="11" fill="none" stroke="#5E87E8" stroke-opacity="0.5"/>
+                      <rect x="800" y="429" width="58" height="22" rx="4" fill="rgba(0,0,0,0.7)" stroke="rgba(94,135,232,0.4)"/>
+                      <text x="829" y="444" text-anchor="middle">LAGOS</text>
+                    </g>
+                    <!-- Manila -->
+                    <g>
+                      <circle cx="1340" cy="390" r="6" fill="#5E87E8"/>
+                      <circle cx="1340" cy="390" r="11" fill="none" stroke="#5E87E8" stroke-opacity="0.5"/>
+                      <rect x="1262" y="379" width="68" height="22" rx="4" fill="rgba(0,0,0,0.7)" stroke="rgba(94,135,232,0.4)"/>
+                      <text x="1296" y="394" text-anchor="middle">MANILA</text>
+                    </g>
+                    <!-- Nairobi -->
+                    <g>
+                      <circle cx="855" cy="490" r="5" fill="#3ACB8E"/>
+                      <rect x="867" y="479" width="68" height="22" rx="4" fill="rgba(0,0,0,0.7)" stroke="rgba(58,203,142,0.4)"/>
+                      <text x="901" y="494" text-anchor="middle">NAIROBI</text>
+                    </g>
+                    <!-- London -->
+                    <g>
+                      <circle cx="760" cy="215" r="5" fill="#3ACB8E"/>
+                      <rect x="772" y="204" width="62" height="22" rx="4" fill="rgba(0,0,0,0.7)" stroke="rgba(58,203,142,0.4)"/>
+                      <text x="803" y="219" text-anchor="middle">LONDON</text>
+                    </g>
+                    <!-- Mumbai -->
+                    <g>
+                      <circle cx="1100" cy="325" r="5" fill="#3ACB8E"/>
+                      <rect x="1112" y="314" width="64" height="22" rx="4" fill="rgba(0,0,0,0.7)" stroke="rgba(58,203,142,0.4)"/>
+                      <text x="1144" y="329" text-anchor="middle">MUMBAI</text>
+                    </g>
+                    <!-- NYC -->
+                    <g>
+                      <circle cx="280" cy="240" r="5" fill="#3ACB8E"/>
+                      <rect x="292" y="229" width="42" height="22" rx="4" fill="rgba(0,0,0,0.7)" stroke="rgba(58,203,142,0.4)"/>
+                      <text x="313" y="244" text-anchor="middle">NYC</text>
+                    </g>
+                    <!-- Cape Town -->
+                    <g>
+                      <circle cx="820" cy="610" r="5" fill="#3ACB8E"/>
+                      <rect x="746" y="599" width="68" height="22" rx="4" fill="rgba(0,0,0,0.7)" stroke="rgba(58,203,142,0.4)"/>
+                      <text x="780" y="614" text-anchor="middle">CAPE TOWN</text>
+                    </g>
+                  </g>
+
+                  <!-- ===== Faint corridor arcs between top hubs ===== -->
+                  <g fill="none" stroke="rgba(58,203,142,0.30)" stroke-width="1" stroke-dasharray="3 4">
+                    <path d="M790,440 Q1100,180 1340,390"/>
+                    <path d="M790,440 Q820,330 760,215"/>
+                    <path d="M1340,390 Q1100,290 760,215"/>
+                    <path d="M820,610 Q800,520 790,440"/>
+                    <path d="M1100,325 Q1230,360 1340,390"/>
+                    <path d="M280,240 Q500,200 760,215"/>
+                  </g>
+                </svg>
+              </div>
+            </div>
+
+            <!-- ====== SIDEBAR ====== -->
+            <div class="markets">
+              <div class="markets-head">
+                <div class="h"><span>Top markets</span><span class="ct">BY 30D VOLUME</span></div>
+                <p class="sub">Every supported currency is live. These are the corridors with the most active buyers + workers right now.</p>
+              </div>
+
+              <div class="market-row">
+                <span class="flag">🇳🇬</span>
+                <div class="info"><span class="ccy">NGN</span><span class="place">Nigeria</span></div>
+                <span class="liq high"><span class="d"></span>HIGH</span>
+              </div>
+              <div class="market-row">
+                <span class="flag">🇵🇭</span>
+                <div class="info"><span class="ccy">PHP</span><span class="place">Philippines</span></div>
+                <span class="liq high"><span class="d"></span>HIGH</span>
+              </div>
+              <div class="market-row">
+                <span class="flag">🇰🇪</span>
+                <div class="info"><span class="ccy">KES</span><span class="place">Kenya</span></div>
+                <span class="liq high"><span class="d"></span>HIGH</span>
+              </div>
+              <div class="market-row">
+                <span class="flag">🇬🇭</span>
+                <div class="info"><span class="ccy">GHS</span><span class="place">Ghana</span></div>
+                <span class="liq med"><span class="d"></span>MED</span>
+              </div>
+              <div class="market-row">
+                <span class="flag">🇿🇦</span>
+                <div class="info"><span class="ccy">ZAR</span><span class="place">South Africa</span></div>
+                <span class="liq med"><span class="d"></span>MED</span>
+              </div>
+              <div class="market-row">
+                <span class="flag">🇬🇧</span>
+                <div class="info"><span class="ccy">GBP</span><span class="place">United Kingdom</span></div>
+                <span class="liq med"><span class="d"></span>MED</span>
+              </div>
+              <div class="market-row">
+                <span class="flag">🇮🇳</span>
+                <div class="info"><span class="ccy">INR</span><span class="place">India</span></div>
+                <span class="liq med"><span class="d"></span>MED</span>
+              </div>
+              <div class="market-row">
+                <span class="flag">🇺🇸</span>
+                <div class="info"><span class="ccy">USD</span><span class="place">United States</span></div>
+                <span class="liq low"><span class="d"></span>GROWING</span>
+              </div>
+              <div class="market-row">
+                <span class="flag">🇪🇺</span>
+                <div class="info"><span class="ccy">EUR</span><span class="place">Eurozone</span></div>
+                <span class="liq low"><span class="d"></span>GROWING</span>
+              </div>
+              <div class="market-row">
+                <span class="flag">🇧🇷</span>
+                <div class="info"><span class="ccy">BRL</span><span class="place">Brazil</span></div>
+                <span class="liq low"><span class="d"></span>GROWING</span>
+              </div>
+
+              <div class="markets-foot">
+                <div class="row"><span>Active corridors (30d)</span><b>4,217</b></div>
+                <div class="row"><span>Top corridor</span><b>NGN ↔ PHP</b></div>
+                <div class="row"><span>New corridors / wk</span><b>+38</b></div>
+                <span class="ask">Don't see your currency? Tenda is decentralized — <a href="#">request a fiat partner →</a></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- stats strip -->
+          <div class="cov-stats">
+            <div class="cov-stat">
+              <p class="k">CITIES · 30d</p>
+              <p class="v">82<span class="unit">cities</span></p>
+              <span class="delta">▲ 14 <span class="lbl">vs prior 30d</span></span>
+            </div>
+            <div class="cov-stat">
+              <p class="k">CORRIDORS · 30d</p>
+              <p class="v">4,217<span class="unit">pairs</span></p>
+              <span class="delta">▲ 8.2% <span class="lbl">MoM</span></span>
+            </div>
+            <div class="cov-stat">
+              <p class="k">CROSS-BORDER VOL</p>
+              <p class="v">68<span class="unit">% of total</span></p>
+              <span class="delta" style="color:#6F7488;">▲ 1pp <span class="lbl">vs 30d avg</span></span>
+            </div>
+            <div class="cov-stat">
+              <p class="k">SUPPORTED FIAT</p>
+              <p class="v">31<span class="unit">currencies</span></p>
+              <span class="delta">▲ 4 <span class="lbl">YTD</span></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile -->
+    <div class="frame-wrap" style="margin-top: 28px;">
+      <span class="frame-label dark-tag"><span class="dot"></span>390 · mobile · dark</span>
+      <div class="frame-mw">
+        <div class="cov cov-m">
+          <div class="cov-head">
+            <p class="cov-eyebrow" style="font-size: 10px;"><span class="num">§ 07</span><span>·</span><span>COVERAGE</span></p>
+            <h2 class="cov-h">Live <span class="accent">wherever you are.</span> <span class="dim">It's on-chain.</span></h2>
+            <p class="cov-sub">Every supported currency is live. A corridor lights up the moment <b>a buyer and a worker meet there.</b></p>
+          </div>
+
+          <div class="cov-grid">
+            <div class="map-card">
+              <div class="map-bar">
+                <span class="title"><span class="pth">tenda://</span>activity.30d</span>
+                <div class="legend">
+                  <span class="lk"><span class="d live"></span>ACTIVE</span>
+                  <span class="lk"><span class="d hub"></span>HUB</span>
+                </div>
+              </div>
+              <div class="map-wrap">
+                <svg class="map-svg" viewBox="0 0 1600 800" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <radialGradient id="hubGlow2" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stop-color="#5E87E8" stop-opacity="0.55"/>
+                      <stop offset="100%" stop-color="#5E87E8" stop-opacity="0"/>
+                    </radialGradient>
+                  </defs>
+                  <g fill="rgba(255,255,255,0.22)">
+                    <circle cx="160" cy="200" r="2"/><circle cx="220" cy="220" r="2"/><circle cx="280" cy="240" r="2"/><circle cx="340" cy="260" r="2"/>
+                    <circle cx="380" cy="420" r="2"/><circle cx="395" cy="500" r="2"/><circle cx="380" cy="600" r="2"/>
+                    <circle cx="730" cy="190" r="2"/><circle cx="800" cy="210" r="2"/><circle cx="820" cy="240" r="2"/>
+                    <circle cx="780" cy="320" r="2"/><circle cx="800" cy="370" r="2"/><circle cx="790" cy="440" r="2"/><circle cx="855" cy="490" r="2"/><circle cx="820" cy="610" r="2"/>
+                    <circle cx="935" cy="295" r="2"/><circle cx="1100" cy="325" r="2"/>
+                    <circle cx="1050" cy="220" r="2"/><circle cx="1180" cy="240" r="2"/><circle cx="1280" cy="280" r="2"/>
+                    <circle cx="1290" cy="410" r="2"/><circle cx="1340" cy="390" r="2"/>
+                    <circle cx="1370" cy="565" r="2"/><circle cx="1400" cy="610" r="2"/>
+                  </g>
+                  <g fill="#3ACB8E">
+                    <circle cx="790" cy="440" r="3.5"/><circle cx="855" cy="490" r="3"/><circle cx="820" cy="610" r="3"/>
+                    <circle cx="760" cy="215" r="3"/><circle cx="1100" cy="325" r="3"/><circle cx="1340" cy="390" r="3.5"/>
+                    <circle cx="280" cy="240" r="3"/><circle cx="395" cy="500" r="2.5"/><circle cx="1370" cy="565" r="2.5"/>
+                  </g>
+                  <circle cx="790" cy="440" r="60" fill="url(#hubGlow2)"/>
+                  <circle cx="1340" cy="390" r="60" fill="url(#hubGlow2)"/>
+                  <g fill="#5E87E8">
+                    <circle cx="790" cy="440" r="6"/><circle cx="1340" cy="390" r="6"/>
+                  </g>
+                </svg>
+              </div>
+            </div>
+
+            <div class="markets">
+              <div class="markets-head">
+                <div class="h"><span>Top markets</span><span class="ct" style="font-size:9px;">BY 30D VOL</span></div>
+                <p class="sub">Every supported currency is live. These have the most active workers + buyers.</p>
+              </div>
+              <div class="market-row"><span class="flag">🇳🇬</span><div class="info"><span class="ccy">NGN</span><span class="place">Nigeria</span></div><span class="liq high"><span class="d"></span>HIGH</span></div>
+              <div class="market-row"><span class="flag">🇵🇭</span><div class="info"><span class="ccy">PHP</span><span class="place">Philippines</span></div><span class="liq high"><span class="d"></span>HIGH</span></div>
+              <div class="market-row"><span class="flag">🇰🇪</span><div class="info"><span class="ccy">KES</span><span class="place">Kenya</span></div><span class="liq high"><span class="d"></span>HIGH</span></div>
+              <div class="market-row"><span class="flag">🇬🇭</span><div class="info"><span class="ccy">GHS</span><span class="place">Ghana</span></div><span class="liq med"><span class="d"></span>MED</span></div>
+              <div class="market-row"><span class="flag">🇿🇦</span><div class="info"><span class="ccy">ZAR</span><span class="place">South Africa</span></div><span class="liq med"><span class="d"></span>MED</span></div>
+              <div class="market-row"><span class="flag">🇬🇧</span><div class="info"><span class="ccy">GBP</span><span class="place">UK</span></div><span class="liq med"><span class="d"></span>MED</span></div>
+              <div class="market-row"><span class="flag">🇮🇳</span><div class="info"><span class="ccy">INR</span><span class="place">India</span></div><span class="liq med"><span class="d"></span>MED</span></div>
+              <div class="market-row"><span class="flag">🇺🇸</span><div class="info"><span class="ccy">USD</span><span class="place">USA</span></div><span class="liq low"><span class="d"></span>GROWING</span></div>
+              <div class="market-row"><span class="flag">🇪🇺</span><div class="info"><span class="ccy">EUR</span><span class="place">Eurozone</span></div><span class="liq low"><span class="d"></span>GROWING</span></div>
+              <div class="market-row"><span class="flag">🇧🇷</span><div class="info"><span class="ccy">BRL</span><span class="place">Brazil</span></div><span class="liq low"><span class="d"></span>GROWING</span></div>
+              <div class="markets-foot">
+                <div class="row"><span>Corridors 30d</span><b>4,217</b></div>
+                <div class="row"><span>Top</span><b>NGN ↔ PHP</b></div>
+                <span class="ask">Don't see your currency? <a href="#">Request a fiat partner →</a></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="cov-stats">
+            <div class="cov-stat"><p class="k">CITIES</p><p class="v">82</p></div>
+            <div class="cov-stat"><p class="k">CORRIDORS</p><p class="v">4,217</p></div>
+            <div class="cov-stat"><p class="k">CROSS-BORDER</p><p class="v">68<span class="unit">%</span></p></div>
+            <div class="cov-stat"><p class="k">FIAT</p><p class="v">31</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">Reframed: decentralized</p>
+        Headline now says <em>"Live wherever you are"</em>. No "launched in N countries." Subhead makes the on-chain mechanic explicit: a corridor lights up the moment a buyer + worker meet there. Section is <strong>activity</strong>, not <strong>availability</strong>.
+      </div>
+      <div class="note">
+        <p class="note-title">Real-shape map via dot-density</p>
+        Map renders actual continental geography (N. America, S. America, Europe, Africa, Middle East, Asia, SE Asia, Indonesia, Philippines, Japan, Australia, NZ) using a coordinate-mapped dot grid. Equirectangular projection: <code>x = (lon+180) × 1600/360</code>. Reads as a recognizable world map, not a cartoon, and ties visually to the dark-spine vocabulary (dots, mono labels, on-chain receipts).
+      </div>
+      <div class="note">
+        <p class="note-title">Liquidity, not status</p>
+        Sidebar pills now read HIGH / MED / GROWING — not LIVE / SOON. Every supported currency is "live." This communicates the real thing buyers + workers care about: how thick is this corridor right now?
+      </div>
+      <div class="note">
+        <p class="note-title">Hub glows + arcs</p>
+        Top-7 cities (Lagos, Manila, Nairobi, London, Mumbai, NYC, Cape Town) get blue/green radial glows + ring + label. Dashed arcs connect the biggest pairs (NGN↔PHP, etc). The glow tells you where money is moving without listing rankings.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Land dots fade in by region, stagger <code>40ms</code> per group. Active dots scale-in <code>0 → 1</code> after, opacity matches volume. Hub glows expand <code>0.6 → 1</code> with breathing pulse (<code>3s</code> loop, <code>0.85 → 1.0</code>). Corridor arcs draw stroke-dashoffset over <code>1.4s</code>. Floater (LAST 30 DAYS card) slides in last.
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Spacing</p>
+        Section <code>112 80 120</code>. Cov grid <code>1fr 360 · gap 40</code>. Map card <code>pad 28 · radius 22</code>. Map aspect <code>16/8</code>. Floater <code>top/left 14 · pad 10 12</code>. Sidebar <code>pad 8</code> outer, rows <code>11 16</code>. Stats <code>4 cells · pad 22 24</code>.
+      </div>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>

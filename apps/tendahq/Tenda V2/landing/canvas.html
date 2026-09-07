@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Landing — All Frames Canvas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; font-family: 'Manrope', system-ui, sans-serif; background: #1a1813; }
+
+  /* Iframes used inside artboards: the inner section files render at full
+     1440 / 390 width. We size the iframe to the artboard exactly so no scrollbars. */
+  iframe.section-frame {
+    border: 0;
+    display: block;
+    background: #FAF8F3;
+  }
+
+  /* Top bar overlay */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 56px;
+    background: rgba(15,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    color: #B6BAC5;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    pointer-events: none; /* let canvas pan through */
+  }
+  .topbar > * { pointer-events: auto; }
+  .topbar .brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 18px; color: #F4F2ED;
+    letter-spacing: -0.04em;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .topbar .brand .dot { color: #3ACB8E; }
+  .topbar .brand .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: #6F7488; letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+  .topbar .right {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .topbar .pill {
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: rgba(58,203,142,0.10);
+    border: 1px solid rgba(58,203,142,0.25);
+    color: #5DDDA6;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+  .topbar a {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.10);
+    color: #B6BAC5;
+    text-decoration: none;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.10em;
+    text-transform: uppercase;
+    transition: all 0.15s ease;
+  }
+  .topbar a:hover { color: #F4F2ED; border-color: rgba(255,255,255,0.20); }
+
+  /* Push the design canvas content down so topbar doesn't cover it */
+  body { padding-top: 56px; }
+
+  /* Section title customizing */
+  .legend {
+    position: fixed; bottom: 16px; left: 16px;
+    z-index: 1000;
+    background: rgba(15,17,23,0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: #B6BAC5;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    line-height: 1.7;
+    letter-spacing: 0.04em;
+  }
+  .legend b { color: #F4F2ED; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; display: block; margin-bottom: 4px; font-size: 9.5px; }
+  .legend kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    padding: 1px 5px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 3px;
+    color: #F4F2ED;
+  }
+  .legend .row + .row { margin-top: 2px; }
+
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+</head>
+<body>
+
+<!-- ===== Top bar ===== -->
+<div class="topbar">
+  <div class="brand">
+    tenda<span class="dot">.</span>
+    <span class="meta">LANDING · CANVAS OVERVIEW · 12 SECTIONS · v1</span>
+  </div>
+  <div class="right">
+    <span class="pill">● 24 frames · all routes</span>
+    <a href="landing.html">Scrollable view →</a>
+  </div>
+</div>
+
+<!-- ===== Legend ===== -->
+<div class="legend">
+  <b>Canvas controls</b>
+  <div class="row">Pan: <kbd>drag</kbd> empty space</div>
+  <div class="row">Zoom: <kbd>scroll</kbd> or <kbd>⌘+</kbd> / <kbd>⌘−</kbd></div>
+  <div class="row">Focus a frame: <kbd>click</kbd> · <kbd>esc</kbd> to close</div>
+  <div class="row">Reorder: <kbd>drag</kbd> a frame to a new slot</div>
+</div>
+
+<!-- ===== Canvas root ===== -->
+<div id="root"></div>
+
+<!-- ============================================================
+     Render
+============================================================ -->
+<script type="text/babel">
+const { useEffect, useRef } = React;
+
+/* ----------------------------------------------------------------
+   SectionFrame — wraps an iframe pointing at one of the section files,
+   strips its canvas chrome and shows the targeted .frame-wrap (idx).
+   Same trick as landing.html but isolated per artboard.
+---------------------------------------------------------------- */
+const baseCSS = `
+  html, body { background: transparent !important; padding: 0 !important; margin: 0 !important; }
+  body { padding: 0 !important; min-height: 0 !important; }
+  .canvas-header, .notes, .frame-row-title, .frame-label { display: none !important; }
+  .frame-row { gap: 0 !important; }
+  .frames { gap: 0 !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
+  .frame-wrap { gap: 0 !important; align-items: stretch !important; margin-top: 0 !important; }
+  .frame-w, .frame-mw, .frame {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+`;
+
+function SectionFrame({ src, targetIndex = 0, width, height }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const iframe = ref.current;
+    if (!iframe) return;
+    const onLoad = () => {
+      try {
+        const doc = iframe.contentDocument;
+        if (!doc) return;
+        const style = doc.createElement('style');
+        style.textContent = baseCSS;
+        doc.head.appendChild(style);
+        const wraps = doc.querySelectorAll('.frame-wrap');
+        wraps.forEach((w, i) => {
+          w.style.setProperty('display', i === targetIndex ? 'flex' : 'none', 'important');
+        });
+      } catch (e) {
+        console.warn('inject failed', src, e);
+      }
+    };
+    iframe.addEventListener('load', onLoad);
+    return () => iframe.removeEventListener('load', onLoad);
+  }, [src, targetIndex]);
+  return (
+    <iframe
+      ref={ref}
+      className="section-frame"
+      src={src}
+      style={{ width, height, display: 'block' }}
+    />
+  );
+}
+
+/* ----------------------------------------------------------------
+   Section data — all 12 sections, each with desktop + mobile
+   src + targetIndex + height. Heights chosen to comfortably fit
+   the actual content of each section frame.
+---------------------------------------------------------------- */
+const SECTIONS = [
+  {
+    id: 'sec-00',
+    title: '§00 · Navbar',
+    subtitle: 'Top utility — light, glass, full-width on scroll',
+    frames: [
+      { id: 'nav-d', label: '00.D · Desktop · 1440', src: 'sections/01-hero.html', idx: 0, w: 1440, h: 128 },
+      { id: 'nav-m', label: '00.M · Mobile · 390 · sheet open', src: 'sections/01-hero.html', idx: 1, w: 390, h: 580 },
+    ],
+    notes: [
+      { text: 'Glass nav, brand mark + 4 nav links + sign-in / get app. Blurs on scroll.', top: 80, left: -200, rotate: -3 },
+    ],
+  },
+  {
+    id: 'sec-01',
+    title: '§01 · Hero · the opener',
+    subtitle: 'Big claim, escrow card stack, currency marquee',
+    frames: [
+      { id: 'hero-d', label: '01.D · Desktop · dark canonical', src: 'sections/01-hero-final.html', idx: 0, w: 1440, h: 980 },
+      { id: 'hero-m', label: '01.M · Mobile · 390', src: 'sections/01-hero.html', idx: 3, w: 390, h: 920 },
+    ],
+    notes: [
+      { text: 'Three card states (back/mid/front) tell the escrow story before the user reads.', top: 120, right: -210, rotate: 3 },
+    ],
+  },
+  {
+    id: 'sec-02',
+    title: '§02 · Trust strip',
+    subtitle: 'Proof band — running 24h volume + 4 receipts',
+    frames: [
+      { id: 'trust-d', label: '02.D · Desktop · proof band', src: 'sections/02-trust-strip.html', idx: 0, w: 1440, h: 220 },
+      { id: 'trust-m', label: '02.M · Mobile · stacked', src: 'sections/02-trust-strip.html', idx: 1, w: 390, h: 280 },
+    ],
+    notes: [
+      { text: 'Counts up on intersect — math is the credibility.', top: 60, left: -190, rotate: -2 },
+    ],
+  },
+  {
+    id: 'sec-03',
+    title: '§03 · Two products',
+    subtitle: 'Gigs ⇄ Trade — split panel, mirrored composition',
+    frames: [
+      { id: 'prod-d', label: '03.D · Desktop · split', src: 'sections/03-two-products.html', idx: 0, w: 1440, h: 1280 },
+      { id: 'prod-m', label: '03.M · Mobile · stacked', src: 'sections/03-two-products.html', idx: 1, w: 390, h: 1700 },
+    ],
+    notes: [
+      { text: 'Each side shows ONE real card from the live app — gig + offer.', top: 100, right: -210, rotate: 2 },
+    ],
+  },
+  {
+    id: 'sec-04',
+    title: '§04 · How escrow works',
+    subtitle: 'The contract diagram — Post → Lock → Deliver → Release',
+    frames: [
+      { id: 'esc-d', label: '04.D · Desktop · timeline', src: 'sections/04-how-escrow-works.html', idx: 0, w: 1440, h: 1620 },
+      { id: 'esc-m', label: '04.M · Mobile · vertical', src: 'sections/04-how-escrow-works.html', idx: 1, w: 390, h: 1200 },
+    ],
+    notes: [
+      { text: 'Numbered steps with explicit data flow — no copy-as-marketing.', top: 100, left: -210, rotate: -2 },
+    ],
+  },
+  {
+    id: 'sec-05',
+    title: '§05 · Live ticker',
+    subtitle: 'Bloomberg-style — running settlements feed',
+    frames: [
+      { id: 'tick-d', label: '05.D · Desktop · ticker', src: 'sections/05-live-ticker.html', idx: 0, w: 1440, h: 1230 },
+      { id: 'tick-m', label: '05.M · Mobile · ticker', src: 'sections/05-live-ticker.html', idx: 1, w: 390, h: 900 },
+    ],
+    notes: [
+      { text: '"The market is open" — proof that something\'s actually moving.', top: 90, right: -200, rotate: 3 },
+    ],
+  },
+  {
+    id: 'sec-06',
+    title: '§06 · Why Tenda · 4 pillars',
+    subtitle: 'Settlement · Fees · Cash-out · Disputes',
+    frames: [
+      { id: 'why-d', label: '06.D · Desktop · 4-up', src: 'sections/06-why-tenda.html', idx: 0, w: 1440, h: 1130 },
+      { id: 'why-m', label: '06.M · Mobile · stacked', src: 'sections/06-why-tenda.html', idx: 1, w: 390, h: 1900 },
+    ],
+    notes: [
+      { text: 'Each pillar = one number + one sentence. Receipts beat adjectives.', top: 60, left: -210, rotate: -2 },
+    ],
+  },
+  {
+    id: 'sec-07',
+    title: '§07 · Coverage',
+    subtitle: 'World map — where Tenda actually settles today',
+    frames: [
+      { id: 'cov-d', label: '07.D · Desktop · live map', src: 'sections/07-coverage.html', idx: 0, w: 1440, h: 1590 },
+      { id: 'cov-m', label: '07.M · Mobile · region list', src: 'sections/07-coverage.html', idx: 1, w: 390, h: 1100 },
+    ],
+    notes: [
+      { text: 'Pings on the map = real settlements. The product is global by virtue of the rails.', top: 110, right: -200, rotate: 3 },
+    ],
+  },
+  {
+    id: 'sec-08',
+    title: '§08 · Three audiences',
+    subtitle: 'Workers · Posters · Traders — three columns, three CTAs',
+    frames: [
+      { id: 'aud-d', label: '08.D · Desktop · 3-col', src: 'sections/08-three-audiences.html', idx: 0, w: 1440, h: 1360 },
+      { id: 'aud-m', label: '08.M · Mobile · stacked', src: 'sections/08-three-audiences.html', idx: 1, w: 390, h: 2400 },
+    ],
+    notes: [
+      { text: 'Routes the visitor by who they are — first decision after the proof.', top: 70, left: -200, rotate: -3 },
+    ],
+  },
+  {
+    id: 'sec-09',
+    title: '§09 · FAQ',
+    subtitle: '8 expanded questions — fees, custody, KYC, disputes',
+    frames: [
+      { id: 'faq-d', label: '09.D · Desktop · all open', src: 'sections/09-faq.html', idx: 0, w: 1440, h: 3700 },
+      { id: 'faq-m', label: '09.M · Mobile · all open', src: 'sections/09-faq.html', idx: 1, w: 390, h: 3000 },
+    ],
+    notes: [
+      { text: 'Wireframe shows all answers expanded — production collapses by default.', top: 100, right: -210, rotate: 3 },
+    ],
+  },
+  {
+    id: 'sec-10',
+    title: '§10 · Final CTA',
+    subtitle: 'The closer — oversized headline + Android phone frame',
+    frames: [
+      { id: 'cta-d', label: '10.D · Desktop · closer', src: 'sections/10-final-cta.html', idx: 0, w: 1440, h: 1160 },
+      { id: 'cta-m', label: '10.M · Mobile · closer', src: 'sections/10-final-cta.html', idx: 1, w: 390, h: 1600 },
+    ],
+    notes: [
+      { text: 'Real Tenda app screen inside the phone — the design lives in product, not illustration.', top: 100, left: -210, rotate: -2 },
+    ],
+  },
+  {
+    id: 'sec-11',
+    title: '§11 · Footer',
+    subtitle: 'System colophon — wordmark, sitemap, status, FX, legal',
+    frames: [
+      { id: 'foot-d', label: '11.D · Desktop · colophon', src: 'sections/11-footer.html', idx: 0, w: 1440, h: 1050 },
+      { id: 'foot-m', label: '11.M · Mobile · colophon', src: 'sections/11-footer.html', idx: 1, w: 390, h: 1500 },
+    ],
+    notes: [
+      { text: 'Reads like the back-matter of a system manual. No marketing chrome at the foot.', top: 60, right: -210, rotate: 2 },
+    ],
+  },
+];
+
+/* ----------------------------------------------------------------
+   Top of page — synthesis frame: all desktop frames stacked
+   Reuses landing.html as a single artboard so reviewers can flip
+   between "stitched view" and "atomized canvas" instantly.
+---------------------------------------------------------------- */
+function App() {
+  return (
+    <DesignCanvas>
+
+      {/* === Synthesis row: the stitched landing as one artboard === */}
+      <DCSection id="synthesis" title="The full landing · stitched" subtitle="One scrollable composition · same source files as the atomized canvas below">
+        <DCArtboard id="full" label="Full landing · 1440 · scroll inside the artboard" width={1440} height={1200}>
+          <iframe className="section-frame" src="landing.html" style={{ width: 1440, height: 1200 }} />
+        </DCArtboard>
+        <DCPostIt top={40} left={-210} rotate={-3} width={210}>
+          The synthesis: every section stitched. Scroll inside the frame to walk the full page. Below — every section atomized, desktop + mobile side-by-side, for focused review.
+        </DCPostIt>
+      </DCSection>
+
+      {/* === Atomized canvas: one section per row === */}
+      {SECTIONS.map(sec => (
+        <DCSection key={sec.id} id={sec.id} title={sec.title} subtitle={sec.subtitle}>
+          {sec.frames.map(f => (
+            <DCArtboard key={f.id} id={f.id} label={f.label} width={f.w} height={f.h}>
+              <SectionFrame src={f.src} targetIndex={f.idx} width={f.w} height={f.h} />
+            </DCArtboard>
+          ))}
+          {(sec.notes || []).map((n, i) => (
+            <DCPostIt key={i} top={n.top} left={n.left} right={n.right} rotate={n.rotate || -2} width={200}>
+              {n.text}
+            </DCPostIt>
+          ))}
+        </DCSection>
+      ))}
+
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,313 @@
+# PR gates: per-PR coverage against a postgres service (integration tests run
+# on every PR, not nightly).
+#
+# Gate map:
+#   1. coverage gates (DB-backed, per-PR):
+#        - server → full c8 suite (unit + integration) against a postgres
+#          service; thresholds in apps/server/.c8rc.json (ratchets toward 90/85)
+#        - shared → c8 (apps-free); thresholds in packages/shared/.c8rc.json (100)
+#        - admin  → vitest+jsdom v8; thresholds in apps/admin/vitest.config.ts (90/85)
+#   2. contract tests   → live in the tenda-escrow repo's own CI
+#   3. tsc --noEmit     → server + shared (both src AND test) + admin + mobile
+#   4. lint             → server + admin (eslint) + mobile (expo lint)
+#   5. mobile tests     → jest-expo coverage WIRED once the harness lands (#101)
+#   6. docker image     → build-only assembly check of apps/server/Dockerfile
+#   7. scripts          → unit tests for scripts/ + the app-version drift gate
+#   8. tendahq          → token drift gate (generated from mobile) + eslint +
+#                         vitest coverage + tsc/vite build
+#
+# Redis is NOT a test dependency: the harness deletes REDIS_URL and the queue
+# stays a 501 stub. devnet/E2E (Maestro/Playwright) remain nightly/pre-release.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    # `dev` is the trunk releases are cut from, so a direct push to it has to be
+    # gated like any other. Without it here, only PRs ran CI and anything pushed
+    # straight to dev reached a release unchecked.
+    branches: [dev, main, master]
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tenda_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # The harness migrates this DB programmatically on first use; no Redis.
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/tenda_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @tenda/shared build
+      # The anvil lifecycle suite (test/integration/evm-lifecycle.anvil.test.ts)
+      # drives REAL builder output through a real node — it self-skips without
+      # anvil + forge artifacts, so CI must provide both or the guard is moot.
+      - name: Install Foundry (anvil for the EVM lifecycle suite)
+        uses: foundry-rs/foundry-toolchain@v1
+      - name: Build contract artifacts for the anvil suite
+        working-directory: contracts/evm
+        run: forge build
+      - name: Typecheck (src + test)
+        working-directory: apps/server
+        run: npx tsc --noEmit && npx tsc -p test/tsconfig.json
+      - name: Lint
+        working-directory: apps/server
+        run: pnpm lint
+      - name: Tests + coverage gate (full c8 suite, DB-backed)
+        working-directory: apps/server
+        run: pnpm test
+      # Per-escrow contract pinning (open_issues #89) guards where user funds
+      # live, so it is held to a higher bar than the repo-wide gate. Scoped
+      # rather than raising that gate globally, which would fail on unrelated
+      # files for reasons unrelated to this code.
+      - name: Coverage gate >90 (escrow contract pinning)
+        working-directory: apps/server
+        run: pnpm test:coverage:contracts
+      # The gas seed spends a hot wallet on every new user, and its grant is
+      # one-shot per (user, chain) — a miss is money the user never gets. Held
+      # to the same higher bar, and for the same reason as the step above.
+      - name: 'Coverage gate >90 (EVM gas seed, #53a)'
+        working-directory: apps/server
+        run: pnpm test:coverage:gas-seed
+
+  shared:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # src AND test, the same split the server job runs. `type-check` alone
+      # covers src only, and `test:coverage` executes the suite via ts-node
+      # without typechecking it — so a type error in a test file (a duplicated
+      # import, a fixture that stopped matching its type) passed both while
+      # only the local `pnpm test` caught it.
+      - name: Typecheck (src + test)
+        working-directory: packages/shared
+        run: npx tsc --noEmit && npx tsc -p test/tsconfig.json
+      - run: pnpm --filter @tenda/shared build
+      - name: Tests + coverage gate
+        run: pnpm --filter @tenda/shared test:coverage
+
+  admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @tenda/shared build
+      - name: Typecheck
+        working-directory: apps/admin
+        run: pnpm type-check
+      - name: Lint
+        working-directory: apps/admin
+        run: pnpm lint
+      - name: Tests + coverage gate (vitest + jsdom)
+        working-directory: apps/admin
+        run: pnpm test:coverage
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @tenda/shared build
+      # Anti-drift: styles/tokens.css is generated from apps/mobile/theme/
+      # tokens.ts (master-plan decision #9). Same shape as the ABI/IDL gate —
+      # a hand-edit or a mobile token change without regeneration is unmergeable.
+      - name: Design-token drift gate
+        working-directory: apps/web
+        run: pnpm gen:tokens:check
+      - name: Typecheck
+        working-directory: apps/web
+        run: pnpm type-check
+      - name: Lint
+        working-directory: apps/web
+        run: pnpm lint
+      - name: Tests + coverage gate (vitest + jsdom)
+        working-directory: apps/web
+        run: pnpm test:coverage
+      # The e2e layer is the only executable proof of the SSR/hydration and
+      # stub-API flows (playwright.config's CI branches — workers:1,
+      # retries:2 — were written for this job). The webServer entries boot
+      # the stub API and a production next build/start themselves.
+      - name: Install Playwright browsers
+        working-directory: apps/web
+        run: pnpm exec playwright install --with-deps chromium
+      - name: E2E (Playwright vs stub API)
+        working-directory: apps/web
+        run: pnpm test:e2e
+
+  tendahq:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Anti-drift, as in the web job: src/styles/tokens.css is generated from
+      # apps/mobile/theme/tokens.ts by web's generator (`--target tendahq`).
+      - name: Design-token drift gate
+        working-directory: apps/tendahq
+        run: pnpm gen:tokens:check
+      - name: Lint
+        working-directory: apps/tendahq
+        run: pnpm lint
+      - name: Tests + coverage gate (vitest)
+        working-directory: apps/tendahq
+        run: pnpm test:coverage
+      # `tsc -b` then `vite build`. src/env.ts throws at import without these
+      # two, and .env.development is dev-mode only; the values are placeholders
+      # for the type/bundle check, not a deployment.
+      - name: Typecheck + build
+        working-directory: apps/tendahq
+        env:
+          VITE_API_BASE_URL: http://127.0.0.1:3000
+          VITE_WEB_APP_URL: http://127.0.0.1:3200
+        run: pnpm build
+
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @tenda/shared build
+      - name: Typecheck
+        working-directory: apps/mobile
+        run: npx tsc --noEmit
+      - name: Lint
+        working-directory: apps/mobile
+        run: npx expo lint
+      - name: Tests (jest-expo suite)
+        working-directory: apps/mobile
+        run: npx jest --ci
+
+  # Repo tooling under scripts/ — pure Node, no workspace install needed, so
+  # this is the cheapest job in the pipeline. Unfiltered on purpose: the app
+  # version gate has to see EVERY PR, since the files it guards
+  # (apps/mobile/app.json, apps/mobile/package.json, the landing page's
+  # app-info.ts) sit outside any path filter that would make sense here.
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Unit tests for the repo tooling
+        run: node --test "scripts/**/*.test.mjs"
+      - name: App version consistency (app.json == package.json == app-info.ts)
+        run: node scripts/check-app-version.mjs
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # High+ severity blocks; moderate noise doesn't gate merges.
+      - run: pnpm audit --audit-level high
+
+  # Drift control (testing-strategy § Drift control): deleted tests surface
+  # as a PR warning routed for review — deletion without replacement is a
+  # process smell, not an automatic failure.
+  tests-deleted:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Warn on deleted test files
+        run: |
+          BASE="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          DELETED=$(git diff --diff-filter=D --name-only "$BASE"...HEAD -- '*.test.ts' '*.test.tsx' || true)
+          if [ -n "$DELETED" ]; then
+            echo "::warning title=tests deleted::The following test files were deleted in this PR:"
+            echo "$DELETED" | while read -r f; do echo "::warning file=$f::deleted test file"; done
+          else
+            echo "No test files deleted."
+          fi
+
+  cutover-debt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Reporting mode (exit 0) until the Stage-0 cutover; flip to --post after #34.
+      - run: node scripts/cutover-verify.mjs
+
+  # The server Dockerfile is outside every other test perimeter — nothing else
+  # compiles it, so a workspace rename, dist-layout change, or instrument.js
+  # move would only surface at deploy time. Build-only: no registry, no push,
+  # no secrets. The migrate target shares the build stage, so it is nearly
+  # free once the runtime build is cached.
+  docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          target: runtime
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build migrate image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          target: migrate
+          push: false
+          cache-from: type=gha

@@ -1,0 +1,18 @@
+packages:
+  - apps/*
+  - packages/*
+  - contracts/*
+
+nodeLinker: hoisted
+
+# The hoisted linker mis-nests an old @solana/codecs-core@2.3.0 (missing the
+# `toArrayBuffer` export) under @solana/codecs-numbers@5.5.1, which requires
+# exactly 5.5.1 — pulled in transitively by @reown/appkit-adapter-wagmi's
+# baseAccount connector (→ @base-org/account → @coinbase/cdp-sdk). Pinning the
+# edge stops the bogus nesting and unbreaks the admin Turbopack build.
+overrides:
+  '@solana/codecs-numbers@5.5.1>@solana/codecs-core': '5.5.1'
+
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver

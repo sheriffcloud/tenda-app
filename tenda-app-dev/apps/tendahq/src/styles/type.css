@@ -1,0 +1,74 @@
+/* =============================================================================
+ * Type atoms — the landing's class names over the GENERATED `type-*`
+ * utilities in styles/tokens.css (mobile `typography.styles`, one utility
+ * per style, regenerated with `pnpm gen:tokens`).
+ *
+ * Two kinds of rule live here:
+ *   - EXACT atoms `@apply` their generated utility and add nothing — the
+ *     phone's px pair, weight, tracking and face role, by construction;
+ *   - LANDING-ONLY atoms are hand-kept: the three display sizes and the
+ *     large mono figure scale with the viewport through clamp() (a landing
+ *     headline runs larger than a phone's; each rule's comment names the
+ *     phone style it scales), and `.body-lg` has no mobile counterpart.
+ * Everything else that used to be typed here by hand is generated now.
+ * =========================================================================== */
+@layer components {
+  /* hero 44/50/700/−1.2 → lh 1.08, ls −.027em */
+  .h-hero {
+    font-family: var(--font-display);
+    font-size: clamp(44px, 6.2vw, 80px);
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: -0.027em;
+  }
+  /* h1 30/36/700/−.6 */
+  .h1 {
+    font-family: var(--font-display);
+    font-size: clamp(30px, 3.8vw, 50px);
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  /* h2 22/28/600/−.4 */
+  .h2 {
+    font-family: var(--font-display);
+    font-size: clamp(20px, 2.2vw, 24px);
+    line-height: 1.22;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .h3 { @apply type-h3; }
+  .title { @apply type-title; }
+  /* Landing-only: the hero lede. Mobile has no 17/27 body. */
+  .body-lg {
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 27px;
+    font-weight: 400;
+  }
+  .body { @apply type-body; }
+  .body-sm { @apply type-body-small; }
+  /* Eyebrow.tsx: mono 9.5 / 600 / +0.95 / uppercase — the uppercase is the component's. */
+  .eyebrow { @apply type-eyebrow uppercase; }
+  .label { @apply type-label; }
+  .caption { @apply type-caption; }
+  /* monoLarge 40/44/600/−.2, scaled */
+  .mono-large {
+    font-family: var(--font-mono);
+    font-size: clamp(30px, 3.6vw, 40px);
+    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .mono-mid { @apply type-mono-mid; }
+  .mono { @apply type-mono; }
+  .mono-sm { @apply type-mono-small; }
+
+  .hairline { height: 1px; background: var(--border-subtle); }
+  .container-page { width: min(100%, var(--maxw)); margin-inline: auto; padding-inline: 20px; }
+  @media (min-width: 768px) { .container-page { padding-inline: 40px; } }
+
+  .app-shell { position: relative; min-height: 100vh; color: var(--content-primary); }
+  .app-main { width: 100%; }
+}

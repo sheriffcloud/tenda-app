@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Landing — §4 How escrow works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../shared.css" />
+<link rel="stylesheet" href="../landing.css" />
+<style>
+  body { background: #e8e5de; padding: 56px 32px 120px; }
+  .frame-w { width: 1440px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.18); }
+  .frame-mw { width: 390px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.18); }
+
+  /* ====== §4 How escrow works ====== */
+  .esc {
+    background: #FAF8F3;
+    color: #1a1813;
+    padding: 112px 80px 120px;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Subtle grid */
+  .esc::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgba(20,17,10,0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(20,17,10,0.035) 1px, transparent 1px);
+    background-size: 64px 64px;
+    background-position: -1px -1px;
+    pointer-events: none;
+    mask-image: radial-gradient(80% 80% at 50% 30%, black, transparent);
+  }
+
+  .esc-head { display: grid; grid-template-columns: 1.2fr 1fr; gap: 64px; align-items: end; position: relative; z-index: 2; margin-bottom: 80px; }
+  .esc-eyebrow {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.20em; font-weight: 600;
+    color: #777; margin-bottom: 20px;
+  }
+  .esc-eyebrow .num { color: #2E5BD6; font-weight: 700; }
+  .esc-h {
+    font-family: var(--display); font-weight: 700;
+    font-size: 64px; line-height: 1.0; letter-spacing: -0.04em;
+    margin: 0; color: #1a1813;
+  }
+  .esc-h .dim { color: #8A8E98; }
+  .esc-h .accent {
+    color: #1F9D6B;
+    background: linear-gradient(0deg, rgba(31,157,107,0.18) 28%, transparent 28%);
+    padding: 0 4px;
+  }
+  .esc-sub { font-family: var(--body); font-size: 17px; line-height: 1.55; color: #555; margin: 0; max-width: 44ch; }
+  .esc-meta {
+    display: flex; flex-direction: column; gap: 12px;
+    border-left: 1px solid rgba(20,17,10,0.10);
+    padding-left: 24px;
+  }
+  .esc-meta-row { display: flex; gap: 12px; align-items: baseline; }
+  .esc-meta-row .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; font-weight: 600; color: #999; min-width: 80px; }
+  .esc-meta-row .v { font-family: var(--mono); font-size: 12.5px; font-weight: 600; color: #1a1813; }
+  .esc-meta-row .v code { background: rgba(46,91,214,0.08); color: #2E5BD6; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+
+  /* ====== Lifecycle track ====== */
+  .track-wrap { position: relative; z-index: 2; }
+  .track-rule {
+    position: absolute;
+    top: 56px; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+      rgba(46,91,214,0.20) 0%,
+      rgba(217,135,34,0.22) 32%,
+      rgba(31,157,107,0.30) 66%,
+      rgba(31,157,107,0.18) 100%);
+    z-index: 1;
+  }
+  .track-rule::after {
+    content: ''; position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(90deg, transparent 0 6px, rgba(255,248,237,1) 6px 8px);
+  }
+  .stages {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+    position: relative; z-index: 2;
+  }
+  .stage { display: flex; flex-direction: column; gap: 0; }
+
+  .stage-head {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 24px;
+  }
+  .stage-num {
+    width: 56px; height: 56px; border-radius: 999px;
+    background: #FAF8F3;
+    border: 2px solid;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-weight: 700; font-size: 18px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 3;
+  }
+  .stage-num .glyph { display: none; }
+  .stage.s1 .stage-num { color: #2E5BD6; border-color: #2E5BD6; background: #FAF8F3; }
+  .stage.s2 .stage-num { color: #D98722; border-color: #D98722; background: #FAF8F3; }
+  .stage.s3 .stage-num { color: #1F9D6B; border-color: #1F9D6B; background: #FAF8F3; }
+  .stage.s4 .stage-num { color: #1a1813; border-color: #1a1813; background: #1a1813; color: #FAF8F3; }
+
+  .stage-tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; font-weight: 700;
+    text-transform: uppercase;
+  }
+  .stage.s1 .stage-tag { color: #2E5BD6; }
+  .stage.s2 .stage-tag { color: #D98722; }
+  .stage.s3 .stage-tag { color: #1F9D6B; }
+  .stage.s4 .stage-tag { color: #1a1813; }
+
+  .stage-name {
+    font-family: var(--display); font-size: 22px; font-weight: 700;
+    letter-spacing: -0.01em; color: #1a1813; margin: 2px 0 0; line-height: 1.15;
+  }
+
+  .stage-body {
+    font-family: var(--body); font-size: 14px; line-height: 1.55; color: #555;
+    margin: 0 0 18px; max-width: 32ch;
+  }
+
+  /* on-chain mini card per stage */
+  .stage-evt {
+    background: #FFFEFA;
+    border: 1px solid rgba(20,17,10,0.10);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 2px rgba(20,17,10,0.04), 0 4px 12px rgba(20,17,10,0.04);
+    font-family: var(--mono);
+    position: relative;
+  }
+  .stage-evt::before {
+    content: ''; position: absolute; top: -1px; left: 16px; right: 16px; height: 2px;
+  }
+  .stage.s1 .stage-evt::before { background: #2E5BD6; }
+  .stage.s2 .stage-evt::before { background: #D98722; }
+  .stage.s3 .stage-evt::before { background: #1F9D6B; }
+  .stage.s4 .stage-evt::before { background: #1a1813; }
+
+  .evt-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .evt-row + .evt-row { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(20,17,10,0.08); }
+  .evt-k { font-size: 9.5px; letter-spacing: 0.14em; font-weight: 600; color: #999; text-transform: uppercase; }
+  .evt-v { font-size: 12px; font-weight: 600; color: #1a1813; }
+  .evt-v.amt { font-size: 14px; }
+  .evt-v.hash {
+    background: rgba(20,17,10,0.04);
+    padding: 2px 6px; border-radius: 4px;
+    color: #555;
+  }
+  .evt-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 20px; padding: 0 8px; border-radius: 999px;
+    font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase;
+  }
+  .evt-status .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+  .evt-status.locked { background: rgba(46,91,214,0.10); color: #2E5BD6; }
+  .evt-status.locked .d { box-shadow: 0 0 0 3px rgba(46,91,214,0.18); }
+  .evt-status.in-prog { background: rgba(217,135,34,0.12); color: #8C5812; }
+  .evt-status.in-prog .d { box-shadow: 0 0 0 3px rgba(217,135,34,0.20); animation: pulse 1.6s infinite; }
+  .evt-status.released { background: rgba(31,157,107,0.12); color: #156E4A; }
+  .evt-status.released .d { box-shadow: 0 0 0 3px rgba(31,157,107,0.18); }
+  .evt-status.final { background: #1a1813; color: #FAF8F3; }
+  .evt-status.final .d { background: #FAF8F3; }
+  @keyframes pulse { 0%, 100% { opacity: 1;} 50% { opacity: 0.4;} }
+
+  /* arrow connectors between stages on the rule */
+  .track-arrow {
+    position: absolute; top: 50px; width: 14px; height: 14px;
+    background: #FAF8F3;
+    border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; color: #999; font-weight: 700;
+    z-index: 2;
+  }
+
+  /* ====== Resolve / dispute aside ====== */
+  .resolve {
+    margin-top: 96px;
+    display: grid; grid-template-columns: 1.6fr 1fr; gap: 48px;
+    background: #FFFEFA;
+    border: 1px solid rgba(20,17,10,0.10);
+    border-radius: 22px;
+    padding: 44px;
+    position: relative; z-index: 2;
+    box-shadow: 0 1px 2px rgba(20,17,10,0.04), 0 12px 32px rgba(20,17,10,0.06);
+  }
+  .resolve-l { }
+  .resolve-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.18em; font-weight: 700;
+    color: #C9780C; text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .resolve-tag .d { width: 8px; height: 8px; border-radius: 999px; background: currentColor; }
+  .resolve-h { font-family: var(--display); font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 14px; color: #1a1813; line-height: 1.1; max-width: 24ch; }
+  .resolve-b { font-family: var(--body); font-size: 15px; line-height: 1.6; color: #555; margin: 0 0 24px; max-width: 56ch; }
+  .resolve-routes {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .route-row {
+    display: grid; grid-template-columns: 24px 1fr auto; gap: 14px; align-items: center;
+    padding: 12px 14px;
+    background: #FAF8F3;
+    border: 1px solid rgba(20,17,10,0.08);
+    border-radius: 12px;
+  }
+  .route-num {
+    width: 24px; height: 24px; border-radius: 999px;
+    background: rgba(20,17,10,0.06); color: #555;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+  }
+  .route-text { font-family: var(--body); font-size: 14px; color: #1a1813; line-height: 1.4; }
+  .route-text b { font-weight: 700; }
+  .route-time { font-family: var(--mono); font-size: 11px; color: #999; font-weight: 600; }
+
+  .resolve-r { display: flex; flex-direction: column; gap: 0; border-left: 1px solid rgba(20,17,10,0.08); padding-left: 36px; }
+  .clause-h { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.18em; font-weight: 700; color: #999; text-transform: uppercase; margin: 0 0 14px; }
+  .clause {
+    font-family: var(--mono); font-size: 12px; line-height: 1.65;
+    color: #1a1813;
+    background: rgba(46,91,214,0.04);
+    border-left: 2px solid #2E5BD6;
+    padding: 14px 16px;
+    border-radius: 0 8px 8px 0;
+  }
+  .clause .kw { color: #C9780C; font-weight: 700; }
+  .clause .var { color: #2E5BD6; }
+  .clause .cmt { color: #999; }
+
+  /* ====== Mobile vertical timeline ====== */
+  .esc-m {
+    background: #FAF8F3;
+    color: #1a1813;
+    padding: 56px 20px 64px;
+  }
+  .esc-m .esc-h { font-size: 36px; }
+  .esc-m .esc-sub { font-size: 14px; max-width: none; }
+  .esc-m .esc-head { display: block; margin-bottom: 36px; }
+  .esc-m .esc-meta { display: none; }
+  .vtimeline {
+    display: flex; flex-direction: column; gap: 0;
+    position: relative;
+  }
+  .vt-stage {
+    display: grid; grid-template-columns: 56px 1fr; gap: 16px;
+    padding-bottom: 28px;
+    position: relative;
+  }
+  .vt-stage:not(:last-child)::after {
+    content: ''; position: absolute;
+    left: 27px; top: 56px; bottom: 0; width: 2px;
+    background: repeating-linear-gradient(180deg, currentColor 0 4px, transparent 4px 8px);
+    opacity: 0.30;
+  }
+  .vt-stage.s1::after { color: #2E5BD6; }
+  .vt-stage.s2::after { color: #D98722; }
+  .vt-stage.s3::after { color: #1F9D6B; }
+  .vt-stage .stage-num { width: 56px; height: 56px; }
+  .vt-stage .stage-tag { font-size: 9.5px; }
+  .vt-stage .stage-name { font-size: 19px; }
+  .vt-stage .stage-body { font-size: 13px; margin-bottom: 12px; }
+  .vt-stage .stage-evt { padding: 12px 14px; }
+
+  .esc-m .resolve {
+    margin-top: 32px;
+    grid-template-columns: 1fr;
+    padding: 24px;
+    gap: 24px;
+    border-radius: 18px;
+  }
+  .esc-m .resolve-r { border-left: 0; padding-left: 0; padding-top: 24px; border-top: 1px solid rgba(20,17,10,0.08); }
+  .esc-m .resolve-h { font-size: 22px; }
+
+</style>
+</head>
+<body>
+
+<header class="canvas-header">
+  <p class="canvas-eyebrow">Tenda · Landing wireframes · §4</p>
+  <h1 class="canvas-title">§4 How escrow works</h1>
+  <p class="canvas-sub">The trust spine. A four-stage on-chain lifecycle — <strong>Lock → Work → Approve → Release</strong> — rendered as a horizontal track with mini transaction-receipt cards at each stage. Resolve / dispute lives below in a contract-style aside.</p>
+  <div class="canvas-meta">
+    <span>1440w desktop · 390w mobile vertical timeline</span>
+    <span>Sits below §3 Two products, above §5 Live ticker</span>
+    <span>Reads as: human verbs above, machine receipts below — same event, two layers</span>
+  </div>
+</header>
+
+<div class="frames">
+
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">§4</span>
+      <h2>How escrow works · desktop</h2>
+      <span class="desc">Four numbered stages on a single horizontal rule. Each stage = verb + plain-language body + on-chain mini-receipt.</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-label"><span class="dot"></span>1440 · light</span>
+      <div class="frame-w">
+        <div class="esc">
+
+          <!-- ===== Header ===== -->
+          <div class="esc-head">
+            <div>
+              <p class="esc-eyebrow"><span class="num">§ 04</span><span>·</span><span>HOW ESCROW WORKS</span></p>
+              <h2 class="esc-h">Funds lock first. <span class="dim">Proof releases them.</span><br/><span class="accent">Nothing in between.</span></h2>
+            </div>
+            <div>
+              <p class="esc-sub">Every gig and every trade follows the same four-stage on-chain contract. No platform-held balance. No "pending" you can't see. Every state change is a Solana transaction you can verify.</p>
+              <div class="esc-meta" style="margin-top: 24px;">
+                <div class="esc-meta-row"><span class="k">PROGRAM</span><span class="v"><code>TEnDa…7r2K</code></span></div>
+                <div class="esc-meta-row"><span class="k">CHAIN</span><span class="v">Solana mainnet · ~400ms blocks</span></div>
+                <div class="esc-meta-row"><span class="k">AUDIT</span><span class="v">OtterSec · Mar 2025</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Lifecycle track ===== -->
+          <div class="track-wrap">
+            <div class="track-rule"></div>
+
+            <div class="stages">
+              <!-- Stage 1: Lock -->
+              <div class="stage s1">
+                <div class="stage-head">
+                  <div class="stage-num">01</div>
+                  <div>
+                    <div class="stage-tag">Poster · Buyer</div>
+                    <h3 class="stage-name">Lock</h3>
+                  </div>
+                </div>
+                <p class="stage-body">SOL leaves the poster's wallet and enters the on-chain escrow program. It is no longer in either party's control.</p>
+                <div class="stage-evt">
+                  <div class="evt-row">
+                    <span class="evt-k">EVENT</span>
+                    <span class="evt-status locked"><span class="d"></span>LOCKED</span>
+                  </div>
+                  <div class="evt-row">
+                    <span class="evt-k">AMOUNT</span>
+                    <span class="evt-v amt">0.50 SOL</span>
+                  </div>
+                  <div class="evt-row">
+                    <span class="evt-k">TX</span>
+                    <span class="evt-v hash">5Qf…aL2</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stage 2: Work -->
+              <div class="stage s2">
+                <div class="stage-head">
+                  <div class="stage-num">02</div>
+                  <div>
+                    <div class="stage-tag">Worker · Seller</div>
+                    <h3 class="stage-name">Work</h3>
+                  </div>
+                </div>
+                <p class="stage-body">The worker accepts and delivers — package dropped, photo taken, fiat sent. Photo or video proof is uploaded to the gig.</p>
+                <div class="stage-evt">
+                  <div class="evt-row">
+                    <span class="evt-k">EVENT</span>
+                    <span class="evt-status in-prog"><span class="d"></span>PROOF SUBMITTED</span>
+                  </div>
+                  <div class="evt-row">
+                    <span class="evt-k">PROOF</span>
+                    <span class="evt-v">photo · 2 files</span>
+                  </div>
+                  <div class="evt-row">
+                    <span class="evt-k">CID</span>
+                    <span class="evt-v hash">bafy…q9w</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stage 3: Approve -->
+              <div class="stage s3">
+                <div class="stage-head">
+                  <div class="stage-num">03</div>
+                  <div>
+                    <div class="stage-tag">Poster · Buyer</div>
+                    <h3 class="stage-name">Approve</h3>
+                  </div>
+                </div>
+                <p class="stage-body">The poster reviews proof and signs an approval. One tap. No back-office. No phone calls.</p>
+                <div class="stage-evt">
+                  <div class="evt-row">
+                    <span class="evt-k">EVENT</span>
+                    <span class="evt-status released"><span class="d"></span>APPROVED</span>
+                  </div>
+                  <div class="evt-row">
+                    <span class="evt-k">SIGNER</span>
+                    <span class="evt-v">@yemi.sol</span>
+                  </div>
+                  <div class="evt-row">
+                    <span class="evt-k">TX</span>
+                    <span class="evt-v hash">9Tk…rNx</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stage 4: Release -->
+              <div class="stage s4">
+                <div class="stage-head">
+                  <div class="stage-num">04</div>
+                  <div>
+                    <div class="stage-tag">Program · Atomic</div>
+                    <h3 class="stage-name">Release</h3>
+                  </div>
+                </div>
+                <p class="stage-body">In the same block, the program splits the locked SOL — payout to the worker, fee to Tenda. Settlement under 2 seconds.</p>
+                <div class="stage-evt">
+                  <div class="evt-row">
+                    <span class="evt-k">EVENT</span>
+                    <span class="evt-status final"><span class="d"></span>SETTLED</span>
+                  </div>
+                  <div class="evt-row">
+                    <span class="evt-k">PAYOUT</span>
+                    <span class="evt-v amt">0.4875 SOL</span>
+                  </div>
+                  <div class="evt-row">
+                    <span class="evt-k">FEE</span>
+                    <span class="evt-v">0.0125 SOL · 2.5%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Resolve / Dispute aside ===== -->
+          <div class="resolve">
+            <div class="resolve-l">
+              <div class="resolve-tag"><span class="d"></span>FALLBACK · WHEN THINGS GO WRONG</div>
+              <h3 class="resolve-h">If proof is missing or contested, escrow resolves — it doesn't disappear.</h3>
+              <p class="resolve-b">Funds are never stuck on Tenda. The program supports four exits — three automatic, one human-reviewed. Whichever path triggers, both parties see the same on-chain receipt.</p>
+
+              <div class="resolve-routes">
+                <div class="route-row">
+                  <span class="route-num">A</span>
+                  <span class="route-text"><b>Mutual cancel.</b> Either side cancels before work starts → SOL returns to poster.</span>
+                  <span class="route-time">~2s</span>
+                </div>
+                <div class="route-row">
+                  <span class="route-num">B</span>
+                  <span class="route-text"><b>Auto-approve.</b> Poster doesn't review within 48h of proof → release fires automatically.</span>
+                  <span class="route-time">48h</span>
+                </div>
+                <div class="route-row">
+                  <span class="route-num">C</span>
+                  <span class="route-text"><b>Auto-refund.</b> Worker doesn't submit proof before deadline → SOL returns to poster.</span>
+                  <span class="route-time">deadline</span>
+                </div>
+                <div class="route-row">
+                  <span class="route-num">D</span>
+                  <span class="route-text"><b>Dispute.</b> Either side opens a dispute → Tenda reviewers split the locked amount based on submitted evidence.</span>
+                  <span class="route-time">≤ 24h</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="resolve-r">
+              <p class="clause-h">From the on-chain program</p>
+              <pre class="clause">
+<span class="cmt">// every release is one of four paths</span>
+<span class="kw">match</span> escrow.state {
+  <span class="var">Approved</span>  → split(payout, fee),
+  <span class="var">AutoApproved</span> → split(payout, fee),
+  <span class="var">Refunded</span>  → return(poster),
+  <span class="var">Disputed</span>  → arbitrate(),
+}</pre>
+              <p style="font-family: var(--mono); font-size: 11px; color: #999; margin: 14px 0 0; line-height: 1.6;">Simplified. Full source in the <span style="color:#2E5BD6; font-weight:600;">tenda-escrow</span> repo.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Mobile ===== -->
+    <div class="frame-wrap" style="margin-top: 28px;">
+      <span class="frame-label"><span class="dot"></span>390 · mobile · vertical timeline</span>
+      <div class="frame-mw">
+        <div class="esc esc-m">
+          <div class="esc-head">
+            <p class="esc-eyebrow" style="font-size: 10px;"><span class="num">§ 04</span><span>·</span><span>HOW ESCROW WORKS</span></p>
+            <h2 class="esc-h">Funds lock first. <span class="dim">Proof releases them.</span> <span class="accent">Nothing in between.</span></h2>
+            <p class="esc-sub" style="margin-top: 18px;">Same four-stage contract for every gig and every trade. No platform-held balance.</p>
+          </div>
+
+          <div class="vtimeline">
+            <div class="vt-stage s1">
+              <div class="stage-num">01</div>
+              <div>
+                <div class="stage-tag">Poster · Buyer</div>
+                <h3 class="stage-name">Lock</h3>
+                <p class="stage-body">SOL leaves the poster's wallet, enters escrow.</p>
+                <div class="stage-evt">
+                  <div class="evt-row"><span class="evt-k">EVENT</span><span class="evt-status locked"><span class="d"></span>LOCKED</span></div>
+                  <div class="evt-row"><span class="evt-k">AMOUNT</span><span class="evt-v amt">0.50 SOL</span></div>
+                  <div class="evt-row"><span class="evt-k">TX</span><span class="evt-v hash">5Qf…aL2</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="vt-stage s2">
+              <div class="stage-num">02</div>
+              <div>
+                <div class="stage-tag">Worker · Seller</div>
+                <h3 class="stage-name">Work</h3>
+                <p class="stage-body">Worker delivers and submits photo or video proof.</p>
+                <div class="stage-evt">
+                  <div class="evt-row"><span class="evt-k">EVENT</span><span class="evt-status in-prog"><span class="d"></span>PROOF SUBMITTED</span></div>
+                  <div class="evt-row"><span class="evt-k">PROOF</span><span class="evt-v">photo · 2 files</span></div>
+                  <div class="evt-row"><span class="evt-k">CID</span><span class="evt-v hash">bafy…q9w</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="vt-stage s3">
+              <div class="stage-num">03</div>
+              <div>
+                <div class="stage-tag">Poster · Buyer</div>
+                <h3 class="stage-name">Approve</h3>
+                <p class="stage-body">Poster reviews proof. One tap signs approval.</p>
+                <div class="stage-evt">
+                  <div class="evt-row"><span class="evt-k">EVENT</span><span class="evt-status released"><span class="d"></span>APPROVED</span></div>
+                  <div class="evt-row"><span class="evt-k">SIGNER</span><span class="evt-v">@yemi.sol</span></div>
+                  <div class="evt-row"><span class="evt-k">TX</span><span class="evt-v hash">9Tk…rNx</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="vt-stage s4">
+              <div class="stage-num">04</div>
+              <div>
+                <div class="stage-tag">Program · Atomic</div>
+                <h3 class="stage-name">Release</h3>
+                <p class="stage-body">Same block: payout to worker, 2.5% fee to Tenda.</p>
+                <div class="stage-evt">
+                  <div class="evt-row"><span class="evt-k">EVENT</span><span class="evt-status final"><span class="d"></span>SETTLED</span></div>
+                  <div class="evt-row"><span class="evt-k">PAYOUT</span><span class="evt-v amt">0.4875 SOL</span></div>
+                  <div class="evt-row"><span class="evt-k">FEE</span><span class="evt-v">0.0125 SOL</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- mobile resolve -->
+          <div class="resolve">
+            <div class="resolve-l">
+              <div class="resolve-tag" style="font-size: 9.5px;"><span class="d"></span>WHEN THINGS GO WRONG</div>
+              <h3 class="resolve-h">Escrow resolves. It never disappears.</h3>
+              <p class="resolve-b" style="font-size: 14px;">Four exits — three automatic, one reviewed. Funds never stuck.</p>
+              <div class="resolve-routes">
+                <div class="route-row"><span class="route-num">A</span><span class="route-text"><b>Mutual cancel</b> → return.</span><span class="route-time">~2s</span></div>
+                <div class="route-row"><span class="route-num">B</span><span class="route-text"><b>Auto-approve</b> after 48h.</span><span class="route-time">48h</span></div>
+                <div class="route-row"><span class="route-num">C</span><span class="route-text"><b>Auto-refund</b> at deadline.</span><span class="route-time">deadline</span></div>
+                <div class="route-row"><span class="route-num">D</span><span class="route-text"><b>Dispute</b> → reviewer arbitrates.</span><span class="route-time">≤24h</span></div>
+              </div>
+            </div>
+            <div class="resolve-r">
+              <p class="clause-h">FROM THE PROGRAM</p>
+              <pre class="clause" style="font-size: 11px;">
+<span class="kw">match</span> escrow.state {
+  <span class="var">Approved</span>  → split,
+  <span class="var">AutoApproved</span> → split,
+  <span class="var">Refunded</span>  → return,
+  <span class="var">Disputed</span>  → arbitrate,
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">Two layers, one event</p>
+        Verb + plain body sit above the rule; the on-chain receipt sits below. The reader can skim the human story or read the machine receipts — they describe the same event in different vocabulary.
+      </div>
+      <div class="note">
+        <p class="note-title">Color = role, not stage</p>
+        Blue stages (1, 3) = poster/buyer actions. Orange stage (2) = worker/seller action. Green stage (4) = program-level atomic settlement. Reads as a conversation, not a progress bar.
+      </div>
+      <div class="note">
+        <p class="note-title">Resolve / dispute is non-optional</p>
+        Brief asked for "what if?" coverage. Four explicit routes (A/B/C/D) with timeouts. Right column shows the actual <code>match</code> arms from the program — receipts > marketing.
+      </div>
+      <div class="note">
+        <p class="note-title">Footnoted authority</p>
+        Top-right meta block: <code>PROGRAM</code> id, <code>CHAIN</code>, <code>AUDIT</code>. Lets the trust claim ground itself without a hero stat row repeating §1.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Track-rule draws left-to-right (<code>scaleX 0→1</code>, <code>800ms</code>) on enter. Stage cards fade up with <code>120ms</code> stagger. PROOF SUBMITTED dot pulses (already coded). Monospace amounts roll up on first view (<code>+200ms</code> each).
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Spacing</p>
+        Section <code>112 80 120</code>. Header grid <code>1.2fr 1fr · gap 64</code>. Track gap <code>24</code>. Stage num <code>56·56</code>, ring 2px. Resolve <code>1.6fr 1fr · gap 48</code>, padding <code>44</code>, radius <code>22</code>.
+      </div>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>

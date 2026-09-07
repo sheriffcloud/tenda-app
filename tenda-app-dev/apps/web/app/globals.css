@@ -1,0 +1,267 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/* Fonts arrive as next/font CSS variables from app/layout.tsx. Every figure
+ * (amounts, rates, dates, hashes) is set in mono with tabular numerals — the
+ * design brief's one non-inherited rule.
+ *
+ * The three roles are mobile's three families (#59a, 2026-09-02): Space
+ * Grotesk display, Manrope body, JetBrains Mono for figures — what
+ * `typography.fonts` in apps/mobile/theme/tokens.ts names, and what the
+ * generated `type-*` atoms in styles/tokens.css resolve through. Inter (#44)
+ * and the Outfit detour are gone. The binding is guarded by
+ * scripts/__tests__/faces.test.ts. */
+@theme inline {
+  --font-display: var(--font-space-grotesk);
+  --font-body: var(--font-manrope);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+/* The centred public shell's measure (Tier 1 comp: max-width 1240px, repeated
+ * on the header, the hero and every section below it). A theme token rather
+ * than max-w-[1240px] scattered through six files — the shells' widths are the
+ * one geometry the comps state as a rule, and Tailwind's own scale has no
+ * 1240px step. `--container-*` is Tailwind v4's max-width namespace. */
+@theme inline {
+  --container-content: 1240px;
+}
+
+/* No `dark:` variant on purpose: components theme through the semantic tokens
+ * (which already resolve per theme, system-dark included). A data-theme-keyed
+ * variant would silently miss system-dark and disagree with the tokens. */
+
+/* Chat "my bubble" blues — mobile's MessageBubble constants (deliberately
+ * NOT theme tokens there either: softer, desaturated variants of brand so
+ * the conversation feels calmer than a flat brand fill). Declared here with
+ * the same three-state theme contract tokens.css implements. */
+@theme inline {
+  --color-chat-bubble-mine: var(--chat-bubble-mine);
+}
+:root {
+  --chat-bubble-mine: #4365d2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --chat-bubble-mine: #3f5ba8;
+  }
+}
+:root[data-theme="dark"] {
+  --chat-bubble-mine: #3f5ba8;
+}
+
+[data-brand-dark] { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-brand-light] { display: none; }
+  :root:not([data-theme="light"]) [data-brand-dark] { display: block; }
+}
+:root[data-theme="dark"] [data-brand-light] { display: none; }
+:root[data-theme="dark"] [data-brand-dark] { display: block; }
+
+/* ── Motion ─────────────────────────────────────────────────────────────
+ * Web-only ON PURPOSE, and deliberately NOT routed through gen-web-tokens.
+ * apps/mobile/theme/tokens.ts does export a `motion` scale, but it is
+ * Reanimated's vocabulary — 90/150/220/320/480ms plus spring damping /
+ * stiffness / mass, which CSS cannot express and whose steps land nowhere
+ * near the comps' 100/120/160ms. Emitting it here would invite components
+ * to resolve a CSS duration from an RN spring scale. These values are the
+ * comps', which own visuals.
+ *
+ * `spin` is absent by design: Tailwind ships `animate-spin` and Spinner.tsx
+ * already uses it — redefining the keyframe would shadow the framework's.
+ */
+:root {
+  --motion-fast: 100ms; /* hover / background transitions */
+  --motion-base: 120ms; /* entrances, small transforms */
+  --motion-slow: 160ms; /* row arrival */
+  --motion-shimmer: 1400ms;
+  /* NOT --ease-*: that is Tailwind's own theme namespace (--ease-out is
+   * cubic-bezier(0,0,0.2,1) there). Declaring it here would override the
+   * framework's and silently re-curve every `ease-out` utility in the app.
+   * The comps use the plain CSS keywords, which are different curves again,
+   * so they live under --motion-ease-* where nothing collides. */
+  --motion-ease-standard: ease;
+  --motion-ease-out: ease-out;
+  --motion-ease-in-out: ease-in-out;
+  /* fadein's travel. A surface needing the comps' 6px variant overrides this
+   * rather than adding a second near-identical keyframe. */
+  --motion-rise: 4px;
+}
+
+@keyframes fadein {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-rise));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes popin {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+/* background-color, not the `background` shorthand the comps use: the
+ * shorthand also resets background-image/size/position for the duration of
+ * the animation, which would blank any row that carries one. */
+@keyframes arrive {
+  from {
+    background-color: var(--brand-primary-surface);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@theme inline {
+  --animate-fadein: fadein var(--motion-base) var(--motion-ease-out);
+  --animate-popin: popin var(--motion-base) var(--motion-ease-out);
+  --animate-shimmer: shimmer var(--motion-shimmer) var(--motion-ease-in-out) infinite;
+  --animate-arrive: arrive var(--motion-slow) var(--motion-ease-out);
+}
+
+/* The comps' blanket guard, with one deliberate improvement: they write
+ * `animation:none!important`, which cancels the animationend/transitionend
+ * events any JS awaiting them would never receive. Collapsing to ~0 instead
+ * removes the motion just as completely while keeping those events firing. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Workspace panes ────────────────────────────────────────────────────
+ * The rail | list | detail grid (Tier 2 comp, lines 357-362). Kept as plain
+ * CSS rather than utility classes because the ≤900px behaviour is a
+ * PARENT-STATE DESCENDANT rule — which pane collapses depends on whether the
+ * grid has a detail selected — and because media queries keep the server and
+ * client render identical. A JS-measured breakpoint would reintroduce exactly
+ * the hydration class of bug we just spent a session ruling out.
+ *
+ * 100dvh, not the comps' 100vh: on mobile browsers vh ignores the retracting
+ * URL bar and leaves the last rows of a pane unreachable.
+ */
+:root {
+  --pane-rail: 64px;
+  --pane-list: 380px;
+  --pane-list-compact: 320px;
+}
+
+[data-panes] {
+  display: grid;
+  grid-template-columns: var(--pane-rail) var(--pane-list) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 100dvh);
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Auth flows use the focused shell; authenticated composers replace it with
+ * the workspace shell without duplicating the public URL hierarchy. */
+[data-focused-shell]:has([data-panes]) > header,
+[data-focused-shell]:has([data-panes]) > [role='status'] { display: none; }
+[data-focused-shell]:has([data-panes]) > main { display: block; padding: 0; }
+
+[data-panes]:has(nav[data-expanded='true']) {
+  --pane-rail: 220px;
+}
+
+/* A surface with no list column is rail + content, at every width — without
+ * this the detail sits in the list's slot and leaves a dead third column.
+ *
+ * Keyed on :has() rather than a JS flag ON PURPOSE. The list arrives through
+ * the @list parallel-route slot, and Next wraps slot output in its own
+ * boundary elements — so the `list` prop is an element even when the slot
+ * renders nothing, and no prop inspection can tell "empty slot" from "real
+ * list". Whether a [data-list] element exists in the DOM is the only honest
+ * signal, and CSS can read it directly. */
+[data-panes]:not(:has([data-list])) {
+  grid-template-columns: var(--pane-rail) minmax(0, 1fr);
+}
+
+/* The list narrows before it disappears. */
+@media (max-width: 1100px) {
+  [data-panes] {
+    grid-template-columns: var(--pane-rail) var(--pane-list-compact) minmax(0, 1fr);
+  }
+  [data-panes]:has(nav[data-expanded='true']) {
+    --pane-rail: 220px;
+  }
+}
+
+/* One pane at a time: the detail wins when a row is selected, the list wins
+ * when nothing is (`data-nodetail`). */
+@media (max-width: 900px) {
+  [data-panes] {
+    grid-template-columns: var(--pane-rail) minmax(0, 1fr);
+  }
+  [data-panes] [data-list] {
+    display: none;
+  }
+  [data-panes][data-nodetail] [data-list] {
+    display: flex;
+  }
+  /* :has([data-list]) is load-bearing — the detail may only be hidden when
+   * there is a list to take its place. A surface with no list column (most of
+   * them) would otherwise render an empty pane and a blank screen. */
+  [data-panes][data-nodetail]:has([data-list]) [data-detail] {
+    display: none;
+  }
+}
+
+body {
+  background: var(--surface-background);
+  color: var(--content-primary);
+  font-family: var(--font-body);
+}
+
+.font-numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Gig card densities (#60) ───────────────────────────────────────────
+ * The GigCard lays its six cells out by NAMED AREA, and the two templates
+ * live here rather than as arbitrary utilities because one of them is a
+ * breakpoint rule: the three-column ROW only exists from `sm` up. Below that
+ * a row stacks exactly like the grid card, so a 320px phone — where the feed
+ * hands a card 272px — never sees the chain pills, the amount and the title
+ * fighting over one line. Children address the areas with `[grid-area:…]`.
+ */
+[data-gig-density] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'meta chain'
+    'title title'
+    'amt amt'
+    'time time'
+    'foot foot';
+}
+@media (min-width: 640px) {
+  [data-gig-density='row'] {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'meta chain amt'
+      'title chain amt'
+      'foot chain time';
+  }
+}

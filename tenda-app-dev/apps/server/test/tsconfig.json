@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "..",
+    // No baseUrl: `paths` resolve relative to THIS config's directory (test/),
+    // so the mapping must climb to ../src. ("./src/*" here silently pointed at
+    // test/src/* and every @server import failed under `tsc -p test/tsconfig`.)
+    "paths": {
+      "@server/*": ["../src/*"]
+    }
+  },
+  "include": ["../src/**/*.ts", "**/*.ts"]
+}

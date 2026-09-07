@@ -1,0 +1,2 @@
+ALTER TABLE "exchange_details" ADD COLUMN "payout_account_id" uuid;--> statement-breakpoint
+ALTER TABLE "exchange_details" ADD CONSTRAINT "exchange_details_payout_account_id_bank_accounts_id_fk" FOREIGN KEY ("payout_account_id") REFERENCES "public"."bank_accounts"("id") ON DELETE set null ON UPDATE no action;

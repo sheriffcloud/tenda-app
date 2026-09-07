@@ -1,0 +1,208 @@
+# Contract drift control. The shared ABI/IDL (packages/shared/src/{abi,idl})
+# are GENERATED from the in-repo contracts; this workflow rebuilds them from
+# source and fails if the committed artifact differs — so a contract change can
+# never merge with a stale ABI/IDL, with no human needing to run a sync script.
+#
+# Path-filtered so it only runs when contracts, the generated artifacts, or the
+# sync machinery change (the main ci.yml pipeline stays fast on app-only PRs).
+#
+# Reproducibility: the ABI is solc output (solc_version pinned in
+# contracts/evm/foundry.toml) and the IDL is anchor output (anchor 0.32.1
+# pinned via avm) — both deterministic from source, so the diff gate reflects
+# real drift, not toolchain version noise.
+#
+# That claim used to have a hole: the Anza/Solana CLI was installed from
+# `stable` and so floated. It supplies cargo-build-sbf, which compiles the
+# program litesvm executes — so the solana job was only as deterministic as
+# whatever Agave shipped that morning. It is pinned below via SOLANA_RELEASE.
+
+name: contracts
+
+on:
+  push:
+    # Includes `dev`: it is the trunk releases are cut from, so a direct push
+    # there must run the contract drift guards too.
+    branches: [dev, main, master]
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - 'packages/shared/src/abi/**'
+      - 'packages/shared/src/idl/**'
+      - 'scripts/**'
+      - '.github/workflows/contracts.yml'
+
+jobs:
+  # Semantic parity (enum order + protocol limits) across both contracts and the
+  # shared TS constants — catches the drift the ABI/IDL guard can't see. Pure
+  # parse, no contract toolchain.
+  #
+  # The unit tests for scripts/ itself used to run here too; they moved to
+  # ci.yml's `scripts` job, which is unfiltered and so covers every PR rather
+  # than only the contract-touching ones.
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-contract-parity.mjs
+
+  evm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        # `version: stable` tracks latest stable forge; the ABI is solc-pinned so
+        # the drift gate is unaffected by the forge version (only `fmt` tracks it).
+        with:
+          version: stable
+      - name: Format check
+        working-directory: contracts/evm
+        run: forge fmt --check
+      - name: Build
+        working-directory: contracts/evm
+        run: forge build --sizes
+      - name: Test
+        working-directory: contracts/evm
+        run: forge test -vvv
+      - name: Regenerate shared ABI from source
+        run: node scripts/sync-abi.mjs --no-build
+      - name: Fail on ABI drift
+        run: |
+          git diff --exit-code -- packages/shared/src/abi/tenda_escrow_evm.json \
+            || { echo "::error::shared ABI is stale — run \`pnpm sync:abi\` after changing the contract"; exit 1; }
+
+  solana:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        # `stable` builds avm/anchor-cli; `anchor build` then self-selects the
+        # pinned toolchain via contracts/solana/rust-toolchain.toml.
+        with:
+          toolchain: stable
+      # PINNED, and it has to be. This CLI provides `cargo-build-sbf`, the SBF
+      # toolchain `anchor build` shells out to — so it decides what the .so
+      # litesvm loads actually is. Everything else here is pinned (rust via
+      # rust-toolchain.toml, anchor via avm, litesvm/anchor-litesvm exactly in
+      # package.json), which left this as the one floating input.
+      #
+      # What is established: `stable` moved to Agave v4.x while litesvm is held
+      # at 0.3.3, and the job aborted with `std::bad_alloc` mid-suite.
+      # What is INFERRED, not reproduced: that a v4-built .so handed to litesvm
+      # 0.3.3 is what aborted. Nobody has run a v4 build against 0.3.3 to prove
+      # it. Treat the pin as removing a known-floating variable, not as a
+      # confirmed root cause — if the abort outlives this pin, that hypothesis
+      # is wrong and the next place to look is litesvm itself.
+      #
+      # The version MUST come from the installer URL, not from the environment.
+      # release.anza.xyz serves a per-version script whose first two lines are
+      # literal assignments:
+      #
+      #     SOLANA_RELEASE=v3.0.14
+      #     SOLANA_INSTALL_INIT_ARGS=v3.0.14
+      #
+      # /stable/install carries `stable` in those same two lines, and because
+      # they are unconditional assignments (no `${VAR:-default}`) they CLOBBER
+      # any inherited value. An `env: SOLANA_RELEASE:` on this step is
+      # therefore silently ignored — which is exactly how a step labelled
+      # "pinned" kept installing whatever stable happened to be.
+      #
+      # v3.0.14 is the newest published 3.0.x: /v3.0.15/install and its
+      # agave-install-init both 404, and anza-xyz/agave has no v3.0.15 tag.
+      #
+      # The version assertion below is the point. A pin that is not verified is
+      # not a pin, so if the URL ever stops delivering this exact version the
+      # job fails here rather than 20 minutes later inside litesvm.
+      #
+      # Bump deliberately, and expect to bump litesvm with it.
+      - name: Install Solana CLI (pinned)
+        env:
+          SOLANA_PIN: v3.0.14
+        run: |
+          set -euo pipefail
+          # Fetch first, THEN run. `sh -c "$(curl ...)"` reports the status of
+          # the shell, not of curl, so a 404 would slip past `set -e` with an
+          # empty script and surface much later as `solana: command not found`.
+          # The likely trigger is a bump to a version that was never published
+          # (v3.0.15, say) — so name that possibility in the message.
+          if ! installer="$(curl -sSfL "https://release.anza.xyz/${SOLANA_PIN}/install")"; then
+            echo "::error::No installer at release.anza.xyz/${SOLANA_PIN}/install — that version is not published. Confirm the tag exists (git ls-remote --tags https://github.com/anza-xyz/agave) before bumping SOLANA_PIN."
+            exit 1
+          fi
+          sh -c "$installer"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          installed="$(solana --version)"
+          echo "$installed"
+          # `solana --version` prints e.g. "solana-cli 3.0.14 (src:…)" — match the
+          # bare semver, with boundaries so 3.0.14 never satisfies a 3.0.140 pin.
+          case " $installed " in
+            *" ${SOLANA_PIN#v} "*) ;;
+            *)
+              echo "::error::Solana CLI pin did not take: wanted ${SOLANA_PIN}, got '$installed'"
+              exit 1
+              ;;
+          esac
+          # cargo-build-sbf is the binary that actually matters here; assert it
+          # came from the same release rather than a stray earlier install on PATH.
+          # It prints several lines (cli / platform-tools / rustc); take the first
+          # by expansion rather than `| head -1`, which under `pipefail` can
+          # SIGPIPE the producer and fail the step on a successful check.
+          sbf_all="$(cargo-build-sbf --version)"
+          sbf="${sbf_all%%$'\n'*}"
+          echo "$sbf"
+          case " $sbf " in
+            *" ${SOLANA_PIN#v} "*) ;;
+            *)
+              echo "::error::cargo-build-sbf is not from ${SOLANA_PIN}: '$sbf'"
+              exit 1
+              ;;
+          esac
+      - name: Install Anchor 0.32.1 (avm)
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --force
+          avm install 0.32.1
+          avm use 0.32.1
+      - run: pnpm install --frozen-lockfile
+      # Mirrors the EVM job's `forge fmt --check`, which the Solana side lacked —
+      # so the program drifted out of rustfmt shape with nothing to catch it
+      # (13 files by the time this landed). `cargo fmt` resolves the PINNED
+      # toolchain from rust-toolchain.toml, which declares the rustfmt
+      # component, so this checks the same formatting a laptop produces.
+      #
+      # BEFORE the build, like its EVM counterpart: a formatting failure should
+      # cost seconds, not the minutes `anchor build` takes.
+      - name: Format check (rustfmt)
+        working-directory: contracts/solana
+        run: cargo fmt --check
+      - name: Build program (rust toolchain pinned by contracts/solana/rust-toolchain.toml)
+        working-directory: contracts/solana
+        run: anchor build
+      - name: Test (litesvm)
+        run: pnpm --filter @tenda/contracts-solana test
+      # Whole-package tsc (tests, tests-devnet AND migrations/) against the
+      # freshly built target/types — ts-mocha only transpiles what the suites
+      # require, so this is the sole gate that keeps ops scripts like
+      # migrations/deploy.ts in sync with the program's instruction surface.
+      - name: Type-check (incl. migrations/deploy.ts)
+        run: pnpm --filter @tenda/contracts-solana type-check
+      - name: Regenerate shared IDL from source
+        run: node scripts/sync-idl.mjs --no-build
+      - name: Program id consistency (declare_id == Anchor.toml == IDL)
+        run: node scripts/check-program-id.mjs
+      - name: Fail on IDL drift
+        run: |
+          git diff --exit-code -- packages/shared/src/idl/tenda_escrow.json packages/shared/src/idl/tenda_escrow.ts \
+            || { echo "::error::shared IDL is stale — run \`pnpm sync:idl\` after changing the program"; exit 1; }

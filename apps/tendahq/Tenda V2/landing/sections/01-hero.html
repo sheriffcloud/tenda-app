@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Landing — §0 Navbar · §1 Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../shared.css" />
+<link rel="stylesheet" href="../landing.css" />
+</head>
+<body>
+
+<header class="canvas-header">
+  <p class="canvas-eyebrow">Tenda · Landing wireframes · v0.1</p>
+  <h1 class="canvas-title">§0 Navbar &nbsp;·&nbsp; §1 Hero</h1>
+  <p class="canvas-sub">Hi-fi wireframes at real fidelity — Space Grotesk display, Manrope body, JetBrains Mono numerics. Tokens lifted 1:1 from <code style="font-family:var(--mono);font-size:13px;">apps/mobile/theme/tokens.ts</code>. Hero card stack shows both states (FUNDING dimmed behind, ESCROW LOCKED in front) to imply the entrance animation. Logo placeholder until <code style="font-family:var(--mono);font-size:13px;">logo-full.png</code> is dropped in.</p>
+  <div class="canvas-meta">
+    <span>1440w desktop · 390w mobile</span>
+    <span>Light theme default · prefers-color-scheme honoured</span>
+    <span>Section dark variant: §5 Live ticker</span>
+  </div>
+</header>
+
+<div class="frames">
+
+  <!-- ============================================== -->
+  <!-- SECTION 0 — NAVBAR                              -->
+  <!-- ============================================== -->
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">§0</span>
+      <h2>Sticky navbar</h2>
+      <span class="desc">Glassy on scroll. Hamburger sheet on mobile. Border-bottom only when scrolled.</span>
+    </div>
+
+    <div class="frame-grid split">
+      <!-- Desktop navbar -->
+      <div class="frame-wrap">
+        <span class="frame-label"><span class="dot"></span>Desktop · 1440 · light</span>
+        <div class="frame desktop" style="height: 128px;">
+          <!-- Top nav (at-top state, no border) -->
+          <nav class="nav" style="border-bottom-color: transparent;">
+            <div class="brand">
+              <span class="mark">T</span>
+              <span class="word">tenda</span>
+            </div>
+            <div class="links">
+              <a href="#">Gigs</a>
+              <a href="#">Exchange</a>
+              <a href="#">How it works</a>
+              <a href="#">For who</a>
+              <a href="#">FAQ</a>
+            </div>
+            <div class="right">
+              <button class="theme-tog" aria-label="Toggle theme">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+              </button>
+              <button class="btn primary sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m6 9 6 6 6-6"/><path d="M5 21h14"/></svg>
+                Download App
+              </button>
+            </div>
+          </nav>
+
+          <!-- Scrolled state preview (dimmed) -->
+          <div style="position: relative; opacity: 0.65;">
+            <nav class="nav scrolled">
+              <div class="brand">
+                <span class="mark">T</span>
+                <span class="word">tenda</span>
+              </div>
+              <div class="links">
+                <a href="#">Gigs</a>
+                <a href="#">Exchange</a>
+                <a href="#">How it works</a>
+                <a href="#">For who</a>
+                <a href="#">FAQ</a>
+              </div>
+              <div class="right">
+                <button class="theme-tog" aria-label="Toggle theme">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                </button>
+                <button class="btn primary sm">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m6 9 6 6 6-6"/><path d="M5 21h14"/></svg>
+                  Download App
+                </button>
+              </div>
+            </nav>
+            <span class="tag-pill" style="position:absolute; top:14px; right:-72px;">scrolled · backdrop-blur-xl</span>
+          </div>
+
+          <span class="tag-pill" style="position:absolute; top:14px; left:50%; transform:translateX(-50%);">at-top · no border</span>
+        </div>
+      </div>
+
+      <!-- Mobile navbar + sheet -->
+      <div class="frame-wrap">
+        <span class="frame-label"><span class="dot"></span>Mobile · 390 · sheet open</span>
+        <div class="frame mobile" style="height: 580px;">
+          <nav class="nav-mobile">
+            <div class="brand">
+              <span class="mark" style="width:22px;height:22px;font-size:13px;">T</span>
+              <span class="word">tenda</span>
+            </div>
+            <button class="hamburger" aria-label="Close menu" style="background: var(--inset);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </nav>
+          <!-- Full-screen sheet -->
+          <div style="padding: 24px 20px; display:flex; flex-direction:column; gap: 4px; height: calc(100% - 56px - 88px); overflow:hidden;">
+            <a style="display:flex; align-items:center; justify-content:space-between; padding: 18px 4px; border-bottom: 1px solid var(--line-subtle); font-family: var(--display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); text-decoration:none;">Gigs <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3);"><path d="m9 18 6-6-6-6"/></svg></a>
+            <a style="display:flex; align-items:center; justify-content:space-between; padding: 18px 4px; border-bottom: 1px solid var(--line-subtle); font-family: var(--display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); text-decoration:none;">Exchange <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3);"><path d="m9 18 6-6-6-6"/></svg></a>
+            <a style="display:flex; align-items:center; justify-content:space-between; padding: 18px 4px; border-bottom: 1px solid var(--line-subtle); font-family: var(--display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); text-decoration:none;">How it works <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3);"><path d="m9 18 6-6-6-6"/></svg></a>
+            <a style="display:flex; align-items:center; justify-content:space-between; padding: 18px 4px; border-bottom: 1px solid var(--line-subtle); font-family: var(--display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); text-decoration:none;">For who <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3);"><path d="m9 18 6-6-6-6"/></svg></a>
+            <a style="display:flex; align-items:center; justify-content:space-between; padding: 18px 4px; font-family: var(--display); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); text-decoration:none;">FAQ <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3);"><path d="m9 18 6-6-6-6"/></svg></a>
+          </div>
+          <!-- Sticky sheet bottom -->
+          <div style="position:absolute; left:0; right:0; bottom:0; padding: 16px 20px 20px; background: var(--bg); border-top: 1px solid var(--line-subtle);">
+            <button class="btn primary" style="width:100%;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m6 9 6 6 6-6"/><path d="M5 21h14"/></svg>
+              Download for Android
+            </button>
+            <p class="caption" style="text-align:center; margin-top:10px;">APK · 12.4 MB · v0.2 devnet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">Logo placeholder</p>
+        Outlined T mark + "tenda" wordmark in <code>Space Grotesk 700, -0.04em</code>. Replace with <code>logo-full.png</code> at handoff — keep the same 24h.
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Spacing</p>
+        Nav height <code>64</code>. Side padding <code>40</code> (lg) / <code>16</code> (mobile). Link gap <code>28</code>. Right cluster gap <code>12</code>.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Border-bottom fades in on first scroll <code>220ms</code>. Theme-toggle <code>colors 220ms</code>. No flicker on theme swap.
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================== -->
+  <!-- SECTION 1 — HERO                                -->
+  <!-- ============================================== -->
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">§1</span>
+      <h2>Hero</h2>
+      <span class="desc">7/5 split. Headline + animated escrow card stack + dual CTA + currency marquee strip below.</span>
+    </div>
+
+    <div class="frame-grid split">
+      <!-- Desktop hero -->
+      <div class="frame-wrap">
+        <span class="frame-label"><span class="dot"></span>Desktop · 1440 · light</span>
+        <div class="frame desktop">
+          <!-- nav (at top) -->
+          <nav class="nav" style="border-bottom-color: transparent;">
+            <div class="brand"><span class="mark">T</span><span class="word">tenda</span></div>
+            <div class="links">
+              <a href="#">Gigs</a><a href="#">Exchange</a><a href="#">How it works</a><a href="#">For who</a><a href="#">FAQ</a>
+            </div>
+            <div class="right">
+              <button class="theme-tog" aria-label="Toggle theme"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button>
+              <button class="btn primary sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m6 9 6 6 6-6"/><path d="M5 21h14"/></svg>Download App</button>
+            </div>
+          </nav>
+
+          <!-- hero body -->
+          <div class="hero">
+            <div class="hero-left">
+              <span class="hero-eyebrow"><span class="dot"></span>LIVE ON SOLANA · DEVNET</span>
+              <h1 class="h-hero">
+                Get paid.
+                <span class="dim">No middlemen.</span>
+              </h1>
+              <p class="hero-sub">Tenda is the on-chain marketplace for gig work and P2P fiat trades. Escrow locks SOL the moment a job is posted or an offer is published — proof releases it.</p>
+              <div class="hero-cta-row">
+                <button class="btn primary">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m6 9 6 6 6-6"/><path d="M5 21h14"/></svg>
+                  Download for Android
+                </button>
+                <button class="btn outline">
+                  See how escrow works
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </button>
+              </div>
+              <div class="hero-trust">
+                <span>Non-custodial</span><span class="sep">·</span>
+                <span>Open-source contracts</span><span class="sep">·</span>
+                <span>2.5% flat fee</span>
+              </div>
+            </div>
+
+            <!-- right: card stack -->
+            <div class="hero-right">
+              <div class="ecard-stack">
+
+                <!-- BACK: gig peek card -->
+                <div class="ecard back">
+                  <div class="gig-peek-row">
+                    <span class="gig-peek-cat" style="background: var(--cat-delivery-surface); color: var(--cat-delivery-text);">📦 Delivery</span>
+                  </div>
+                  <p class="gig-peek-title">Deliver groceries to Yaba</p>
+                  <div class="gig-peek-bottom">
+                    <span class="gig-peek-amt">0.5 SOL</span>
+                    <span class="gig-peek-time">⏱ 45m left</span>
+                  </div>
+                </div>
+
+                <!-- MID: funding state (ghosted, behind) -->
+                <div class="ecard mid">
+                  <div class="ecard-row">
+                    <span class="pill warn"><span class="dot" style="background: var(--warn); box-shadow:none;"></span>FUNDING</span>
+                    <span class="mono" style="font-size:13px; color: var(--ink-3);">awaiting tx…</span>
+                  </div>
+                  <div style="margin-top: 28px;">
+                    <div class="ecard-hero-num">
+                      <span class="mono-large" style="color: var(--ink-3);">0.000 SOL</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- FRONT: locked state -->
+                <div class="ecard front">
+                  <div class="ecard-row">
+                    <span class="pill ok"><span class="dot"></span>ESCROW LOCKED</span>
+                    <span class="mono" style="font-size:14px; font-weight:600; color: var(--ink);">02:14:48</span>
+                  </div>
+
+                  <div style="margin-top: 28px;">
+                    <p class="caption" style="margin-bottom:8px;">YOU SEND</p>
+                    <div class="ecard-hero-num">
+                      <span class="mono-large" style="color: var(--ink);">2.000 SOL</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:14px;">
+                      <span style="font-family:var(--mono); color:var(--ink-3); font-size:18px;">↓</span>
+                      <p class="caption" style="margin:0;">YOU RECEIVE</p>
+                    </div>
+                    <div class="ecard-hero-num" style="margin-top:6px;">
+                      <span class="mono-mid" style="color: var(--ink);">490,000 NGN</span>
+                    </div>
+                    <p class="mono" style="font-size:12px; color: var(--money-pos); margin-top:8px;">₦245,000 / SOL · +1.2% above market</p>
+                  </div>
+
+                  <div class="ecard-divider"></div>
+
+                  <div class="ecard-meta-grid">
+                    <div class="ecard-meta">
+                      <p class="lbl">Payment window</p>
+                      <p class="val">30 min</p>
+                    </div>
+                    <div class="ecard-meta">
+                      <p class="lbl">Tenda fee</p>
+                      <p class="val">0.050 SOL</p>
+                    </div>
+                  </div>
+
+                  <div class="ecard-foot">
+                    <span class="av"></span>
+                    <div>
+                      <p class="who">@chiamaka</p>
+                      <p class="meta">4.9★ · 38 trades</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- floating annotations -->
+                <span class="tag-pill" style="position:absolute; top:-22px; right:30px;">animates on viewport enter</span>
+                <span class="tag-pill warn" style="position:absolute; top:90px; left:-90px; transform: rotate(-2deg);">FUNDING → LOCKED · 220ms</span>
+                <span class="tag-pill" style="position:absolute; bottom:30px; left:-72px; transform: rotate(-2deg);">count-up 0 → 2.000 · 480ms</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- currency marquee -->
+          <div class="marquee">
+            <div class="marquee-track">
+              <span class="item">🇳🇬 NGN</span><span class="sep">·</span>
+              <span class="item">🇬🇭 GHS</span><span class="sep">·</span>
+              <span class="item">🇰🇪 KES</span><span class="sep">·</span>
+              <span class="item">🇿🇦 ZAR</span><span class="sep">·</span>
+              <span class="item">🇵🇭 PHP</span><span class="sep">·</span>
+              <span class="item">🇺🇸 USD</span><span class="sep">·</span>
+              <span class="item">🇬🇧 GBP</span><span class="sep">·</span>
+              <span class="item">🇪🇺 EUR</span><span class="sep">·</span>
+              <span class="item">🇳🇬 NGN</span><span class="sep">·</span>
+              <span class="item">🇬🇭 GHS</span><span class="sep">·</span>
+              <span class="item">🇰🇪 KES</span><span class="sep">·</span>
+              <span class="item">🇿🇦 ZAR</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile hero -->
+      <div class="frame-wrap">
+        <span class="frame-label"><span class="dot"></span>Mobile · 390 · light</span>
+        <div class="frame mobile" style="min-height: 880px;">
+          <nav class="nav-mobile">
+            <div class="brand">
+              <span class="mark" style="width:22px;height:22px;font-size:13px;">T</span>
+              <span class="word">tenda</span>
+            </div>
+            <button class="hamburger" aria-label="Open menu">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            </button>
+          </nav>
+
+          <div class="hero-mobile">
+            <span class="hero-eyebrow"><span class="dot"></span>LIVE ON SOLANA · DEVNET</span>
+            <h1 class="h-hero-mobile">
+              Get paid.
+              <span class="dim" style="display:block; color: var(--ink-3);">No middlemen.</span>
+            </h1>
+            <p class="hero-sub">Tenda is the on-chain marketplace for gig work and P2P fiat trades. Escrow locks SOL the moment a job is posted — proof releases it.</p>
+            <div class="hero-cta-row" style="flex-direction: column; align-items: stretch;">
+              <button class="btn primary" style="width:100%;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m6 9 6 6 6-6"/><path d="M5 21h14"/></svg>
+                Download for Android
+              </button>
+              <button class="btn outline" style="width:100%;">See how escrow works</button>
+            </div>
+
+            <!-- mobile escrow card (single, simplified) -->
+            <div class="ecard front" style="position: static; transform: none; width: 100%; margin: 32px 0 16px; box-shadow: var(--shadow-elevated);">
+              <div class="ecard-row">
+                <span class="pill ok"><span class="dot"></span>ESCROW LOCKED</span>
+                <span class="mono" style="font-size:13px; font-weight:600; color: var(--ink);">02:14:48</span>
+              </div>
+              <div style="margin-top: 20px;">
+                <p class="caption" style="margin-bottom:6px;">YOU SEND</p>
+                <span class="mono-large" style="font-size: 32px; color: var(--ink);">2.000 SOL</span>
+                <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+                  <span style="font-family:var(--mono); color:var(--ink-3); font-size:16px;">↓</span>
+                  <p class="caption" style="margin:0;">YOU RECEIVE</p>
+                </div>
+                <span class="mono-mid" style="font-size: 20px; color: var(--ink); display:block; margin-top:4px;">490,000 NGN</span>
+                <p class="mono" style="font-size:11px; color: var(--money-pos); margin-top:6px;">₦245,000 / SOL · +1.2% above market</p>
+              </div>
+              <div class="ecard-divider"></div>
+              <div class="ecard-meta-grid">
+                <div class="ecard-meta"><p class="lbl">Payment window</p><p class="val">30 min</p></div>
+                <div class="ecard-meta"><p class="lbl">Tenda fee</p><p class="val">0.050 SOL</p></div>
+              </div>
+            </div>
+
+            <p class="hero-trust" style="justify-content:center; margin-top: 16px;">
+              <span>Non-custodial</span><span class="sep">·</span>
+              <span>2.5% fee</span>
+            </p>
+          </div>
+
+          <!-- mobile marquee -->
+          <div class="marquee" style="height: 48px;">
+            <div class="marquee-track" style="font-size: 13px;">
+              <span class="item">🇳🇬 NGN</span><span class="sep">·</span>
+              <span class="item">🇬🇭 GHS</span><span class="sep">·</span>
+              <span class="item">🇰🇪 KES</span><span class="sep">·</span>
+              <span class="item">🇿🇦 ZAR</span><span class="sep">·</span>
+              <span class="item">🇵🇭 PHP</span><span class="sep">·</span>
+              <span class="item">🇺🇸 USD</span><span class="sep">·</span>
+              <span class="item">🇬🇧 GBP</span><span class="sep">·</span>
+              <span class="item">🇪🇺 EUR</span>
+            </div>
+          </div>
+
+          <!-- sticky bottom CTA preview -->
+          <div style="position: sticky; bottom: 0; height: 56px; padding: 0 16px; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-top: 1px solid var(--line); display: flex; align-items: center; gap: 12px;">
+            <span class="mark" style="width:28px;height:28px;border-radius:8px;background: var(--ink); color: var(--bg); border:none; font-family: var(--display); font-weight:700; display:inline-flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">T</span>
+            <span style="font-family: var(--body); font-size: 13px; font-weight: 600; color: var(--ink); flex: 1;">Get paid. No middlemen.</span>
+            <button class="btn primary sm" style="height: 36px; padding: 0 14px; font-size: 13px;">Download
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">Headline trick</p>
+        Two-line H1: <code>Get paid.</code> in <code>content.primary</code>, <code>No middlemen.</code> in <code>content.tertiary</code>. Same hierarchy trick the v1 hero uses — preserved.
+      </div>
+      <div class="note">
+        <p class="note-title">Card stack</p>
+        Three layers: gig peek (back, -4°, 60%), funding state (mid, +2°, 55%, blurred), locked state (front, -2° + perspective). Implies the FUNDING → LOCKED flip and "two products" without burning a second hero.
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Spacing · desktop</p>
+        Hero padding <code>96 80 80</code>. Grid <code>1fr 1fr</code> · gap <code>48</code>. min-height <code>720</code> (≈ 92svh on 1080 displays). Card width <code>360</code> · radius <code>24</code>.
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Type · numerics</p>
+        Every number on this page is JetBrains Mono. Hero amount <code>mono-large 40/44 · 600 · -0.02em</code>. Countdown <code>mono 14 · 600</code>. Trust ticks <code>mono-small 12 · 500</code>.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion · viewport enter (one-shot)</p>
+        Pill flip <code>FUNDING → LOCKED</code> at <code>220ms</code>. SOL number count-up <code>0 → 2.000</code> at <code>480ms</code>. Brand-tinted ring pulses card once. <strong>No infinite loops.</strong>
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion · marquee</p>
+        Currency strip loops <code>40s</code>. Pause on hover. <code>prefers-reduced-motion</code> → static, fades on edges only.
+      </div>
+      <div class="note">
+        <p class="note-title">Mobile sticky CTA</p>
+        56h bar pinned to viewport bottom, visible only below <code>lg</code>. Auto-hides when in-page Download CTA scrolls into view (IntersectionObserver). Text never wraps — keep ≤ 28ch.
+      </div>
+      <div class="note">
+        <p class="note-title">Eyebrow status</p>
+        <code>🟢 LIVE ON SOLANA · DEVNET</code> — verified copy. When mainnet ships, swap to <code>LIVE ON SOLANA · MAINNET</code> (no other change).
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Mobile breakpoints</p>
+        Stack hero card below copy. Card scales to 100% width. Drop the back/mid layers on mobile — only front state ships (legibility &gt; cleverness at 390w).
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

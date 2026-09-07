@@ -1,0 +1,24 @@
+{
+  "all": true,
+  "src": ["src"],
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "src/types/**",
+    "src/**/*.types.ts",
+    "src/db/schema/**",
+    "src/idl/**",
+    "src/abi/**",
+    "src/api/contracts/**",
+    "src/api/endpoint.ts",
+    "src/**/index.ts",
+    "src/**/*.d.ts"
+  ],
+  "reporter": ["text", "html", "lcov"],
+  "report-dir": "coverage",
+  "clean": true,
+  "check-coverage": true,
+  "lines": 90,
+  "branches": 85,
+  "functions": 90,
+  "statements": 90
+}

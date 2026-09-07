@@ -1,0 +1,290 @@
+# Cut a release: bump the version, build the APK on EAS, tag it, and publish
+# the APK as a GitHub release asset — one click, no local steps.
+#
+# ORDERING IS THE DESIGN. The build runs BEFORE anything is pushed, so a failed
+# build leaves `dev` and the tag list exactly as they were. Nothing here is hard
+# to undo: the only irreversible-ish step is the last one, and a release and its
+# tag can both be deleted.
+#
+#   1. gate the CURRENT repo          — refuse to start from a drifted state
+#   2. bump + gate again              — the bump is committed locally only
+#   3. refuse a tag that already exists
+#      … derive the suffix from the target, resolve the EAS profile from it
+#        (unnumbered: added after the numbering, and renumbering would churn
+#        every step comment below)
+#   4. verify the promised URL  — before the build spends 20 minutes
+#   5. EAS build (cloud, --wait)      — the long pole
+#   6. download + verify the artifact — a real zip, not an error page
+#   7. push the commit, then the tag  — first mutation of the remote
+#   8. publish the release + asset, then confirm the URL resolves
+#
+# The apkUrl written into apps/tendahq/src/content/app-info.ts in step 2 names a
+# file that does not exist yet; steps 4 and 8 are what hold this workflow to
+# publishing exactly that.
+#
+# Every `${{ }}` value reaches the shell through `env:` rather than being
+# interpolated into the script text. `target` is operator input (a dropdown
+# today, but treated as untrusted anyway), and an interpolated one would be a
+# shell-injection vector; the rest follow the same rule so the safe pattern is
+# the obvious one to copy.
+#
+# SECRETS
+#   EXPO_TOKEN  — Expo access token with build permission on the project
+#                 (Expo dashboard → Account settings → Access tokens).
+#   GITHUB_TOKEN is provided automatically; `contents: write` is what lets it
+#   push the commit and tag and create the release.
+
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Which part of the version to increment'
+        type: choice
+        required: true
+        default: patch
+        options: [patch, minor, major]
+      target:
+        description: 'Which build to release — names the EAS profile and the tag (testnet → v1.0.0-testnet, mainnet → plain v1.0.0)'
+        type: choice
+        required: true
+        default: testnet
+        options: [testnet, mainnet]
+      dry_run:
+        description: 'Build and verify, but do not push, tag or publish'
+        type: boolean
+        required: false
+        default: false
+
+# One release at a time: two concurrent runs would bump from the same base and
+# race for the same versionCode.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history + tags: the duplicate-tag check needs to know what
+          # exists, and --generate-notes needs commits since the previous tag.
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @tenda/shared build
+
+      # 1 — Refuse to start from a drifted repo. Bumping one would rewrite every
+      # file to agree and launder the drift into the release.
+      - name: Gate the current version state
+        run: node scripts/check-app-version.mjs
+
+      # The tag suffix FOLLOWS THE TARGET: `mainnet` is the plain vX.Y.Z
+      # release (empty suffix), every other option qualifies the tag and names
+      # the EAS profile verbatim — so adding an option (e.g. `preview`) needs
+      # no change here. A shell step rather than a `${{ x && y || z }}`
+      # expression because that "ternary" silently picks the WRONG branch when
+      # the true-arm is an empty string — exactly the mainnet case.
+      - name: Derive the release suffix from the target
+        id: suffix
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          if [ "$TARGET" = "mainnet" ]; then
+            echo "suffix=" >> "$GITHUB_OUTPUT"
+          else
+            echo "suffix=$TARGET" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 2 — The single source of truth moves here and nowhere else.
+      - name: Bump the version
+        id: bump
+        env:
+          BUMP: ${{ inputs.bump }}
+          SUFFIX: ${{ steps.suffix.outputs.suffix }}
+        run: |
+          set -euo pipefail
+          node scripts/bump-version.mjs "$BUMP" --suffix "$SUFFIX" --json \
+            > "$RUNNER_TEMP/bump.json"
+          node scripts/release-outputs.mjs "$RUNNER_TEMP/bump.json" >> "$GITHUB_OUTPUT"
+
+      - name: Gate the bumped state
+        run: node scripts/check-app-version.mjs
+
+      # 3 — A duplicate tag would point the release at the wrong commit and the
+      # download URL at an older asset.
+      - name: Refuse a tag that already exists
+        env:
+          TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::tag $TAG already exists locally"; exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::tag $TAG already exists on origin"; exit 1
+          fi
+          echo "✓ $TAG is free"
+
+      # The EAS profile FOLLOWS THE SUFFIX. It used to be the hardcoded literal
+      # `testnet` two steps below, so an empty-suffix mainnet release would tag
+      # v1.0.0 while building the staging-configured testnet profile. The
+      # dropdown now constrains what an operator can pick, but the resolver
+      # stays: it is the only thing asserting the profile's effective
+      # buildType is `apk` — `production` builds an app-bundle, which would
+      # upload cleanly under a .apk name and install on nothing. Resolved
+      # BEFORE the 20-minute build, like the URL check.
+      - name: Resolve the EAS build profile
+        id: eas
+        env:
+          SUFFIX: ${{ steps.suffix.outputs.suffix }}
+        run: node scripts/resolve-eas-profile.mjs "$SUFFIX" >> "$GITHUB_OUTPUT"
+
+      # 4 — The landing page's promise, checked before the build spends 20
+      # minutes rather than after. This is the only step that can catch a stale
+      # REPOSITORY in the apkUrl; the version gate derives the repo from that
+      # same URL and so cannot.
+      - name: Verify the predicted download URL
+        env:
+          TAG: ${{ steps.bump.outputs.tag }}
+          APK: ${{ steps.bump.outputs.apk }}
+        run: node scripts/verify-release-url.mjs "$GITHUB_REPOSITORY" "$TAG" "$APK"
+
+      # EAS archives the COMMITTED state, so the bump must be a commit before the
+      # build starts. Local only — nothing is pushed until the build passes.
+      - name: Commit the bump locally
+        env:
+          TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/mobile/app.json apps/mobile/package.json \
+                  apps/tendahq/src/content/app-info.ts
+          git commit -m "chore(release): $TAG"
+
+      # 5 — The long pole. --wait blocks until the build settles. Note the CLI
+      # exits non-zero for ERRORED but NOT for CANCELED, which the next step is
+      # what actually catches.
+      #
+      # working-directory is REQUIRED, not tidiness. eas-cli resolves the project
+      # from its cwd, and at the repo root it finds no eas.json — so instead of
+      # failing it GENERATES a default one (development/preview/production) and
+      # then reports `Missing build profile: "testnet"`. The error names the
+      # profile, which sends you to eas.json, when the actual fault is the
+      # directory. Every other step here is genuinely root-relative: the scripts
+      # resolve ROOT from their own location, and the APK is written to the root
+      # where the publish step later reads it.
+      - name: Build the APK on EAS
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROFILE: ${{ steps.eas.outputs.profile }}
+        run: |
+          set -euo pipefail
+          npx eas-cli@latest build \
+            --platform android \
+            --profile "$EAS_PROFILE" \
+            --non-interactive \
+            --wait \
+            --json > "$RUNNER_TEMP/build.json"
+
+      # 6 — `--output` is local-builds-only, so the artifact comes over HTTP.
+      # release-artifact.mjs turns a changed JSON shape or a CANCELED build into
+      # a failure instead of a corrupt upload.
+      - name: Download and verify the artifact
+        env:
+          APK: ${{ steps.bump.outputs.apk }}
+        run: |
+          set -euo pipefail
+          URL="$(node scripts/release-artifact.mjs "$RUNNER_TEMP/build.json")"
+          curl -fL --retry 3 --retry-delay 5 "$URL" -o "$APK"
+
+          # An APK is a zip: refuse an error page saved under an .apk name.
+          if [ ! -s "$APK" ]; then
+            echo "::error::$APK is empty"; exit 1
+          fi
+          if [ "$(head -c2 "$APK")" != "PK" ]; then
+            echo "::error::$APK is not a zip/APK (first bytes: $(head -c16 "$APK" | od -c | head -1))"
+            exit 1
+          fi
+          echo "✓ $APK — $(du -h "$APK" | cut -f1)"
+
+      # Not a stop — the publishing steps below are `if`-gated. Their condition
+      # is `!inputs.dry_run` rather than `inputs.dry_run == false` on purpose:
+      # `inputs.*` is a real boolean for a typed workflow_dispatch input, but if
+      # it ever arrived as the STRING "false", `!"false"` is false and the
+      # publish steps skip. That fails in the safe direction — a real release
+      # that publishes nothing is obvious and repeatable, whereas `== false`
+      # would let a dry run publish.
+      - name: Dry run — publishing skipped
+        if: ${{ inputs.dry_run }}
+        env:
+          APK: ${{ steps.bump.outputs.apk }}
+        run: |
+          echo "::notice::dry run — built and verified $APK; nothing pushed, tagged or published"
+
+      # 7 — First mutation of the remote, and only now that an artifact exists.
+      - name: Push the bump and the tag
+        if: ${{ !inputs.dry_run }}
+        env:
+          TAG: ${{ steps.bump.outputs.tag }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          VERSION_CODE: ${{ steps.bump.outputs.versionCode }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git push origin "HEAD:$BRANCH"
+          git tag -a "$TAG" -m "Tenda $VERSION ($VERSION_CODE)"
+          git push origin "refs/tags/$TAG"
+
+      # 8 — The asset filename is what makes the promised URL resolve, so the
+      # file is uploaded under exactly the name bump-version predicted.
+      - name: Publish the release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.bump.outputs.tag }}
+          APK: ${{ steps.bump.outputs.apk }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          VERSION_CODE: ${{ steps.bump.outputs.versionCode }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # --target is a no-op here because the tag was pushed in the previous
+          # step and gh reuses an existing tag; it is kept so the release is
+          # still created against the right branch if that ordering ever moves.
+          gh release create "$TAG" "$APK" \
+            --target "$BRANCH" \
+            --title "Tenda $VERSION ($VERSION_CODE)" \
+            --generate-notes
+
+      # Close the loop: the asset really is downloadable at the URL the landing
+      # page has been advertising since step 2.
+      - name: Confirm the promised URL resolves
+        if: ${{ !inputs.dry_run }}
+        env:
+          TAG: ${{ steps.bump.outputs.tag }}
+          APK: ${{ steps.bump.outputs.apk }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$APK"
+          echo "checking $URL"
+          curl -fsSL --retry 5 --retry-delay 3 -o /dev/null "$URL"
+          echo "::notice::published $TAG — $URL"

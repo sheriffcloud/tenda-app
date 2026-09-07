@@ -1,0 +1,70 @@
+/*
+ * The three app screens, drawn with the app's own LIGHT tokens. An app screen
+ * is an app screen in either page theme — a phone does not invert because the
+ * page around it did — so the frame pins `color-scheme: light`, and every
+ * `light-dark()` token from styles/tokens.css resolves to its light side inside
+ * it. The palette is the page's, read once, never copied.
+ */
+.ph {
+  color-scheme: light;
+  flex: 0 0 auto; width: 218px; height: 468px;
+  background: var(--surface-background); color: var(--content-primary);
+  border: 6px solid var(--surface-inverse); border-radius: 34px; overflow: hidden;
+  box-shadow: var(--shadow-modal);
+  font-family: var(--font-body); font-size: 11.5px; line-height: 15px;
+  display: flex; flex-direction: column;
+}
+.ph .sb { display: flex; justify-content: space-between; padding: 12px 20px 0; font-family: var(--font-mono); font-size: 9.5px; color: var(--content-tertiary); }
+.ph .hd { padding: 14px 18px 10px; display: flex; align-items: center; gap: 8px; }
+.ph .hd .t { font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: -0.03em; line-height: 1; }
+.ph .hd .r { margin-left: auto; display: flex; gap: 6px; }
+.ph .ic { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border-default); display: grid; place-items: center; color: var(--content-secondary); }
+.ph .ic svg { width: 12px; height: 12px; }
+.ph .bd { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; overflow: hidden; }
+.ph .seg { display: flex; background: var(--surface-inset); border-radius: 9999px; padding: 3px; margin: 0 4px 4px; }
+.ph .seg span { flex: 1; text-align: center; padding: 7px 0; border-radius: 9999px; font-size: 11px; color: var(--content-tertiary); font-weight: 500; }
+.ph .seg span.on { background: var(--surface-card); color: var(--content-primary); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+/* Card.tsx: radius 18 (its own, not a token), the card shadow */
+.ph .card { background: var(--surface-card); border: 1px solid var(--border-subtle); border-radius: 18px; padding: 13px 14px; box-shadow: var(--shadow-card); }
+.ph .cchip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--content-tertiary); border: 1px solid var(--border-default); border-radius: 9999px; padding: 3px 8px; }
+.ph .cchip .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--brand-primary); }
+.ph .cchip.live .dot { background: var(--feedback-success-base); }
+.ph .ttl { margin-top: 9px; font-family: var(--font-display); font-weight: 600; font-size: 14.5px; letter-spacing: -0.02em; line-height: 1.2; color: var(--content-primary); }
+.ph .meta { margin-top: 5px; font-size: 11px; color: var(--content-tertiary); }
+.ph .amt { font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--content-primary); font-variant-numeric: tabular-nums; }
+.ph .row { display: flex; align-items: center; gap: 8px; }
+.ph .row .sp { flex: 1; }
+.ph .av { width: 22px; height: 22px; border-radius: 50%; background: var(--surface-inset); display: grid; place-items: center; font-size: 10px; font-weight: 600; color: var(--content-secondary); }
+.ph .nm { font-size: 11px; color: var(--content-secondary); }
+/* Button.tsx md: the button radius, semibold */
+.ph .pbtn { margin-top: 11px; background: var(--brand-primary); color: var(--brand-on-primary); border-radius: var(--radius-button); text-align: center; padding: 10px; font-weight: 600; font-size: 12.5px; }
+.ph .obtn { margin-top: 11px; border: 1px solid var(--border-default); color: var(--content-primary); border-radius: var(--radius-button); text-align: center; padding: 10px; font-weight: 600; font-size: 12.5px; }
+.ph .big { font-family: var(--font-mono); font-weight: 600; font-size: 34px; letter-spacing: -0.05em; line-height: 1; color: var(--content-primary); font-variant-numeric: tabular-nums; }
+.ph .big small { font-size: 12px; letter-spacing: 0.05em; color: var(--content-tertiary); margin-left: 5px; }
+.ph .sub { margin-top: 6px; font-size: 11px; color: var(--content-tertiary); }
+.ph .kv { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border-subtle); font-size: 11px; color: var(--content-tertiary); }
+.ph .kv b { font-family: var(--font-mono); font-weight: 500; color: var(--content-primary); font-variant-numeric: tabular-nums; }
+.ph .st { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border-subtle); font-size: 11.5px; color: var(--content-tertiary); }
+.ph .st .n { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--border-default); display: grid; place-items: center; font-family: var(--font-mono); font-size: 8px; color: var(--content-tertiary); }
+.ph .st.done { color: var(--content-secondary); } .ph .st.done .n { background: var(--brand-primary); border-color: var(--brand-primary); color: var(--brand-on-primary); }
+.ph .st.now { color: var(--content-primary); font-weight: 500; } .ph .st.now .n { border-color: var(--brand-primary); color: var(--brand-primary); }
+.ph .st .tm { margin-left: auto; font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.08em; }
+.ph .ch { display: flex; align-items: center; gap: 9px; padding: 9px 0; border-top: 1px solid var(--border-subtle); }
+.ph .ch .gl { width: 22px; height: 22px; border-radius: 50%; background: var(--surface-inset); display: grid; place-items: center; font-size: 11px; }
+.ph .ch .cn { font-size: 12px; color: var(--content-primary); }
+.ph .ch .cs { font-size: 10px; color: var(--content-tertiary); }
+.ph .ch .ca { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--content-primary); font-variant-numeric: tabular-nums; }
+.ph .tabs { margin-top: auto; display: flex; justify-content: space-around; padding: 10px 6px 4px; border-top: 1px solid var(--border-subtle); font-size: 9px; color: var(--content-tertiary); }
+.ph .tabs span { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ph .tabs i { display: block; width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid currentColor; }
+.ph .tabs span.on { color: var(--brand-primary); }
+
+/* three screens, staggered — a stack that reads left to right */
+.screens { display: flex; gap: 12px; align-items: flex-end; justify-content: center; padding-top: 20px; min-width: 0; }
+.screens .ph:nth-child(1), .screens .ph:nth-child(3) { transform: translateY(40px); }
+@media (max-width: 980px) {
+  .screens { justify-content: flex-start; padding: 20px 20px 0; overflow-x: auto; scrollbar-width: none; }
+  .screens::-webkit-scrollbar { display: none; }
+  .screens .ph { transform: none !important; }
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "chain_contracts" ALTER COLUMN "deploy_block" SET DATA TYPE bigint;

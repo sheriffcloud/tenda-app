@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Hero — B+A Hybrid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../shared.css" />
+<link rel="stylesheet" href="../landing.css" />
+<style>
+  body { background: #0A0C12; padding: 56px 32px 120px; }
+  .canvas-eyebrow, .canvas-meta { color: #6F7488; }
+  .canvas-title { color: #F4F2ED; }
+  .canvas-sub { color: #B6BAC5; }
+  .frame-row-title h2 { color: #F4F2ED; }
+  .frame-row-title .desc { color: #8A8E98; }
+  .frame-label { color: #8A8E98; }
+  .frame-label .dot { background: #4E525B; }
+
+  .hero-frame { width: 1440px; border-radius: 16px; overflow: hidden; position: relative; box-shadow: 0 24px 80px rgba(0,0,0,0.4); }
+
+  /* B-frame base */
+  .hero-bx {
+    background: #07090F;
+    color: #F4F2ED;
+    min-height: 880px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-bx::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 100% 32px;
+    pointer-events: none;
+  }
+  .hero-bx::after {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 82% 38%, rgba(94,135,232,0.20), transparent 50%),
+      radial-gradient(circle at 8% 75%, rgba(240,163,101,0.10), transparent 45%);
+    pointer-events: none;
+  }
+
+  /* Ticker bands */
+  .ticker-band {
+    height: 44px; display: flex; align-items: center; overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.02);
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    position: relative; z-index: 5;
+  }
+  .ticker-band.bottom { border-top: 1px solid rgba(255,255,255,0.08); border-bottom: none; }
+  .ticker-track { display: inline-flex; gap: 32px; padding: 0 24px; white-space: nowrap; align-items: center; }
+  .ticker-item { display: inline-flex; align-items: center; gap: 8px; color: #B6BAC5; }
+  .ticker-item .ccy { color: #F4F2ED; font-weight: 600; }
+  .ticker-item .price { color: #F4F2ED; }
+  .ticker-item .delta { font-weight: 600; }
+  .ticker-item .delta.up { color: #3ACB8E; }
+  .ticker-item .delta.down { color: #F0706E; }
+  .ticker-item .dot-sep { color: #4E525B; }
+  .corner-tag { position: absolute; top: 12px; left: 24px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; color: #4E525B; }
+
+  /* Nav */
+  .nav-dark { height: 64px; padding: 0 40px; display: flex; align-items: center; gap: 32px; border-bottom: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 5; }
+  .nav-dark .word { font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -0.04em; color: #F4F2ED; }
+  .nav-dark .mark { width: 24px; height: 24px; border-radius: 6px; border: 1.5px solid #F4F2ED; display: inline-flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 700; font-size: 14px; color: #F4F2ED; }
+  .nav-dark .links { display: flex; gap: 28px; flex: 1; justify-content: center; }
+  .nav-dark .links a { font-family: var(--body); font-size: 14px; font-weight: 500; color: #B6BAC5; text-decoration: none; }
+  .nav-dark .right { display: flex; align-items: center; gap: 12px; }
+  .btn-primary-h { background: #F0A365; color: #0D1018; border: none; height: 56px; padding: 0 24px; border-radius: 14px; font-family: var(--body); font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 8px 32px rgba(240,163,101,0.20); cursor: pointer; }
+  .btn-ghost-h { background: transparent; color: #F4F2ED; border: 1px solid rgba(255,255,255,0.16); height: 56px; padding: 0 22px; border-radius: 14px; font-family: var(--body); font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-sm-primary { background: #F0A365; color: #0D1018; border: none; height: 36px; padding: 0 14px; font-size: 13px; border-radius: 10px; font-family: var(--body); font-weight: 700; cursor: pointer; }
+  .btn-sm-ghost { background: rgba(255,255,255,0.04); color: #F4F2ED; border: 1px solid rgba(255,255,255,0.12); height: 36px; padding: 0 14px; font-size: 13px; border-radius: 10px; font-family: var(--body); font-weight: 600; cursor: pointer; }
+
+  /* Body grid */
+  .body-grid {
+    position: relative; z-index: 4;
+    padding: 80px 80px 96px;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 56px;
+    align-items: center;
+  }
+
+  .eyebrow-row { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .eyebrow-row .stamp { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.20em; color: #6F7488; padding: 6px 10px; border: 1px solid rgba(255,255,255,0.10); border-radius: 4px; }
+  .eyebrow-row .live { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; color: #3ACB8E; }
+  .eyebrow-row .live .d { width: 8px; height: 8px; border-radius: 999px; background: #3ACB8E; box-shadow: 0 0 0 4px rgba(58,203,142,0.18); position: relative; }
+  .eyebrow-row .live .d::after { content: ''; position: absolute; inset: -6px; border-radius: 999px; border: 1.5px solid #3ACB8E; opacity: 0.6; animation: pulseRing 1.6s ease-out infinite; }
+  @keyframes pulseRing { 0% { transform: scale(0.6); opacity: 0.7; } 100% { transform: scale(1.7); opacity: 0; } }
+
+  h1.hero-h {
+    font-family: var(--display); font-weight: 700;
+    font-size: 88px; line-height: 0.94; letter-spacing: -0.045em;
+    margin: 0; color: #F4F2ED;
+  }
+  h1.hero-h em {
+    font-style: normal; font-weight: 700;
+    background: linear-gradient(180deg, #F0A365 0%, #E08A3C 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .ribbon {
+    margin-top: 28px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65;
+    color: #B6BAC5; max-width: 56ch;
+  }
+  .ribbon b { color: #F4F2ED; font-weight: 600; }
+
+  .stat-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    border-top: 1px solid rgba(255,255,255,0.10);
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    margin: 36px 0;
+  }
+  .stat-cell { padding: 18px 16px 18px 0; border-right: 1px solid rgba(255,255,255,0.06); }
+  .stat-cell:last-child { border-right: none; }
+  .stat-cell .v { font-family: var(--mono); font-size: 28px; font-weight: 600; color: #F4F2ED; letter-spacing: -0.02em; line-height: 1; }
+  .stat-cell .l { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: #6F7488; margin-top: 6px; }
+
+  .cta-row { display: flex; gap: 12px; align-items: center; }
+
+  /* ===== THE WALL (right column) ===== */
+  .wall-stage {
+    position: relative;
+    height: 620px;
+    perspective: 1600px;
+    pointer-events: none;
+  }
+  .wall-stage::before {
+    /* soft vignette mask so cards fade at top/bottom edges */
+    content: '';
+    position: absolute; inset: 0;
+    pointer-events: none;
+    z-index: 6;
+    background:
+      linear-gradient(180deg, rgba(7,9,15,1) 0%, transparent 12%, transparent 82%, rgba(7,9,15,1) 100%);
+  }
+  .wall-inner {
+    transform: rotateY(-18deg) rotateX(6deg) rotateZ(-1.5deg);
+    transform-origin: 100% 50%;
+    display: grid; grid-template-columns: repeat(3, 200px); gap: 14px;
+    width: 628px;
+    position: absolute; right: -40px; top: -10px;
+  }
+  .escrow-mini {
+    background: rgba(22,27,41,0.85); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+    padding: 13px 14px; font-family: var(--body);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    animation: drift 7s ease-in-out infinite;
+  }
+  .escrow-mini:nth-child(2n) { animation-delay: -2.2s; }
+  .escrow-mini:nth-child(3n) { animation-delay: -4.4s; animation-duration: 9s; }
+  .escrow-mini:nth-child(5n) { animation-duration: 8s; animation-delay: -1.5s; }
+  @keyframes drift {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-7px); }
+  }
+  .escrow-mini .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .pill-mini { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 999px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; font-weight: 600; }
+  .pill-mini.ok { background: rgba(58,203,142,0.16); color: #3ACB8E; }
+  .pill-mini.warn { background: rgba(240,163,101,0.18); color: #F0A365; }
+  .pill-mini .d { width: 4px; height: 4px; border-radius: 999px; background: currentColor; }
+  .timer { font-family: var(--mono); font-size: 10px; color: #B6BAC5; font-weight: 500; }
+  .amount { font-family: var(--mono); font-size: 19px; font-weight: 600; color: #F4F2ED; line-height: 1.1; letter-spacing: -0.02em; }
+  .arrow-row { font-family: var(--mono); font-size: 10px; color: #7A8096; margin-top: 3px; }
+  .gig-cat { display: inline-flex; align-items: center; gap: 4px; font-family: var(--body); font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; margin-top: 7px; }
+  .who { font-family: var(--mono); font-size: 9.5px; color: #6F7488; margin-top: 6px; }
+  .cat-delivery { background: rgba(59,130,246,0.18); color: #79A6FF; }
+  .cat-photo { background: rgba(139,92,246,0.20); color: #B69DFF; }
+  .cat-errand { background: rgba(217,135,34,0.20); color: #F0A365; }
+  .cat-service { background: rgba(31,157,107,0.20); color: #3ACB8E; }
+  .cat-digital { background: rgba(224,87,157,0.20); color: #F087BB; }
+
+  /* Featured card — sits forward, not in 3D */
+  .hero-card {
+    position: absolute; left: 8px; top: 168px;
+    width: 320px; padding: 22px;
+    background: rgba(22,27,41,0.96); backdrop-filter: blur(16px);
+    border: 1px solid rgba(94,135,232,0.40); border-radius: 22px;
+    box-shadow: 0 0 0 1px rgba(94,135,232,0.10), 0 24px 60px rgba(94,135,232,0.30), 0 8px 24px rgba(0,0,0,0.5);
+    z-index: 5;
+    transform: rotate(-2.5deg);
+    font-family: var(--body);
+  }
+  .hero-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(94,135,232,0.7), transparent);
+  }
+  .pill-big { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; background: rgba(58,203,142,0.16); color: #3ACB8E; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.10em; }
+  .pill-big .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 3px rgba(58,203,142,0.28); }
+  .topline { display: flex; align-items: center; justify-content: space-between; }
+  .countdown { font-family: var(--mono); font-size: 14px; font-weight: 600; color: #F4F2ED; }
+  .lbl { font-family: var(--body); font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #6F7488; margin: 18px 0 4px; }
+  .big-amt { font-family: var(--mono); font-size: 36px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; color: #F4F2ED; }
+  .arrow-down { font-family: var(--mono); font-size: 18px; color: #5E87E8; margin: 12px 0 6px; }
+  .fiat-amt { font-family: var(--mono); font-size: 22px; font-weight: 600; color: #F4F2ED; }
+  .rate { font-family: var(--mono); font-size: 11px; color: #3ACB8E; margin-top: 6px; }
+  .hcard-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 16px 0 14px; }
+  .hcard-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .hcard-meta .mc { padding: 8px 10px; background: rgba(255,255,255,0.04); border-radius: 8px; }
+  .hcard-meta .mc .l { font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: 0.12em; color: #6F7488; }
+  .hcard-meta .mc .v { font-family: var(--mono); font-size: 12px; font-weight: 600; color: #F4F2ED; margin-top: 2px; }
+
+  .hero-anno { position: absolute; font-family: var(--mono); font-size: 10px; color: rgba(240,163,101,0.7); letter-spacing: 0.08em; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<header class="canvas-header">
+  <p class="canvas-eyebrow">Tenda · Hero v2 · B-frame + A-wall hybrid</p>
+  <h1 class="canvas-title">§1 Hero — locked</h1>
+  <p class="canvas-sub">B's ticker-terminal frame (top + bottom rate bands, monospace numerics, stat row) — but the right column swaps the terminal panel for A's drifting 3D wall of escrow cards. Featured card sits forward inside the wall. Best of both: trading-desk legibility, marketplace energy.</p>
+  <div class="canvas-meta">
+    <span>1440w desktop</span>
+    <span>Dark default</span>
+    <span>Section animations: ticker scroll · pulse · 3D drift</span>
+  </div>
+</header>
+
+<div class="frames">
+
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">§1</span>
+      <h2>Hero · B-frame + A-wall</h2>
+      <span class="desc">Ticker bands top + bottom, headline + stats left, drifting 3D escrow wall right with featured card forward.</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-label dark-tag"><span class="dot"></span>1440 · dark · canonical</span>
+
+      <div class="hero-frame hero-bx">
+
+        <!-- top ticker -->
+        <div class="ticker-band">
+          <span class="corner-tag">RATES · LIVE</span>
+          <div class="ticker-track" style="margin-left: 110px;">
+            <span class="ticker-item"><span class="ccy">NGN/SOL</span><span class="price">₦245,000</span><span class="delta up">▲ 1.2%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">GHS/SOL</span><span class="price">₵350</span><span class="delta down">▼ 0.4%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">KES/SOL</span><span class="price">KSh21,500</span><span class="delta up">▲ 0.8%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">ZAR/SOL</span><span class="price">R 4,580</span><span class="delta up">▲ 2.1%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">PHP/SOL</span><span class="price">₱14,200</span><span class="delta down">▼ 0.2%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">USD/SOL</span><span class="price">$248</span><span class="delta up">▲ 0.6%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">GBP/SOL</span><span class="price">£195</span><span class="delta up">▲ 0.3%</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">EUR/SOL</span><span class="price">€228</span><span class="delta down">▼ 0.1%</span></span>
+          </div>
+        </div>
+
+        <!-- nav -->
+        <nav class="nav-dark">
+          <span class="mark">T</span><span class="word">tenda</span>
+          <div class="links" style="margin-left:24px;"><a href="#">Gigs</a><a href="#">Exchange</a><a href="#">How it works</a><a href="#">For who</a><a href="#">FAQ</a></div>
+          <div class="right">
+            <button class="btn-sm-ghost">Sign in</button>
+            <button class="btn-sm-primary">Download</button>
+          </div>
+        </nav>
+
+        <!-- body grid -->
+        <div class="body-grid">
+
+          <!-- LEFT -->
+          <div>
+            <div class="eyebrow-row">
+              <span class="stamp">v0.2 · DEVNET</span>
+              <span class="live"><span class="d"></span>247 OFFERS OPEN NOW</span>
+            </div>
+
+            <h1 class="hero-h">The escrow<br/>does the<br/><em>trusting.</em></h1>
+
+            <p class="ribbon">SOL locks the moment a gig posts or an offer goes live. Nobody holds your funds — not us, not the counterparty, not an exchange. <b>Proof releases. The contract settles.</b></p>
+
+            <div class="stat-row">
+              <div class="stat-cell"><div class="v">&lt;&nbsp;2s</div><div class="l">ESCROW LOCK</div></div>
+              <div class="stat-cell"><div class="v">2.5%</div><div class="l">FLAT FEE</div></div>
+              <div class="stat-cell"><div class="v">100%</div><div class="l">ON-CHAIN</div></div>
+              <div class="stat-cell"><div class="v">8</div><div class="l">FIAT MARKETS</div></div>
+            </div>
+
+            <div class="cta-row">
+              <button class="btn-primary-h">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m6 9 6 6 6-6"/><path d="M5 21h14"/></svg>
+                Download for Android
+              </button>
+              <button class="btn-ghost-h">Read the contract →</button>
+            </div>
+          </div>
+
+          <!-- RIGHT: 3D wall of escrow cards -->
+          <div class="wall-stage">
+            <div class="wall-inner">
+              <div class="escrow-mini">
+                <div class="top"><span class="pill-mini ok"><span class="d"></span>LOCKED</span><span class="timer">02:14</span></div>
+                <div class="amount">2.000 SOL</div>
+                <div class="arrow-row">→ 490,000 NGN</div>
+                <span class="gig-cat cat-delivery">📦 Exchange</span>
+                <div class="who">@chiamaka · 4.9★</div>
+              </div>
+              <div class="escrow-mini">
+                <div class="top"><span class="pill-mini ok"><span class="d"></span>OPEN</span><span class="timer">45m</span></div>
+                <span class="gig-cat cat-photo" style="margin-top:0;">📸 Photo</span>
+                <div class="amount" style="margin-top:8px;">1.20 SOL</div>
+                <div class="who">@kimani</div>
+              </div>
+              <div class="escrow-mini">
+                <div class="top"><span class="pill-mini warn"><span class="d"></span>FUNDING</span><span class="timer">·</span></div>
+                <div class="amount">0.500 SOL</div>
+                <div class="arrow-row">→ 122,500 NGN</div>
+                <span class="gig-cat cat-service">🛠 Exchange</span>
+                <div class="who">@yemi</div>
+              </div>
+              <div class="escrow-mini">
+                <div class="top"><span class="pill-mini ok"><span class="d"></span>LOCKED</span><span class="timer">8h</span></div>
+                <span class="gig-cat cat-errand" style="margin-top:0;">🏃 Errand</span>
+                <div class="amount" style="margin-top:8px;">0.30 SOL</div>
+                <div class="who">@rashim</div>
+              </div>
+              <div class="escrow-mini">
+                <div class="top"><span class="pill-mini ok"><span class="d"></span>LOCKED</span><span class="timer">19:58</span></div>
+                <div class="amount">0.85 SOL</div>
+                <div class="arrow-row">→ 18,300 KES</div>
+                <span class="gig-cat cat-delivery">📦 Exchange</span>
+                <div class="who">@maina</div>
+              </div>
+              <div class="escrow-mini">
+                <div class="top"><span class="pill-mini ok"><span class="d"></span>OPEN</span><span class="timer">2d</span></div>
+                <span class="gig-cat cat-digital" style="margin-top:0;">💻 Digital</span>
+                <div class="amount" style="margin-top:8px;">3.00 SOL</div>
+                <div class="who">@ada · 5.0★</div>
+              </div>
+              <div class="escrow-mini">
+                <div class="top"><span class="pill-mini ok"><span class="d"></span>LOCKED</span><span class="timer">11:42</span></div>
+                <div class="amount">5.50 SOL</div>
+                <div class="arrow-row">→ 1,925 GHS</div>
+                <span class="gig-cat cat-service">🛠 Exchange</span>
+                <div class="who">@kwame</div>
+              </div>
+              <div class="escrow-mini">
+                <div class="top"><span class="pill-mini ok"><span class="d"></span>OPEN</span><span class="timer">1h</span></div>
+                <span class="gig-cat cat-delivery" style="margin-top:0;">📦 Delivery</span>
+                <div class="amount" style="margin-top:8px;">0.40 SOL</div>
+                <div class="who">@tunde</div>
+              </div>
+              <div class="escrow-mini">
+                <div class="top"><span class="pill-mini ok"><span class="d"></span>LOCKED</span><span class="timer">04:08</span></div>
+                <div class="amount">1.00 SOL</div>
+                <div class="arrow-row">→ 18,000 ZAR</div>
+                <span class="gig-cat cat-photo">📸 Exchange</span>
+                <div class="who">@thandi</div>
+              </div>
+            </div>
+
+            <!-- Featured card sits forward -->
+            <div class="hero-card">
+              <div class="topline">
+                <span class="pill-big"><span class="d"></span>ESCROW LOCKED</span>
+                <span class="countdown">02:14:48</span>
+              </div>
+              <p class="lbl">SELLER SENDS</p>
+              <div class="big-amt">2.000 SOL</div>
+              <div class="arrow-down">↓</div>
+              <p class="lbl" style="margin-top:0;">BUYER PAYS</p>
+              <div class="fiat-amt">490,000 NGN</div>
+              <p class="rate">▲ ₦245,000 / SOL · +1.2% above market</p>
+              <div class="hcard-divider"></div>
+              <div class="hcard-meta">
+                <div class="mc"><div class="l">PAYMENT WINDOW</div><div class="v">29:48</div></div>
+                <div class="mc"><div class="l">TENDA FEE</div><div class="v">0.050 SOL</div></div>
+              </div>
+            </div>
+
+            <span class="hero-anno" style="top:-22px; right:60px;">↓ live cards · drifting 3D wall</span>
+          </div>
+        </div>
+
+        <!-- bottom ticker -->
+        <div class="ticker-band bottom">
+          <span class="corner-tag">RECENT · COMMUNITY FEED</span>
+          <div class="ticker-track" style="margin-left: 200px;">
+            <span class="ticker-item"><span class="ccy">@yemi</span> released <span class="price">0.50 SOL</span> · delivery</span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">@kimani</span> locked <span class="price">1.20 SOL</span> · photo</span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">@thandi</span> traded <span class="price">1.00 SOL → 18,000 ZAR</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">@kwame</span> traded <span class="price">5.50 SOL → 1,925 GHS</span></span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">@ada</span> posted <span class="price">3.00 SOL</span> · digital</span>
+            <span class="dot-sep">·</span>
+            <span class="ticker-item"><span class="ccy">@maina</span> traded <span class="price">0.85 SOL → 18,300 KES</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">Composition</p>
+        B-frame, A-content. Top ticker = live rates. Bottom ticker = recent community settlements. Stat row anchors trust facts mid-page. Right side = drifting 3D wall + one featured card forward.
+      </div>
+      <div class="note">
+        <p class="note-title">Featured card placement</p>
+        Card sits flat (not 3D-tilted) at left edge of wall, slight rotation only. Reads as "the front-of-store sample" while the 3D grid is "everything in stock." The blue glow border separates it from the wall behind.
+      </div>
+      <div class="note">
+        <p class="note-title">Headline copy</p>
+        <strong>The escrow does the trusting.</strong> Italic accent on "trusting." Carries B's confident-declarative voice. Ribbon copy in mono-13 for that trading-desk feel.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion · tickers</p>
+        Top ticker scrolls right→left, <code>60s</code>. Bottom ticker scrolls left→right, <code>75s</code>. Pause on hover. Mask-fade at edges.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion · the wall</p>
+        Each mini-card drifts <code>±7px / 7s</code> staggered (delays <code>-2.2s · -4.4s · -1.5s</code>). LIVE pulse ring on eyebrow. Featured card glow throbs <code>4s</code>. Reduced-motion → all static, drift removed, tickers static with edge fades only.
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Spacing</p>
+        Hero body <code>80 80 96</code> · grid <code>1.1fr 1fr · gap 56</code>. Ticker bands <code>44h</code>. Wall stage <code>620h · perspective 1600</code>. Mini cards <code>200w · gap 14</code>, rotated <code>-18° Y / 6° X / -1.5° Z</code>.
+      </div>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>

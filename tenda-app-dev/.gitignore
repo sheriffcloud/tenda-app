@@ -1,0 +1,90 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Turborepo
+.turbo
+
+# Dependencies
+node_modules
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Testing
+coverage
+
+# Next.js
+.next/
+out/
+
+# Expo / React Native
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+.kotlin/
+*.orig.*
+ios/
+android/
+
+# Production / Build
+build
+
+# Environment files
+.env
+.env*
+# but always track the documented examples
+!.env.example
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.sentry-build-plugin
+
+# Debug logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+# Security / Certificates
+*.pem
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Vercel
+.vercel
+
+# Claude
+.claude/
+
+# Misc
+TODO.md
+apps/mobile/IMPLEMENTATION_PLAN.md
+apps/mobile/google-services.json
+*.apk
+internal-doc/

@@ -1,0 +1,1 @@
+ALTER TABLE "escrow_transactions" ADD COLUMN "creator_payout_raw" numeric(78, 0);

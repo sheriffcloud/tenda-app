@@ -1,0 +1,62 @@
+{
+  "name": "@tenda/shared",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./db/schema": {
+      "types": "./dist/db/schema/index.d.ts",
+      "require": "./dist/db/schema/index.js",
+      "default": "./dist/db/schema/index.js"
+    },
+    "./db/schema/escrow": {
+      "types": "./dist/db/schema/escrow/index.d.ts",
+      "require": "./dist/db/schema/escrow/index.js",
+      "default": "./dist/db/schema/escrow/index.js"
+    },
+    "./idl": {
+      "types": "./dist/idl/index.d.ts",
+      "require": "./dist/idl/index.js",
+      "default": "./dist/idl/index.js"
+    },
+    "./abi": {
+      "types": "./dist/abi/index.d.ts",
+      "require": "./dist/abi/index.js",
+      "default": "./dist/abi/index.js"
+    },
+    "./db/schema/*": {
+      "types": "./dist/db/schema/*.d.ts",
+      "require": "./dist/db/schema/*.js",
+      "default": "./dist/db/schema/*.js"
+    },
+    "./chains": {
+      "types": "./dist/chains/index.d.ts",
+      "require": "./dist/chains/index.js",
+      "default": "./dist/chains/index.js"
+    }
+  },
+  "scripts": {
+    "build": "pnpm run clean && tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/abi/tenda_escrow_evm.json dist/abi/",
+    "prepare": "pnpm run build",
+    "build:watch": "tsc -w",
+    "type-check": "tsc --noEmit",
+    "type-check:test": "tsc -p test/tsconfig.json",
+    "test": "tsc -p test/tsconfig.json && node --test -r ts-node/register \"test/**/*.test.ts\"",
+    "test:coverage": "c8 node --test -r ts-node/register \"test/**/*.test.ts\"",
+    "clean": "rm -rf dist coverage"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.13",
+    "c8": "^10.1.2",
+    "drizzle-orm": "^0.44.7",
+    "postgres": "^3.4.8",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3"
+  }
+}

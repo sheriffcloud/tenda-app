@@ -1,0 +1,2 @@
+ALTER TABLE "platform_config" ADD COLUMN "unassign_window_seconds" integer DEFAULT 21600 NOT NULL;--> statement-breakpoint
+ALTER TABLE "platform_config" ADD CONSTRAINT "platform_config_unassign_window_range_chk" CHECK ("platform_config"."unassign_window_seconds" BETWEEN 0 AND 86400);

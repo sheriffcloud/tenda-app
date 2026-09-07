@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Landing — §2 Trust strip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../shared.css" />
+<link rel="stylesheet" href="../landing.css" />
+<style>
+  body { background: #0A0C12; padding: 56px 32px 120px; }
+  .canvas-eyebrow, .canvas-meta { color: #6F7488; }
+  .canvas-title { color: #F4F2ED; }
+  .canvas-sub { color: #B6BAC5; }
+  .frame-row-title h2 { color: #F4F2ED; }
+  .frame-row-title .desc { color: #8A8E98; }
+  .frame-label { color: #8A8E98; }
+  .frame-label .dot { background: #4E525B; }
+
+  .frame-w { width: 1440px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.4); }
+  .frame-mw { width: 390px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.4); }
+
+  /* ====== TRUST STRIP — divergent from brief ======
+     Brief asked for: < 2s · 2.5% · 100% · Solana
+     Hero already has: < 2s · 2.5% · 100% · 8 markets (stat row)
+     So §2 pivots: live on-chain proof band — recent settlements + program ID + block height. */
+
+  /* Variant 1: Proof band */
+  .v1 {
+    background: #0D1018;
+    color: #F4F2ED;
+    padding: 28px 80px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 48px;
+    align-items: center;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .v1::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(80% 200% at 50% 50%, rgba(58,203,142,0.06), transparent 70%);
+    pointer-events: none;
+  }
+  .v1-left { display: flex; align-items: center; gap: 14px; position: relative; z-index: 2; }
+  .v1-left .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 32px; padding: 0 12px; border-radius: 8px;
+    background: rgba(58,203,142,0.10); border: 1px solid rgba(58,203,142,0.22);
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; font-weight: 600;
+    color: #3ACB8E;
+  }
+  .v1-left .badge .d { width: 7px; height: 7px; border-radius: 999px; background: #3ACB8E; box-shadow: 0 0 0 3px rgba(58,203,142,0.22); position: relative; }
+  .v1-left .badge .d::after { content: ''; position: absolute; inset: -5px; border-radius: 999px; border: 1.5px solid #3ACB8E; opacity: 0.5; animation: pulse2 1.6s ease-out infinite; }
+  @keyframes pulse2 { 0% { transform: scale(0.6); opacity: 0.7; } 100% { transform: scale(1.8); opacity: 0; } }
+  .v1-left .who { font-family: var(--display); font-size: 17px; font-weight: 600; color: #F4F2ED; letter-spacing: -0.01em; }
+
+  .v1-feed {
+    position: relative; z-index: 2;
+    display: flex; align-items: center; gap: 0;
+    overflow: hidden;
+    height: 36px;
+    mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+  }
+  .v1-feed-track {
+    display: inline-flex; align-items: center; gap: 32px; white-space: nowrap;
+    font-family: var(--mono); font-size: 13px; color: #B6BAC5;
+  }
+  .v1-feed-track .row {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 6px 12px; border-radius: 8px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  }
+  .v1-feed-track .row .verb { color: #6F7488; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+  .v1-feed-track .row .verb.released { color: #3ACB8E; }
+  .v1-feed-track .row .verb.locked { color: #5E87E8; }
+  .v1-feed-track .row .verb.disputed { color: #F0A365; }
+  .v1-feed-track .row .amt { color: #F4F2ED; font-weight: 600; }
+  .v1-feed-track .row .who2 { color: #B6BAC5; }
+  .v1-feed-track .row .sig { color: #4E525B; font-size: 11px; }
+  .v1-feed-track .row .ago { color: #6F7488; font-size: 11px; }
+
+  .v1-right {
+    position: relative; z-index: 2;
+    display: flex; align-items: center; gap: 24px;
+    border-left: 1px solid rgba(255,255,255,0.08);
+    padding-left: 24px;
+  }
+  .v1-right .cell { display: flex; flex-direction: column; gap: 2px; }
+  .v1-right .cell .l { font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.16em; color: #6F7488; }
+  .v1-right .cell .v { font-family: var(--mono); font-size: 13px; font-weight: 600; color: #F4F2ED; letter-spacing: -0.01em; }
+  .v1-right .cell .v .green { color: #3ACB8E; }
+  .v1-right .verify-btn {
+    height: 32px; padding: 0 12px; border-radius: 8px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.10em; color: #F4F2ED; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px;
+    cursor: pointer;
+  }
+
+  /* Variant 2: Big-number reframe (brief literal) — for comparison */
+  .v2 {
+    background: #07090F;
+    color: #F4F2ED;
+    padding: 56px 80px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+  }
+  .v2 .cell {
+    padding: 0 32px;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .v2 .cell:first-child { padding-left: 0; }
+  .v2 .cell:last-child { border-right: none; padding-right: 0; }
+  .v2 .cell .v {
+    font-family: var(--mono); font-size: 56px; font-weight: 600;
+    color: #F4F2ED; letter-spacing: -0.03em; line-height: 1;
+  }
+  .v2 .cell .v .accent { background: linear-gradient(180deg, #F0A365, #E08A3C); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .v2 .cell .l {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.20em; color: #6F7488;
+    margin-top: 4px;
+  }
+  .v2 .cell .sub { font-family: var(--body); font-size: 12px; color: #8A8E98; margin-top: 4px; line-height: 1.4; }
+  .v2 .cell.solana .v { font-family: var(--display); font-size: 44px; font-weight: 600; }
+
+  /* Mobile (variant 1) */
+  .v1m {
+    background: #0D1018; color: #F4F2ED;
+    padding: 18px 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .v1m-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .v1m-top .badge { height: 28px; padding: 0 10px; border-radius: 6px; background: rgba(58,203,142,0.10); border: 1px solid rgba(58,203,142,0.22); display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; color: #3ACB8E; font-weight: 600; }
+  .v1m-top .badge .d { width: 6px; height: 6px; border-radius: 999px; background: #3ACB8E; box-shadow: 0 0 0 3px rgba(58,203,142,0.22); }
+  .v1m-top .verify { font-family: var(--mono); font-size: 10px; color: #6F7488; letter-spacing: 0.10em; }
+  .v1m-feed { overflow: hidden; height: 30px; display: flex; align-items: center; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+  .v1m-feed .row { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); white-space: nowrap; font-family: var(--mono); font-size: 11px; color: #B6BAC5; margin-right: 12px; }
+  .v1m-feed .row .verb { color: #3ACB8E; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+  .v1m-feed .row .verb.locked { color: #5E87E8; }
+  .v1m-feed .row .amt { color: #F4F2ED; font-weight: 600; }
+
+  .v1m-meta { display: flex; align-items: center; gap: 16px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .v1m-meta .cell { display: flex; flex-direction: column; gap: 2px; }
+  .v1m-meta .cell .l { font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: 0.14em; color: #6F7488; }
+  .v1m-meta .cell .v { font-family: var(--mono); font-size: 11px; font-weight: 600; color: #F4F2ED; }
+
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+</style>
+</head>
+<body>
+
+<header class="canvas-header">
+  <p class="canvas-eyebrow">Tenda · Landing wireframes · §2</p>
+  <h1 class="canvas-title">§2 Trust strip — proof band</h1>
+  <p class="canvas-sub">
+    The brief's literal trust strip (<code style="font-family:var(--mono);font-size:13px;color:#B6BAC5;">&lt; 2s · 2.5% · 100% · Solana</code>) is now <strong>covered by the hero stat-row</strong>. Repeating it here is dead pixels.
+    Pivot: <strong>live on-chain proof band</strong> — a thin always-running feed of real settlements with program ID + cluster + recent block height. Substantiates the hero's "100% on-chain" claim instead of restating it.
+    V2 is the literal-brief version, kept for comparison.
+  </p>
+  <div class="canvas-meta">
+    <span>1440w · 88h band</span>
+    <span>Sits directly under hero (above §3)</span>
+    <span>Live data via RPC at build time / poll every 30s</span>
+  </div>
+</header>
+
+<div class="frames">
+
+  <!-- ============================ -->
+  <!-- VARIANT 1 — PROOF BAND       -->
+  <!-- ============================ -->
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">V1 ★</span>
+      <h2>Proof band — recommended</h2>
+      <span class="desc">Live verifiable on-chain feed. Substantiates the hero claim with running evidence, not repeats it.</span>
+    </div>
+
+    <div class="stack">
+      <div class="frame-wrap">
+        <span class="frame-label dark-tag"><span class="dot"></span>1440 · dark · proof band</span>
+        <div class="frame-w">
+          <div class="v1">
+
+            <!-- LEFT — identity + status -->
+            <div class="v1-left">
+              <span class="badge"><span class="d"></span>NETWORK · LIVE</span>
+              <div>
+                <div class="who">tenda_escrow</div>
+                <div style="font-family:var(--mono); font-size:10.5px; color:#6F7488; letter-spacing:0.06em; margin-top:2px;">Solana · devnet · v0.2.0</div>
+              </div>
+            </div>
+
+            <!-- CENTER — running settlement feed -->
+            <div class="v1-feed">
+              <div class="v1-feed-track">
+                <span class="row">
+                  <span class="verb released">RELEASED</span>
+                  <span class="amt">0.500 SOL</span>
+                  <span class="who2">@yemi → poster</span>
+                  <span class="sig">5kJ2…b9q1</span>
+                  <span class="ago">12s ago</span>
+                </span>
+                <span class="row">
+                  <span class="verb locked">LOCKED</span>
+                  <span class="amt">2.000 SOL</span>
+                  <span class="who2">@chiamaka offered</span>
+                  <span class="sig">7Lp3…f2d8</span>
+                  <span class="ago">38s ago</span>
+                </span>
+                <span class="row">
+                  <span class="verb released">RELEASED</span>
+                  <span class="amt">1.20 SOL</span>
+                  <span class="who2">@kimani → @maina</span>
+                  <span class="sig">9Wq8…a3c2</span>
+                  <span class="ago">1m ago</span>
+                </span>
+                <span class="row">
+                  <span class="verb locked">LOCKED</span>
+                  <span class="amt">5.50 SOL</span>
+                  <span class="who2">@kwame offered</span>
+                  <span class="sig">2Hn4…e7b5</span>
+                  <span class="ago">2m ago</span>
+                </span>
+                <span class="row">
+                  <span class="verb released">RELEASED</span>
+                  <span class="amt">0.85 SOL</span>
+                  <span class="who2">@thandi → @lebo</span>
+                  <span class="sig">4Mr1…c5a9</span>
+                  <span class="ago">3m ago</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- RIGHT — chain identity + verify -->
+            <div class="v1-right">
+              <div class="cell">
+                <span class="l">PROGRAM</span>
+                <span class="v">Tend…<span class="green">9k2A</span></span>
+              </div>
+              <div class="cell">
+                <span class="l">SLOT</span>
+                <span class="v">324,581,902</span>
+              </div>
+              <button class="verify-btn">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg>
+                EXPLORER
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile -->
+      <div class="frame-wrap">
+        <span class="frame-label dark-tag"><span class="dot"></span>390 · dark · mobile</span>
+        <div class="frame-mw">
+          <div class="v1m">
+            <div class="v1m-top">
+              <span class="badge"><span class="d"></span>NETWORK · LIVE</span>
+              <span class="verify">SLOT 324,581,902</span>
+            </div>
+            <div class="v1m-feed">
+              <span class="row"><span class="verb">RELEASED</span> <span class="amt">0.500 SOL</span> @yemi · 12s</span>
+              <span class="row"><span class="verb locked">LOCKED</span> <span class="amt">2.000 SOL</span> @chiamaka · 38s</span>
+              <span class="row"><span class="verb">RELEASED</span> <span class="amt">1.20 SOL</span> @kimani · 1m</span>
+            </div>
+            <div class="v1m-meta">
+              <div class="cell"><span class="l">CHAIN</span><span class="v">Solana · devnet</span></div>
+              <div class="cell"><span class="l">PROGRAM</span><span class="v">Tend…9k2A</span></div>
+              <div class="cell" style="margin-left:auto;"><span class="l">VERIFY</span><span class="v" style="color:#5E87E8;">Explorer ↗</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">Why this beats the literal brief</p>
+        Hero already shows <code>&lt; 2s · 2.5% · 100% · 8 markets</code>. Repeating those numbers in §2 = visual stutter. A live feed of <em>actual settlements</em> with on-chain signatures and a real program ID PROVES "100% on-chain" instead of repeating it.
+      </div>
+      <div class="note">
+        <p class="note-title">Identity left, evidence center, verifiability right</p>
+        Three-zone layout: <strong>who's running</strong> (program name + cluster) · <strong>what's happening</strong> (running events) · <strong>can you check</strong> (slot + explorer link). Same pattern Etherscan/Solana FM use — earns instant credibility with crypto-natives.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Feed track scrolls right→left at <code>50s</code>. Pause on hover. Pulse ring on NETWORK · LIVE badge. Slot number tick-flips every <code>~400ms</code> in real production (paused in wireframe). Reduced-motion → static, edge-fade only.
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Spacing</p>
+        Band height <code>88</code> · padding <code>28 80</code> · grid <code>auto 1fr auto · gap 48</code>. Right cluster <code>border-left + padding-left 24</code>. Mobile collapses to two stacked rows + meta.
+      </div>
+      <div class="note">
+        <p class="note-title">Real data hookup</p>
+        At build: query the Tenda escrow program for the last 5 settlement events. Poll <code>/recent-settlements</code> every <code>30s</code>. Slot from <code>connection.getSlot()</code>. Explorer link uses live cluster + program ID.
+      </div>
+      <div class="note">
+        <p class="note-title">Fallback</p>
+        If RPC unreachable: freeze last-known feed + mute the LIVE pulse · show <code>NETWORK · CACHED</code>. Never fake the data.
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================ -->
+  <!-- VARIANT 2 — LITERAL BRIEF    -->
+  <!-- ============================ -->
+  <section class="frame-row" style="margin-top: 24px;">
+    <div class="frame-row-title">
+      <span class="num">V2</span>
+      <h2>Literal brief (kept for comparison)</h2>
+      <span class="desc">Big-number band per the original brief — but redundant given the hero stat-row.</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-label dark-tag"><span class="dot"></span>1440 · dark · literal</span>
+      <div class="frame-w">
+        <div class="v2">
+          <div class="cell">
+            <div class="v">&lt;&nbsp;<span class="accent">2s</span></div>
+            <div class="l">ESCROW LOCKED</div>
+            <div class="sub">From signed tx to on-chain confirm</div>
+          </div>
+          <div class="cell">
+            <div class="v"><span class="accent">2.5%</span></div>
+            <div class="l">FLAT FEE</div>
+            <div class="sub">Taken once, on settlement only</div>
+          </div>
+          <div class="cell">
+            <div class="v"><span class="accent">100%</span></div>
+            <div class="l">ON-CHAIN</div>
+            <div class="sub">No off-chain custody anywhere</div>
+          </div>
+          <div class="cell solana">
+            <div class="v">Solana</div>
+            <div class="l">POWERED BY</div>
+            <div class="sub">Mainnet rollout per roadmap</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note warn" style="background: #fbe5d8; color: #5a2a00;">
+        <p class="note-title" style="color:#3a1a00;">⚠ Redundancy alert</p>
+        These four numbers are already in the hero stat-row. Shipping V2 means the user sees them <strong>twice in 200vh of scroll</strong>. Either drop §2 entirely and skip to §3, or use V1.
+      </div>
+      <div class="note">
+        <p class="note-title">When V2 might still work</p>
+        Only if the hero ends up with a totally different stat-row (e.g. 12.4MB · 8 markets · v0.2 · ★4.9). If hero stats stay as drafted, ship V1.
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

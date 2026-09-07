@@ -1,0 +1,46 @@
+# Anti-drift (local, fast-feedback half of the guarantee — CI's `contracts`
+# workflow is the hard backstop). When contract SOURCE changes, regenerate the
+# shared ABI/IDL and stage it, so a contract edit can never be committed with a
+# stale generated artifact. Globs are scoped to the source that actually drives
+# each artifact (the ABI tracks src/*.sol; the IDL tracks programs/**/*.rs).
+pre-commit:
+  parallel: false
+  commands:
+    evm-abi:
+      glob: "contracts/evm/src/**/*.sol"
+      run: forge build --root contracts/evm && node scripts/sync-abi.mjs --no-build && git add packages/shared/src/abi/tenda_escrow_evm.json
+    solana-idl:
+      glob: "contracts/solana/programs/**/*.rs"
+      run: (cd contracts/solana && anchor build) && node scripts/sync-idl.mjs --no-build && node scripts/check-program-id.mjs && git add packages/shared/src/idl/tenda_escrow.json packages/shared/src/idl/tenda_escrow.ts
+    # Semantic parity (enum order + limits) — runs on any change to the contract
+    # source or the shared constants that mirror it (parse-only, fast).
+    contract-parity:
+      glob:
+        - "contracts/evm/src/**/*.sol"
+        - "contracts/solana/programs/**/*.rs"
+        - "packages/shared/src/constants/escrow.ts"
+      run: node scripts/check-contract-parity.mjs
+    # App version: apps/mobile/app.json is the source of truth, and two other
+    # files mirror it (Expo's package.json fallback, the landing page's release
+    # string + APK URL). Nothing is generated here, so there is nothing to
+    # `git add` — the check just refuses a hand-edit that desyncs them. Bump via
+    # `pnpm bump:version <patch|minor|major>`.
+    app-version:
+      glob:
+        - "apps/mobile/app.json"
+        - "apps/mobile/app.config.ts"
+        - "apps/mobile/eas.json"
+        - "apps/mobile/package.json"
+        - "apps/tendahq/src/content/app-info.ts"
+      run: node scripts/check-app-version.mjs
+    # Solana CLI pin: contracts.yml's SOLANA_PIN is the source of truth and the
+    # contracts/solana README mirrors it, because CI and a developer's machine
+    # have to build the program with the same cargo-build-sbf. Same shape as
+    # app-version — nothing generated, the check just refuses a desync. It also
+    # asserts the pin cannot go inert again (versioned installer URL, checked
+    # download, assertion on the version actually installed).
+    solana-pin:
+      glob:
+        - ".github/workflows/contracts.yml"
+        - "contracts/solana/README.md"
+      run: node --test scripts/solana-pin.test.mjs

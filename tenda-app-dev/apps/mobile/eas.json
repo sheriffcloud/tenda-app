@@ -1,0 +1,50 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "APP_ENV": "development"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview",
+      "env": {
+        "APP_ENV": "staging"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "testnet": {
+      "extends": "preview"
+    },
+    "mainnet": {
+      "distribution": "internal",
+      "environment": "production",
+      "env": {
+        "APP_ENV": "production"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "environment": "production",
+      "env": {
+        "APP_ENV": "production"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  }
+}

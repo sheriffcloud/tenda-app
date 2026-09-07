@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Landing — §6 Why Tenda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../../shared.css" />
+<link rel="stylesheet" href="../landing.css" />
+<style>
+  body { background: #e8e5de; padding: 56px 32px 120px; }
+  .frame-w { width: 1440px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.18); }
+  .frame-mw { width: 390px; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.18); }
+
+  /* ===== §6 Why Tenda · 4 pillars ===== */
+  .why {
+    background: #FAF8F3;
+    color: #1a1813;
+    padding: 112px 80px 120px;
+    position: relative; overflow: hidden;
+  }
+  /* warm gradient wash returning from dark spine */
+  .why::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 280px;
+    background: linear-gradient(180deg, rgba(217,135,34,0.05), transparent);
+    pointer-events: none;
+  }
+
+  .why-head {
+    display: grid; grid-template-columns: 1.2fr 1fr; align-items: end; gap: 64px;
+    margin-bottom: 80px;
+    position: relative; z-index: 2;
+  }
+  .why-eyebrow {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.20em; font-weight: 600;
+    color: #8C5812; margin-bottom: 20px;
+  }
+  .why-eyebrow .num { color: #D98722; font-weight: 700; }
+  .why-h {
+    font-family: var(--display); font-weight: 700;
+    font-size: 64px; line-height: 1.0; letter-spacing: -0.04em;
+    margin: 0; color: #1a1813;
+  }
+  .why-h .dim { color: #8A8E98; }
+  .why-sub { font-family: var(--body); font-size: 17px; line-height: 1.55; color: #555; margin: 0; max-width: 50ch; }
+
+  .pillars {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-top: 1px solid rgba(20,17,10,0.10);
+    border-bottom: 1px solid rgba(20,17,10,0.10);
+    position: relative; z-index: 2;
+  }
+  .pillar {
+    padding: 48px 36px 44px;
+    border-right: 1px solid rgba(20,17,10,0.08);
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .pillar:last-child { border-right: 0; }
+  .pillar::before {
+    content: ''; position: absolute; top: -1px; left: 0; width: 0; height: 2px;
+    transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .pillar.p1::before { background: #2E5BD6; }
+  .pillar.p2::before { background: #1F9D6B; }
+  .pillar.p3::before { background: #D98722; }
+  .pillar.p4::before { background: #1a1813; }
+  .pillar:hover::before { width: 100%; }
+
+  .pillar-num {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em; font-weight: 700;
+    color: #999; margin-bottom: 20px;
+  }
+  .pillar.p1 .pillar-num { color: #2E5BD6; }
+  .pillar.p2 .pillar-num { color: #1F9D6B; }
+  .pillar.p3 .pillar-num { color: #D98722; }
+  .pillar.p4 .pillar-num { color: #1a1813; }
+
+  /* big proof figure / mini-visual */
+  .pillar-vis {
+    height: 140px;
+    display: flex; align-items: center;
+    margin-bottom: 24px;
+  }
+  .vis-stat {
+    font-family: var(--mono); font-weight: 600;
+    font-size: 64px; line-height: 1; letter-spacing: -0.035em;
+    color: #1a1813;
+  }
+  .vis-stat .unit { font-size: 22px; color: #8A8E98; font-weight: 500; margin-left: 4px; }
+  .vis-sub { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: #999; margin-top: 8px; font-weight: 600; }
+
+  /* P1 vis: speed bars */
+  .vis-bars { display: flex; align-items: end; gap: 14px; height: 110px; width: 100%; }
+  .vis-bar { flex: 1; display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .vis-bar .bar {
+    border-radius: 4px 4px 0 0;
+    position: relative;
+  }
+  .vis-bar .bar.tenda { background: #2E5BD6; height: 14%; }
+  .vis-bar .bar.intl { background: rgba(20,17,10,0.20); height: 50%; }
+  .vis-bar .bar.bank { background: rgba(20,17,10,0.36); height: 100%; }
+  .vis-bar .lbl {
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.10em; font-weight: 700; color: #555;
+    text-align: center; text-transform: uppercase;
+  }
+  .vis-bar .val { font-family: var(--mono); font-size: 11px; font-weight: 600; color: #1a1813; text-align: center; margin-top: 2px; }
+  .vis-bar.t .lbl { color: #2E5BD6; }
+  .vis-bar.t .val { color: #2E5BD6; }
+
+  /* P2 vis: receipt callout */
+  .vis-receipt {
+    background: #FFFEFA;
+    border: 1px solid rgba(20,17,10,0.10);
+    border-radius: 10px;
+    padding: 12px 14px;
+    width: 100%;
+    box-shadow: 0 1px 2px rgba(20,17,10,0.04), 0 6px 16px rgba(20,17,10,0.05);
+    font-family: var(--mono);
+  }
+  .vis-receipt .r-row { display: flex; justify-content: space-between; align-items: center; }
+  .vis-receipt .r-row + .r-row { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(20,17,10,0.08); }
+  .vis-receipt .r-k { font-size: 9px; letter-spacing: 0.14em; font-weight: 700; color: #999; text-transform: uppercase; }
+  .vis-receipt .r-v { font-size: 12px; font-weight: 600; color: #1a1813; }
+  .vis-receipt .r-v.amt { color: #1F9D6B; }
+  .vis-receipt .r-v.hash { color: #555; background: rgba(20,17,10,0.04); padding: 1px 6px; border-radius: 4px; font-size: 11px; }
+  .vis-receipt .r-v.pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 18px; padding: 0 8px; border-radius: 999px;
+    background: rgba(31,157,107,0.14); color: #156E4A;
+    font-size: 9px; letter-spacing: 0.10em; font-weight: 700; text-transform: uppercase;
+  }
+  .vis-receipt .r-v.pill .d { width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+
+  /* P3 vis: fee comparison */
+  .vis-fees { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .fee-row {
+    display: grid; grid-template-columns: 80px 1fr 50px; gap: 10px; align-items: center;
+    font-family: var(--mono); font-size: 11px;
+  }
+  .fee-row .who { color: #555; font-weight: 600; letter-spacing: 0.04em; }
+  .fee-row .who.t { color: #D98722; font-weight: 700; }
+  .fee-row .track { height: 8px; background: rgba(20,17,10,0.06); border-radius: 999px; position: relative; overflow: hidden; }
+  .fee-row .fill { height: 100%; border-radius: 999px; }
+  .fee-row .fill.tenda { background: #D98722; width: 25%; }
+  .fee-row .fill.intl { background: rgba(20,17,10,0.40); width: 70%; }
+  .fee-row .fill.bank { background: rgba(20,17,10,0.55); width: 85%; }
+  .fee-row .fill.fiver { background: rgba(20,17,10,0.45); width: 78%; }
+  .fee-row .pct { font-weight: 700; color: #1a1813; text-align: right; }
+  .fee-row .pct.t { color: #D98722; }
+
+  /* P4 vis: borderless map dots */
+  .vis-map {
+    width: 100%; height: 110px;
+    background-image:
+      radial-gradient(circle at 22% 50%, #1F9D6B 3px, transparent 3.5px),
+      radial-gradient(circle at 28% 60%, #1F9D6B 3px, transparent 3.5px),
+      radial-gradient(circle at 30% 38%, #1F9D6B 3px, transparent 3.5px),
+      radial-gradient(circle at 38% 70%, #1F9D6B 3px, transparent 3.5px),
+      radial-gradient(circle at 50% 28%, rgba(46,91,214,0.6) 3px, transparent 3.5px),
+      radial-gradient(circle at 58% 35%, rgba(46,91,214,0.6) 3px, transparent 3.5px),
+      radial-gradient(circle at 75% 48%, rgba(217,135,34,0.7) 3px, transparent 3.5px),
+      radial-gradient(circle at 82% 60%, rgba(217,135,34,0.7) 3px, transparent 3.5px),
+      radial-gradient(circle at 65% 70%, #1F9D6B 3px, transparent 3.5px),
+      radial-gradient(circle at 88% 38%, rgba(46,91,214,0.6) 3px, transparent 3.5px),
+      linear-gradient(rgba(20,17,10,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20,17,10,0.06) 1px, transparent 1px);
+    background-size: auto, auto, auto, auto, auto, auto, auto, auto, auto, auto, 24px 24px, 24px 24px;
+    border-radius: 8px;
+    position: relative;
+  }
+  .vis-map::after {
+    content: ''; position: absolute; inset: 0; border-radius: 8px;
+    box-shadow: inset 0 0 30px rgba(250,248,243,0.6);
+  }
+
+  .pillar-h {
+    font-family: var(--display); font-weight: 700;
+    font-size: 28px; line-height: 1.1; letter-spacing: -0.02em;
+    margin: 0 0 14px; color: #1a1813;
+    max-width: 18ch;
+  }
+  .pillar-h em { font-style: normal; }
+  .pillar.p1 .pillar-h em { color: #2E5BD6; }
+  .pillar.p2 .pillar-h em { color: #1F9D6B; }
+  .pillar.p3 .pillar-h em { color: #D98722; }
+  .pillar.p4 .pillar-h em { color: #1a1813; }
+
+  .pillar-body {
+    font-family: var(--body); font-size: 14px; line-height: 1.55; color: #555;
+    margin: 0 0 22px; max-width: 32ch;
+    flex: 1;
+  }
+
+  .pillar-foot {
+    display: flex; align-items: center; gap: 10px;
+    padding-top: 18px; border-top: 1px solid rgba(20,17,10,0.08);
+    font-family: var(--mono); font-size: 11px; color: #999;
+  }
+  .pillar-foot .ref {
+    background: rgba(20,17,10,0.05);
+    padding: 3px 8px; border-radius: 4px; font-weight: 600; color: #555;
+  }
+
+  /* mobile */
+  .why-m { padding: 56px 20px 64px; }
+  .why-m .why-head { display: block; margin-bottom: 32px; }
+  .why-m .why-h { font-size: 36px; }
+  .why-m .why-sub { margin-top: 16px; font-size: 14px; }
+  .why-m .pillars {
+    grid-template-columns: 1fr;
+    border: 1px solid rgba(20,17,10,0.10);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .why-m .pillar {
+    border-right: 0;
+    border-bottom: 1px solid rgba(20,17,10,0.08);
+    padding: 28px 22px;
+  }
+  .why-m .pillar:last-child { border-bottom: 0; }
+  .why-m .pillar-vis { height: 90px; margin-bottom: 18px; }
+  .why-m .vis-stat { font-size: 44px; }
+  .why-m .pillar-h { font-size: 22px; }
+</style>
+</head>
+<body>
+
+<header class="canvas-header">
+  <p class="canvas-eyebrow">Tenda · Landing wireframes · §6</p>
+  <h1 class="canvas-title">§6 Why Tenda · 4 pillars</h1>
+  <p class="canvas-sub">The argument, distilled. Four columns — <strong>Speed · Proof · Cost · Borderless</strong> — each carries its own proof artifact (chart, receipt, fee bar, map dots). Light surface returning from the §3–5 dark spine, with a warm orange wash signaling re-entry.</p>
+  <div class="canvas-meta">
+    <span>1440w desktop · 390w mobile (vertical stack)</span>
+    <span>Sits below §5 ticker, above §7 Coverage</span>
+    <span>Each pillar = role color + visual + verb headline + body + receipt-style footnote</span>
+  </div>
+</header>
+
+<div class="frames">
+  <section class="frame-row">
+    <div class="frame-row-title">
+      <span class="num">§6</span>
+      <h2>Why Tenda · desktop · light</h2>
+      <span class="desc">Four equal columns, hairlines between, top-edge accent draws on hover. Each pillar leads with proof, not platitudes.</span>
+    </div>
+
+    <div class="frame-wrap">
+      <span class="frame-label"><span class="dot"></span>1440 · light</span>
+      <div class="frame-w">
+        <div class="why">
+
+          <div class="why-head">
+            <div>
+              <p class="why-eyebrow"><span class="num">§ 06</span><span>·</span><span>WHY TENDA</span></p>
+              <h2 class="why-h">Four reasons it works.<br/><span class="dim">All of them measurable.</span></h2>
+            </div>
+            <div>
+              <p class="why-sub">No mission statements. No vague pledges. Each pillar carries its own proof — a stat, a receipt, a comparison — that you can verify on-chain or against the public competition.</p>
+            </div>
+          </div>
+
+          <div class="pillars">
+
+            <!-- ============ P1 SPEED ============ -->
+            <div class="pillar p1">
+              <p class="pillar-num">01 · SPEED</p>
+              <div class="pillar-vis">
+                <div class="vis-bars">
+                  <div class="vis-bar t">
+                    <div class="bar tenda"></div>
+                    <span class="lbl">Tenda</span>
+                    <span class="val">&lt; 2s</span>
+                  </div>
+                  <div class="vis-bar">
+                    <div class="bar intl"></div>
+                    <span class="lbl">PayPal</span>
+                    <span class="val">3–5d</span>
+                  </div>
+                  <div class="vis-bar">
+                    <div class="bar bank"></div>
+                    <span class="lbl">Bank wire</span>
+                    <span class="val">5–7d</span>
+                  </div>
+                </div>
+              </div>
+              <h3 class="pillar-h">Settlement in <em>under two seconds.</em></h3>
+              <p class="pillar-body">No "pending." No 5-day clearing. Approval and payout happen in the same Solana block — typically faster than your bank's app can refresh.</p>
+              <div class="pillar-foot">
+                <span>Avg release</span>
+                <span class="ref">1.7s · 30d rolling</span>
+              </div>
+            </div>
+
+            <!-- ============ P2 PROOF ============ -->
+            <div class="pillar p2">
+              <p class="pillar-num">02 · PROOF</p>
+              <div class="pillar-vis" style="display: block;">
+                <div class="vis-receipt">
+                  <div class="r-row">
+                    <span class="r-k">EVENT</span>
+                    <span class="r-v pill"><span class="d"></span>SETTLED</span>
+                  </div>
+                  <div class="r-row">
+                    <span class="r-k">PAYOUT</span>
+                    <span class="r-v amt">0.4875 SOL</span>
+                  </div>
+                  <div class="r-row">
+                    <span class="r-k">TX</span>
+                    <span class="r-v hash">5Qf…aL2</span>
+                  </div>
+                </div>
+              </div>
+              <h3 class="pillar-h">Every release is <em>a receipt you can verify.</em></h3>
+              <p class="pillar-body">Funds aren't moved by a Tenda admin. The on-chain program does it, atomically, on proof. You can look up any settlement on Solscan — no Tenda login required.</p>
+              <div class="pillar-foot">
+                <span>Audited</span>
+                <span class="ref">OtterSec · Mar 2025</span>
+              </div>
+            </div>
+
+            <!-- ============ P3 COST ============ -->
+            <div class="pillar p3">
+              <p class="pillar-num">03 · COST</p>
+              <div class="pillar-vis" style="display: block;">
+                <div class="vis-fees">
+                  <div class="fee-row">
+                    <span class="who t">Tenda</span>
+                    <span class="track"><span class="fill tenda"></span></span>
+                    <span class="pct t">2.5%</span>
+                  </div>
+                  <div class="fee-row">
+                    <span class="who">Fiverr</span>
+                    <span class="track"><span class="fill fiver"></span></span>
+                    <span class="pct">20–25%</span>
+                  </div>
+                  <div class="fee-row">
+                    <span class="who">Bank wire</span>
+                    <span class="track"><span class="fill bank"></span></span>
+                    <span class="pct">$25+</span>
+                  </div>
+                  <div class="fee-row">
+                    <span class="who">Western Union</span>
+                    <span class="track"><span class="fill intl"></span></span>
+                    <span class="pct">~7%</span>
+                  </div>
+                </div>
+              </div>
+              <h3 class="pillar-h">A flat <em>2.5%.</em> Nothing else.</h3>
+              <p class="pillar-body">No subscription tier. No "premium" boost. No spread on the FX rate. The fee is split into the same transaction that pays the worker — visible on every receipt.</p>
+              <div class="pillar-foot">
+                <span>Across</span>
+                <span class="ref">all categories · all corridors</span>
+              </div>
+            </div>
+
+            <!-- ============ P4 BORDERLESS ============ -->
+            <div class="pillar p4">
+              <p class="pillar-num">04 · BORDERLESS</p>
+              <div class="pillar-vis" style="display: block;">
+                <div class="vis-map"></div>
+              </div>
+              <h3 class="pillar-h">One wallet works <em>everywhere.</em></h3>
+              <p class="pillar-body">Eight fiat corridors, ten supported markets, one balance. A worker in Lagos can earn from a poster in Manila, settle to NGN — and the wallet doesn't blink.</p>
+              <div class="pillar-foot">
+                <span>Markets</span>
+                <span class="ref">NGN · GHS · KES · ZAR · PHP · USD · GBP · EUR</span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile -->
+    <div class="frame-wrap" style="margin-top: 28px;">
+      <span class="frame-label"><span class="dot"></span>390 · mobile · light</span>
+      <div class="frame-mw">
+        <div class="why why-m">
+          <div class="why-head">
+            <p class="why-eyebrow" style="font-size: 10px;"><span class="num">§ 06</span><span>·</span><span>WHY TENDA</span></p>
+            <h2 class="why-h">Four reasons it works. <span class="dim">All measurable.</span></h2>
+            <p class="why-sub">No vague pledges. Each pillar carries its own proof.</p>
+          </div>
+
+          <div class="pillars">
+            <div class="pillar p1">
+              <p class="pillar-num">01 · SPEED</p>
+              <div class="pillar-vis"><div class="vis-bars">
+                <div class="vis-bar t"><div class="bar tenda"></div><span class="lbl">Tenda</span><span class="val">&lt; 2s</span></div>
+                <div class="vis-bar"><div class="bar intl"></div><span class="lbl">PayPal</span><span class="val">3–5d</span></div>
+                <div class="vis-bar"><div class="bar bank"></div><span class="lbl">Bank</span><span class="val">5–7d</span></div>
+              </div></div>
+              <h3 class="pillar-h">Settlement in <em>under two seconds.</em></h3>
+              <p class="pillar-body">Approval and payout in the same Solana block.</p>
+              <div class="pillar-foot"><span>Avg release</span><span class="ref">1.7s · 30d</span></div>
+            </div>
+
+            <div class="pillar p2">
+              <p class="pillar-num">02 · PROOF</p>
+              <div class="pillar-vis" style="display:block;">
+                <div class="vis-receipt">
+                  <div class="r-row"><span class="r-k">EVENT</span><span class="r-v pill"><span class="d"></span>SETTLED</span></div>
+                  <div class="r-row"><span class="r-k">PAYOUT</span><span class="r-v amt">0.4875 SOL</span></div>
+                  <div class="r-row"><span class="r-k">TX</span><span class="r-v hash">5Qf…aL2</span></div>
+                </div>
+              </div>
+              <h3 class="pillar-h">Every release is <em>verifiable on-chain.</em></h3>
+              <p class="pillar-body">Look up any settlement on Solscan. No login.</p>
+              <div class="pillar-foot"><span>Audited</span><span class="ref">OtterSec · '25</span></div>
+            </div>
+
+            <div class="pillar p3">
+              <p class="pillar-num">03 · COST</p>
+              <div class="pillar-vis" style="display:block;">
+                <div class="vis-fees">
+                  <div class="fee-row"><span class="who t">Tenda</span><span class="track"><span class="fill tenda"></span></span><span class="pct t">2.5%</span></div>
+                  <div class="fee-row"><span class="who">Fiverr</span><span class="track"><span class="fill fiver"></span></span><span class="pct">20–25%</span></div>
+                  <div class="fee-row"><span class="who">WU</span><span class="track"><span class="fill intl"></span></span><span class="pct">~7%</span></div>
+                </div>
+              </div>
+              <h3 class="pillar-h">A flat <em>2.5%.</em> Nothing else.</h3>
+              <p class="pillar-body">No tiers. No FX spread. Fee visible on every receipt.</p>
+              <div class="pillar-foot"><span>Across</span><span class="ref">all corridors</span></div>
+            </div>
+
+            <div class="pillar p4">
+              <p class="pillar-num">04 · BORDERLESS</p>
+              <div class="pillar-vis" style="display:block;"><div class="vis-map"></div></div>
+              <h3 class="pillar-h">One wallet, <em>everywhere.</em></h3>
+              <p class="pillar-body">8 corridors, one balance. Lagos earns from Manila, settles in NGN.</p>
+              <div class="pillar-foot"><span>Markets</span><span class="ref">NGN · GHS · KES · ZAR · PHP · USD · GBP · EUR</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <p class="note-title">Pillar = proof, not poster</p>
+        Each column leads with an artifact: a comparison bar (Speed), a real receipt (Proof), a fee chart (Cost), a dot-map (Borderless). The verb headline comes <em>after</em> the visual — viewer is convinced before they read.
+      </div>
+      <div class="note">
+        <p class="note-title">Color = pillar, not category</p>
+        Blue · green · orange · ink. Distinct from the §4 stage palette intentionally — these are arguments, not lifecycle states. Top hairline draws in on hover (<code>0 → 100%</code>) as a soft selection cue.
+      </div>
+      <div class="note">
+        <p class="note-title">Honest comparisons</p>
+        Cost pillar names actual competitors (Fiverr 20–25%, Western Union ~7%, bank wire $25+). Speed pillar names PayPal + bank wire. Risky in legal review, devastating in the deck — comparison is the whole job here.
+      </div>
+      <div class="note">
+        <p class="note-title">Footnote receipts</p>
+        Every pillar ends with a small mono-monospaced fact (<code>1.7s · 30d rolling</code>, <code>OtterSec · Mar 2025</code>, <code>NGN · GHS · KES · …</code>). Lets the bold claim cite itself without hero-stat repetition.
+      </div>
+      <div class="note motion">
+        <p class="note-title">Motion</p>
+        Pillars fade up <code>16px → 0</code>, opacity <code>0 → 1</code>, staggered <code>120ms</code>. Top hairline scales <code>0 → 100%</code> on hover (<code>400ms</code>, ease-out). Bars (<code>P1</code>) and fee fills (<code>P3</code>) animate width on first viewport-enter. Dot-map (<code>P4</code>) pulses one dot every 1.2s (rotating).
+      </div>
+      <div class="note spacing">
+        <p class="note-title">Spacing</p>
+        Section <code>112 80 120</code>. Header grid <code>1.2fr 1fr · gap 64</code>. Pillar grid <code>4 cols · no gap</code> (hairlines do the work). Pad <code>48 36 44</code>. Vis cell height <code>140</code> for visual consistency across all four.
+      </div>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>

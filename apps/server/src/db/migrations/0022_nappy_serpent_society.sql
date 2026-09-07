@@ -1,0 +1,2 @@
+CREATE INDEX "disputes_unclaimed_idx" ON "disputes" USING btree ("created_at" DESC NULLS FIRST) WHERE "disputes"."resolved_at" IS NULL AND "disputes"."assigned_to" IS NULL;--> statement-breakpoint
+CREATE INDEX "users_role_idx" ON "users" USING btree ("role") WHERE "users"."role" <> 'user';

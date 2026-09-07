@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenda Landing — Scrollable Composition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #FAF8F3; font-family: 'Manrope', system-ui, sans-serif; }
+  body {
+    /* The page itself is white-paper-on-grey so the wireframe nature stays clear,
+       but the page reads like one continuous landing. */
+    background: #2a2520;
+    overflow-x: hidden;
+  }
+
+  /* ===== Floating tools rail (left) ===== */
+  .rail {
+    position: fixed; left: 16px; top: 50%; transform: translateY(-50%);
+    z-index: 100;
+    display: flex; flex-direction: column; gap: 8px;
+    background: rgba(15, 17, 23, 0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 8px 6px;
+    width: 56px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+  }
+  .rail-item {
+    height: 44px;
+    border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #8A8E98;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    border: none; background: transparent;
+    gap: 1px;
+    line-height: 1;
+  }
+  .rail-item:hover { color: #F4F2ED; background: rgba(255,255,255,0.05); }
+  .rail-item.active { color: #3ACB8E; background: rgba(58,203,142,0.10); }
+  .rail-item .num { font-size: 11px; font-weight: 700; }
+  .rail-item .lbl { font-size: 7.5px; opacity: 0.7; letter-spacing: 0.06em; }
+  .rail-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 6px; }
+
+  /* ===== Header strip ===== */
+  .doc-head {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 48px;
+    background: rgba(15, 17, 23, 0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    z-index: 90;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px 0 88px;
+    color: #B6BAC5;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+  .doc-head .left { display: flex; align-items: center; gap: 16px; }
+  .doc-head .left .doc-mark {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; font-weight: 700; color: #F4F2ED;
+    letter-spacing: -0.04em;
+  }
+  .doc-head .left .doc-mark .dot { color: #3ACB8E; }
+  .doc-head .left .meta {
+    color: #6F7488; letter-spacing: 0.06em;
+  }
+  .doc-head .left .meta b { color: #B6BAC5; font-weight: 600; }
+  .doc-head .right { display: flex; align-items: center; gap: 12px; }
+  .doc-head .right .toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.10);
+    color: #B6BAC5;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 10px;
+    letter-spacing: 0.10em;
+    font-weight: 600;
+    background: transparent;
+    text-transform: uppercase;
+  }
+  .doc-head .right .toggle:hover { color: #F4F2ED; border-color: rgba(255,255,255,0.20); }
+  .doc-head .right .toggle.active { color: #3ACB8E; border-color: rgba(58,203,142,0.30); background: rgba(58,203,142,0.08); }
+
+  /* ===== Page itself ===== */
+  .page {
+    margin-top: 48px;
+    background: #FAF8F3;
+    /* desktop view: full 1440px width frame */
+    width: 1440px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 40px 120px rgba(0,0,0,0.4);
+  }
+  body.mobile-mode .page {
+    width: 390px;
+  }
+
+  /* iframe wrapper — each iframe is the same width as the frame inside it */
+  .section-iframe {
+    display: block;
+    width: 1440px;
+    border: 0;
+    background: transparent;
+  }
+  body.mobile-mode .section-iframe {
+    width: 390px;
+  }
+
+  /* Section markers between iframes */
+  .section-marker {
+    position: relative;
+    height: 0;
+    pointer-events: none;
+  }
+  .section-marker .tag {
+    position: absolute;
+    left: -84px; top: 24px;
+    transform: translateX(-100%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.10em;
+    color: #6F7488;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .section-marker .tag .num { color: #3ACB8E; }
+  body.mobile-mode .section-marker .tag { display: none; }
+
+  /* Footer caption below page */
+  .doc-foot {
+    text-align: center;
+    padding: 56px 24px 80px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #6F7488;
+    letter-spacing: 0.10em;
+  }
+  .doc-foot b { color: #B6BAC5; font-weight: 600; }
+
+  /* Mobile rail toggling */
+  body.mobile-mode { padding-left: 0; }
+  @media (max-width: 1500px) {
+    .page { transform-origin: top center; }
+  }
+
+  /* Section label placement */
+  .scroll-spacer { height: 1px; }
+</style>
+</head>
+<body>
+
+<!-- ===== Top doc header ===== -->
+<div class="doc-head">
+  <div class="left">
+    <span class="doc-mark">tenda<span class="dot">.</span></span>
+    <span class="meta">LANDING · WIREFRAME · v1 · <b>12 sections</b></span>
+  </div>
+  <div class="right">
+    <button class="toggle" id="t-desktop" type="button">Desktop · 1440</button>
+    <button class="toggle" id="t-mobile" type="button">Mobile · 390</button>
+  </div>
+</div>
+
+<!-- ===== Floating section rail ===== -->
+<nav class="rail" id="rail">
+  <a href="#s00" class="rail-item" data-target="s00"><span class="num">00</span><span class="lbl">NAV</span></a>
+  <a href="#s01" class="rail-item" data-target="s01"><span class="num">01</span><span class="lbl">HERO</span></a>
+  <a href="#s02" class="rail-item" data-target="s02"><span class="num">02</span><span class="lbl">TRUST</span></a>
+  <a href="#s03" class="rail-item" data-target="s03"><span class="num">03</span><span class="lbl">PROD</span></a>
+  <a href="#s04" class="rail-item" data-target="s04"><span class="num">04</span><span class="lbl">FLOW</span></a>
+  <a href="#s05" class="rail-item" data-target="s05"><span class="num">05</span><span class="lbl">TICK</span></a>
+  <a href="#s06" class="rail-item" data-target="s06"><span class="num">06</span><span class="lbl">WHY</span></a>
+  <a href="#s07" class="rail-item" data-target="s07"><span class="num">07</span><span class="lbl">MAP</span></a>
+  <a href="#s08" class="rail-item" data-target="s08"><span class="num">08</span><span class="lbl">AUDS</span></a>
+  <a href="#s09" class="rail-item" data-target="s09"><span class="num">09</span><span class="lbl">FAQ</span></a>
+  <a href="#s10" class="rail-item" data-target="s10"><span class="num">10</span><span class="lbl">CTA</span></a>
+  <a href="#s11" class="rail-item" data-target="s11"><span class="num">11</span><span class="lbl">FOOT</span></a>
+</nav>
+
+<!-- ===== The page ===== -->
+<main class="page" id="page">
+
+  <!-- §0 NAV — the canvas in 01-hero-final has nav baked in; we'll use the dedicated hero file but the navbar comes with hero. We don't have a separate navbar file, so we treat hero as the top of the page (which contains navbar). -->
+
+  <!-- §1 HERO -->
+  <section class="section-marker" id="s01"><span class="tag"><span class="num">§01</span> · HERO</span></section>
+  <iframe class="section-iframe" data-section="01" data-desktop="sections/01-hero-final.html" data-mobile="sections/01-hero.html" data-h-desktop="980" data-h-mobile="900" data-target-desktop="0" data-target-mobile="3" loading="eager"></iframe>
+
+  <!-- §2 TRUST STRIP -->
+  <section class="section-marker" id="s02"><span class="tag"><span class="num">§02</span> · TRUST</span></section>
+  <iframe class="section-iframe" data-section="02" data-desktop="sections/02-trust-strip.html" data-mobile="sections/02-trust-strip.html" data-h-desktop="180" data-h-mobile="240" data-target-desktop="0" data-target-mobile="1" loading="eager"></iframe>
+
+  <!-- §3 TWO PRODUCTS -->
+  <section class="section-marker" id="s03"><span class="tag"><span class="num">§03</span> · PRODUCTS</span></section>
+  <iframe class="section-iframe" data-section="03" data-desktop="sections/03-two-products.html" data-mobile="sections/03-two-products.html" data-h-desktop="900" data-h-mobile="1700" data-target-desktop="0" data-target-mobile="1" loading="eager"></iframe>
+
+  <!-- §4 ESCROW FLOW -->
+  <section class="section-marker" id="s04"><span class="tag"><span class="num">§04</span> · ESCROW</span></section>
+  <iframe class="section-iframe" data-section="04" data-desktop="sections/04-how-escrow-works.html" data-mobile="sections/04-how-escrow-works.html" data-h-desktop="780" data-h-mobile="1200" data-target-desktop="0" data-target-mobile="1" loading="eager"></iframe>
+
+  <!-- §5 LIVE TICKER -->
+  <section class="section-marker" id="s05"><span class="tag"><span class="num">§05</span> · TICKER</span></section>
+  <iframe class="section-iframe" data-section="05" data-desktop="sections/05-live-ticker.html" data-mobile="sections/05-live-ticker.html" data-h-desktop="780" data-h-mobile="900" data-target-desktop="0" data-target-mobile="1" loading="eager"></iframe>
+
+  <!-- §6 WHY TENDA -->
+  <section class="section-marker" id="s06"><span class="tag"><span class="num">§06</span> · WHY</span></section>
+  <iframe class="section-iframe" data-section="06" data-desktop="sections/06-why-tenda.html" data-mobile="sections/06-why-tenda.html" data-h-desktop="900" data-h-mobile="1900" data-target-desktop="0" data-target-mobile="1" loading="eager"></iframe>
+
+  <!-- §7 COVERAGE -->
+  <section class="section-marker" id="s07"><span class="tag"><span class="num">§07</span> · MAP</span></section>
+  <iframe class="section-iframe" data-section="07" data-desktop="sections/07-coverage.html" data-mobile="sections/07-coverage.html" data-h-desktop="900" data-h-mobile="1100" data-target-desktop="0" data-target-mobile="1" loading="eager"></iframe>
+
+  <!-- §8 THREE AUDIENCES -->
+  <section class="section-marker" id="s08"><span class="tag"><span class="num">§08</span> · AUDIENCES</span></section>
+  <iframe class="section-iframe" data-section="08" data-desktop="sections/08-three-audiences.html" data-mobile="sections/08-three-audiences.html" data-h-desktop="900" data-h-mobile="2400" data-target-desktop="0" data-target-mobile="1" loading="eager"></iframe>
+
+  <!-- §9 FAQ -->
+  <section class="section-marker" id="s09"><span class="tag"><span class="num">§09</span> · FAQ</span></section>
+  <iframe class="section-iframe" data-section="09" data-desktop="sections/09-faq.html" data-mobile="sections/09-faq.html" data-h-desktop="980" data-h-mobile="1400" data-target-desktop="0" data-target-mobile="1" loading="eager"></iframe>
+
+  <!-- §10 FINAL CTA -->
+  <section class="section-marker" id="s10"><span class="tag"><span class="num">§10</span> · CTA</span></section>
+  <iframe class="section-iframe" data-section="10" data-desktop="sections/10-final-cta.html" data-mobile="sections/10-final-cta.html" data-h-desktop="900" data-h-mobile="1600" data-target-desktop="0" data-target-mobile="1" loading="eager"></iframe>
+
+  <!-- §11 FOOTER -->
+  <section class="section-marker" id="s11"><span class="tag"><span class="num">§11</span> · FOOTER</span></section>
+  <iframe class="section-iframe" data-section="11" data-desktop="sections/11-footer.html" data-mobile="sections/11-footer.html" data-h-desktop="780" data-h-mobile="1500" data-target-desktop="0" data-target-mobile="1" loading="eager"></iframe>
+
+</main>
+
+<div class="doc-foot">
+  <b>Tenda · Landing · scrollable composition</b> · 12 sections · 1440 desktop / 390 mobile · v1 wireframe
+</div>
+
+<script>
+/* ============================================================
+   Cropping iframe content:
+   Each section file shows ONE primary frame (sometimes two: desktop + mobile).
+   We need to hide the canvas chrome (header, notes, body padding) and isolate
+   the desired frame. Approach: when each iframe loads, inject CSS into it that:
+     - kills body padding & header & notes
+     - hides the OTHER frames (desktop vs mobile)
+     - resets backgrounds
+   We pick the n-th .frame-w (or .frame-mw) per the data attrs.
+============================================================ */
+
+const iframes = document.querySelectorAll('iframe.section-iframe');
+
+/* Base CSS injected into every section iframe — strips canvas chrome */
+const baseCSS = `
+  html, body { background: transparent !important; padding: 0 !important; margin: 0 !important; }
+  body { padding: 0 !important; min-height: 0 !important; }
+  .canvas-header, .notes, .frame-row-title, .frame-label { display: none !important; }
+  .frame-row { gap: 0 !important; }
+  .frames { gap: 0 !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
+  .frame-wrap { gap: 0 !important; align-items: stretch !important; margin-top: 0 !important; }
+  .frame-w, .frame-mw, .frame {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+`;
+
+/* JS-based wrap show/hide — counts .frame-wrap explicitly so it works regardless of sibling layout. */
+function showOnlyFrameWrap(doc, targetIndex) {
+  const wraps = doc.querySelectorAll('.frame-wrap');
+  wraps.forEach((w, i) => {
+    if (i === targetIndex) {
+      w.style.setProperty('display', 'flex', 'important');
+    } else {
+      w.style.setProperty('display', 'none', 'important');
+    }
+  });
+}
+
+function setupIframe(iframe, mode) {
+  const desktopSrc = iframe.dataset.desktop;
+  const mobileSrc = iframe.dataset.mobile;
+  const desktopH = parseInt(iframe.dataset.hDesktop, 10) || 800;
+  const mobileH = parseInt(iframe.dataset.hMobile, 10) || 1200;
+  const targetDesktop = parseInt(iframe.dataset.targetDesktop, 10) || 0;
+  const targetMobile = parseInt(iframe.dataset.targetMobile, 10) || 0;
+
+  const src = mode === 'desktop' ? desktopSrc : mobileSrc;
+  const targetIndex = mode === 'desktop' ? targetDesktop : targetMobile;
+  const height = mode === 'desktop' ? desktopH : mobileH;
+
+  iframe.style.height = height + 'px';
+
+  // Strip any hash from src (we use targetIndex instead)
+  const cleanSrc = src.split('#')[0];
+  iframe.src = cleanSrc;
+
+  iframe.onload = () => {
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc) return;
+      // 1. Inject base style stripper
+      const style = doc.createElement('style');
+      style.textContent = baseCSS;
+      doc.head.appendChild(style);
+      // 2. Show only the target frame-wrap (JS, not CSS — robust to sibling layout)
+      showOnlyFrameWrap(doc, targetIndex);
+
+      // 3. Auto-fit: measure actual content height after a tick (for accuracy)
+      const fit = () => {
+        try {
+          const wraps = doc.querySelectorAll('.frame-wrap');
+          const wrap = wraps[targetIndex];
+          if (wrap) {
+            const h = wrap.getBoundingClientRect().height;
+            if (h > 50) {
+              iframe.style.height = Math.ceil(h) + 'px';
+            }
+          }
+        } catch (e) { /* same-origin only */ }
+      };
+      // Multiple measurements catch late-rendering content (React in §10, etc.)
+      setTimeout(fit, 100);
+      setTimeout(fit, 500);
+      setTimeout(fit, 1500);
+    } catch (e) {
+      console.warn('Could not inject styles into', cleanSrc, e);
+    }
+  };
+}
+
+let currentMode = 'desktop';
+function applyMode(mode) {
+  currentMode = mode;
+  document.body.classList.toggle('mobile-mode', mode === 'mobile');
+  document.getElementById('t-desktop').classList.toggle('active', mode === 'desktop');
+  document.getElementById('t-mobile').classList.toggle('active', mode === 'mobile');
+  iframes.forEach(f => setupIframe(f, mode));
+}
+
+document.getElementById('t-desktop').addEventListener('click', () => applyMode('desktop'));
+document.getElementById('t-mobile').addEventListener('click', () => applyMode('mobile'));
+
+applyMode('desktop');
+
+/* ===== Rail active section tracking ===== */
+const railItems = document.querySelectorAll('.rail-item');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      railItems.forEach(item => {
+        item.classList.toggle('active', item.dataset.target === id);
+      });
+    }
+  });
+}, { rootMargin: '-30% 0px -50% 0px', threshold: 0 });
+
+document.querySelectorAll('.section-marker').forEach(s => observer.observe(s));
+
+/* Smooth scroll on rail clicks */
+railItems.forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = document.getElementById(item.dataset.target);
+    if (target) {
+      const y = target.getBoundingClientRect().top + window.pageYOffset - 80;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  });
+});
+</script>
+
+</body>
+</html>

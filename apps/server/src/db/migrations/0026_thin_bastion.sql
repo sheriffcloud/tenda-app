@@ -1,0 +1,1 @@
+ALTER TABLE "escrows" ADD COLUMN "public_feed_revision" numeric(78, 0) DEFAULT '0' NOT NULL;

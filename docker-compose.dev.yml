@@ -1,0 +1,26 @@
+# Local development infrastructure (NOT for production).
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Postgres is intentionally absent — local setups already run it natively;
+# add a service here if yours doesn't.
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: tenda-redis
+    ports:
+      - '127.0.0.1:6379:6379'
+    # AOF persistence so BullMQ jobs survive a container restart;
+    # maxmemory guard keeps a runaway queue from eating the dev machine.
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      - tenda-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  tenda-redis-data:

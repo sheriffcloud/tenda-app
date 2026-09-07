@@ -1,0 +1,2 @@
+ALTER TABLE "escrows" ADD COLUMN "creation_operation_id" uuid;--> statement-breakpoint
+CREATE UNIQUE INDEX "escrows_creator_creation_operation_uq" ON "escrows" USING btree ("creator_id","creation_operation_id") WHERE "escrows"."creation_operation_id" IS NOT NULL;

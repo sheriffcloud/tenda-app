@@ -1,0 +1,1 @@
+ALTER TABLE "chain_cursors" ADD COLUMN "backfill_block" bigint;

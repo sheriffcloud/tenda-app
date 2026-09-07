@@ -1,0 +1,24 @@
+{
+  "//": "Scoped coverage gate for the per-escrow contract pinning work (open_issues #89). The repo-wide gate in .c8rc.json sits at 81/82/80/81 — raising it globally is a separate decision that would fail on unrelated files, so this asserts the higher bar on the NEW code only. Run via `pnpm test:coverage:contracts`.",
+  "all": true,
+  "src": ["src"],
+  "include": [
+    "src/chains/contracts/**/*.ts",
+    "src/chains/evm/verify.ts",
+    "src/chains/evm/verify-receipt.ts",
+    "src/chains/evm/listener-polling.ts",
+    "src/lib/escrow/build-tx.ts"
+  ],
+  "exclude": [
+    "src/**/*.d.ts",
+    "src/chains/contracts/index.ts"
+  ],
+  "reporter": ["text"],
+  "report-dir": "coverage/contracts",
+  "clean": true,
+  "check-coverage": true,
+  "lines": 90,
+  "branches": 90,
+  "functions": 90,
+  "statements": 90
+}
