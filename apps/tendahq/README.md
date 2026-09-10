@@ -60,3 +60,4 @@ colours appear only as micro-dots. Fonts: Outfit (display), Instrument Sans
 (body), JetBrains Mono (numeric). The header/footer carry the wordmark image
 via `BrandLogo` (theme-aware, `src/assets/tenda-wordmark*.png`).
 
+
