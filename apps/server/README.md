@@ -59,3 +59,4 @@ TEST_DATABASE_URL=postgresql://…/tenda_test pnpm test   # full DB-backed c8 su
 
 
 
+// deploy test Thu, Sep 10, 2026  1:44:55 PM
