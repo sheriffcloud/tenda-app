@@ -166,7 +166,7 @@ jobs:
       - name: Build docs
         env:
           VITE_API_BASE_URL: https://api.netforgetech.online
-        run: pnpm --filter docs build
+        run: pnpm --filter tenda-docs build
       - name: Sync to S3
         run: aws s3 sync apps/docs/dist s3://tenda-production-docs --delete
       - name: Invalidate CloudFront
