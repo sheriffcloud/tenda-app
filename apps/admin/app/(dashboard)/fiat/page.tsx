@@ -127,7 +127,9 @@ export default function FiatPage() {
             </TableHeader>
             <TableBody>
               {intents.map((i) => {
-                const terminal = i.status === 'settled' || i.status === 'failed' || i.status === 'refunded'
+                // The enum has no 'refunded': a refund is recorded as 'failed'. (This used to test
+                // for 'refunded' too, which no row can ever be.)
+                const terminal = i.status === 'settled' || i.status === 'failed'
                 return (
                   <TableRow key={i.id}>
                     <TableCell className="capitalize">{i.direction}</TableCell>

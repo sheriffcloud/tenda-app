@@ -19,7 +19,9 @@ jest.mock('expo-router', () => ({
 }))
 
 const mockReadSpendable = jest.fn()
-jest.mock('@/wallet/balances', () => ({
+// readSpendableBalance moved to @tenda/shared (2026-08-15); partial mock.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   readSpendableBalance: (...a: unknown[]) => mockReadSpendable(...a),
 }))
 
@@ -31,8 +33,9 @@ const CHAIN: ChainRegistryEntry = {
   namespace: 'eip155',
   display_name: 'Base Sepolia',
   escrow_address: '0xEscrow',
+  ...registryEntryDefaults('eip155:84532'),
   assets: [
-    { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true },
+    { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true, funds_by_signature: true, roles: ['gig', 'exchange'] },
   ],
 }
 
@@ -45,6 +48,7 @@ jest.mock('@/stores/chain-registry.store', () => ({
 }))
 
 import { useSpendableBalance } from '@/hooks/useSpendableBalance'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const USDC = { assetId: 'USDC_BASE', symbol: 'USDC', amountRaw: '48500000', decimals: 6, isStable: true }
 

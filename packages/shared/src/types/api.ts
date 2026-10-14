@@ -28,8 +28,12 @@ export type QueryParams = Record<string, QueryValue>
  * Used once per query type in the shared test suite. Flipping any of them back
  * to `interface` fails the build there, naming the type — instead of the cast
  * quietly reappearing at every call site months later.
+ *
+ * The optional `_shape` parameter is never passed: it exists so `T` is
+ * referenced, which is what lets this compile under `noUnusedLocals` — the
+ * flag every consumer that type-checks shared's SOURCE (the landing) runs.
  */
-export function assertQueryShape<T extends QueryParams>(): void {
+export function assertQueryShape<T extends QueryParams>(_shape?: T): void {
   // Types only; the call exists so the constraint is checked.
 }
 
@@ -49,4 +53,7 @@ export interface ApiError {
   error: string
   message: string
   code: ErrorCode
+  /** Machine-readable payload some codes carry (e.g. ESCROW_WRONG_WALLET's
+   *  required_address, WALLET_IN_USE's blocking escrow_ids). */
+  details?: Record<string, unknown>
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Vault transfer helpers shared by all settlement paths.
 //!
 //! Native SOL escrows hold lamports on a system-owned PDA derived from

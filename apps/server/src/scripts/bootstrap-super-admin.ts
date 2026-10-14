@@ -25,7 +25,7 @@
  */
 import 'dotenv/config'
 import { ADMIN_ROLES } from '@tenda/shared'
-import { resolveAdminCandidates, setAdminRole } from '@server/lib/admin-auth'
+import { resolveAdminCandidates, setAdminRole } from '@server/features/auth/admin/admin-auth'
 import { confirm, describeCandidate, parseYesFlag, withDb } from '@server/scripts/_admin-cli'
 
 type AdminRole = (typeof ADMIN_ROLES)[number]

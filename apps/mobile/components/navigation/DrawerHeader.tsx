@@ -3,6 +3,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Menu } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
+import { APP_INFO } from '@tenda/shared'
 import { Text, Avatar } from '@/components/ui'
 
 interface DrawerHeaderProps {
@@ -19,7 +20,7 @@ interface DrawerHeaderProps {
 }
 
 export function DrawerHeader({
-  title = 'Tenda',
+  title = APP_INFO.name,
   onMenuPress,
   rightIcon: RightIcon,
   onRightPress,
@@ -72,7 +73,7 @@ export function DrawerHeader({
           >
             <RightIcon size={18} color={theme.colors.content.secondary} />
             {badgeCount > 0 && (
-              <View style={[s.badge, { backgroundColor: theme.colors.brand.primary, borderColor: theme.colors.surface.background }]}>
+              <View style={[s.badge, { backgroundColor: theme.colors.brand.solid, borderColor: theme.colors.surface.background }]}>
                 <Text style={[s.badgeText, { color: theme.colors.brand.onPrimary }]} numberOfLines={1}>
                   {badgeCount > 99 ? '99+' : badgeCount}
                 </Text>

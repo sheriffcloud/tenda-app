@@ -101,6 +101,31 @@ export const VERIFY_TX_JOB_OPTIONS = {
 } as const
 
 /**
+ * The gas-seed confirmation's retry posture (#58).
+ *
+ * The default five attempts on a 2s exponential backoff exhaust in about a
+ * minute, which is fine for delivering a push and useless for asking a chain
+ * whether a transfer landed: an EVM transaction is nonce-pinned and can mine
+ * hours after it was broadcast. A confirmation that gave up after a minute would
+ * leave every slow transfer for a human, which is the outcome the extra attempts
+ * exist to avoid.
+ *
+ * Fifteen attempts on the same exponential curve reaches roughly nine hours,
+ * comfortably past `GAS_SEED_UNRESOLVED_AFTER_MS`. The curve is deliberately
+ * left exponential rather than flattened: the FIRST few checks are seconds
+ * apart, which is what makes an ordinary delivery notify the user promptly, and
+ * only the tail — where the grant is already unusual — stretches out.
+ *
+ * The queue is not what decides when to stop caring; ./confirm's age check is,
+ * and it is measured from `submitted_at`. These attempts only have to outlast
+ * it, so that the run which crosses the bound actually happens.
+ */
+export const GAS_SEED_CONFIRM_JOB_OPTIONS = {
+  ...DEFAULT_JOB_OPTIONS,
+  attempts: 15,
+} as const
+
+/**
  * The options EVERY `new Queue(...)` in this app is constructed with.
  *
  * A function rather than two call sites spelling out the same object literal,
@@ -127,10 +152,21 @@ export const VERIFY_TX_JOB_OPTIONS = {
  * behavioural test, because nothing about it is wrong except what Redis keeps.
  */
 export function queueOptions(connection: QueueConnectionOptions, name?: JobName) {
-  return {
-    connection,
-    defaultJobOptions: name === 'verify-tx' ? VERIFY_TX_JOB_OPTIONS : DEFAULT_JOB_OPTIONS,
-  }
+  return { connection, defaultJobOptions: jobOptionsFor(name) }
+}
+
+/**
+ * The per-queue override, in ONE place.
+ *
+ * A conditional expression grew a second branch at #58 and would have grown a
+ * third; a lookup keeps `queueOptions` readable and puts every override where a
+ * reader compares them. `undefined` (no name) takes the default, which is what
+ * the repeatable-scheduler queues pass.
+ */
+function jobOptionsFor(name?: JobName) {
+  if (name === 'verify-tx') return VERIFY_TX_JOB_OPTIONS
+  if (name === 'gas-seed-confirm') return GAS_SEED_CONFIRM_JOB_OPTIONS
+  return DEFAULT_JOB_OPTIONS
 }
 
 // ---------- crossing the BullMQ boundary ----------------------------------

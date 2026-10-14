@@ -15,7 +15,7 @@
  */
 import { useGigsStore } from '../gigs.store'
 import { gigDetail } from '@/components/gig/__fixtures__/gig-detail'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 
 const mockGet = jest.fn()
 const mockReview = jest.fn()

@@ -12,7 +12,8 @@ export function optionKey(o: Pick<ExchangeAssetOption, 'chainId' | 'assetId'>): 
  * Asset + chain selector for the sell flow: one chip per tradable (asset, chain)
  * pair the user holds a wallet for. Always shows the selected asset (a single
  * option renders as one selected chip, so "what you're selling" is never a
- * mystery); the caller shows NoLinkedWalletNotice when there are none.
+ * mystery); the caller shows SellWalletNotice when there are none, which
+ * since #60 says WHICH of the four causes the emptiness is.
  * Presentational — options + selection come from the hook.
  */
 export function AssetChainPicker({

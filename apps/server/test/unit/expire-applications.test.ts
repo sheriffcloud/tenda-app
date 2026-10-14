@@ -1,5 +1,5 @@
 /**
- * jobs/expire-applications — the sweep is a TIDIER, not a gate.
+ * queue/jobs/expire-applications — the sweep is a TIDIER, not a gate.
  *
  * `isAssignable` already refuses a lapsed application the moment its deadline
  * passes, so a missed tick can never let a stale row be assigned. What these
@@ -12,7 +12,7 @@ import * as assert from 'node:assert'
 import {
   EXPIRE_APPLICATIONS_BATCH,
   expireApplicationsHandler,
-} from '@server/jobs/expire-applications'
+} from '@server/queue/jobs/expire-applications'
 
 const NOW = new Date('2026-07-01T12:00:00Z')
 

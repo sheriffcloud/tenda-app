@@ -5,11 +5,9 @@ import { spacing } from '@/theme/tokens'
 import { Text, Badge, Divider, Spacer } from '@/components/ui'
 import { GigMetaInfo } from './GigMetaInfo'
 import { ProofRequirementsNote } from './ProofRequirementsNote'
-import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel } from '@/lib/gig-display'
-import { PersonCard, ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
+import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel, CATEGORY_META, computeRelevantDeadline } from '@tenda/shared'
+import { PersonCard, ReviewsSection, ProofsGrid, DataProofList, fileProofMediaItems, type MediaItem } from '@/components/shared'
 import { DisputeReasonBlock, ReportContentLink, ChainBadge, TakedownNotice } from '@/components/escrow'
-import { CATEGORY_META } from '@/lib/categories'
-import { computeRelevantDeadline } from '@tenda/shared'
 import type { GigDetail } from '@tenda/shared'
 
 interface Props {
@@ -31,6 +29,9 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
     isCreator || userId === gig.counterparty?.id || userId === gig.assigned_counterparty_id
   const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
   const deadlineLbl = deadlineLabel(computeRelevantDeadline(gig))
+  // Media surfaces render FILE proofs only; data proofs render as their
+  // payload in DataProofList below (see fileProofMediaItems).
+  const fileProofs = fileProofMediaItems(gig.proofs)
 
   return (
     <>
@@ -119,7 +120,7 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
       {gig.proof_requirements.length > 0 && (
         <>
           <Divider />
-          <ProofRequirementsNote required={gig.proof_requirements} />
+          <ProofRequirementsNote required={gig.proof_requirements} params={gig.proof_params} />
         </>
       )}
 
@@ -129,11 +130,13 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
           <View style={s.sectionHead}>
             <Text style={s.sectionTitle}>Proof of work</Text>
             <Text style={[s.sectionTrail, { color: theme.colors.content.tertiary }]}>
-              {gig.proofs.length} {gig.proofs.length === 1 ? 'file' : 'files'}
+              {gig.proofs.length} {gig.proofs.length === 1 ? 'proof' : 'proofs'}
             </Text>
           </View>
           <Spacer size={spacing.sm} />
-          <ProofsGrid proofs={gig.proofs} onProofPress={onProofPress} />
+          {fileProofs.length > 0 && <ProofsGrid proofs={fileProofs} onProofPress={onProofPress} />}
+          {/* Data proofs render as their payload, below the media grid. */}
+          <DataProofList proofs={gig.proofs} />
         </>
       )}
 

@@ -1,5 +1,5 @@
 /**
- * lib/uuid.ts — the shape guard seven modules use to keep a malformed id from
+ * lib/http/uuid.ts — the shape guard seven modules use to keep a malformed id from
  * reaching a postgres `uuid` column, where it raises `invalid input syntax for
  * type uuid` instead of the clean 404 / `false` the caller wants.
  *
@@ -10,7 +10,7 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 test('isUuidLike: canonical lowercase UUID accepted', () => {
   assert.strictEqual(isUuidLike('550e8400-e29b-41d4-a716-446655440000'), true)

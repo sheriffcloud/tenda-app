@@ -17,9 +17,9 @@ import { admin_users } from '@tenda/shared/db/schema/identity'
 import { ErrorCode } from '@tenda/shared'
 import type { ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { requirePermission } from '@server/lib/guards'
-import { grantAdminEmail } from '@server/lib/admin-auth'
-import { isUuidLike } from '@server/lib/uuid'
+import { requirePermission } from '@server/lib/http/guards'
+import { grantAdminEmail } from '@server/features/auth/admin/admin-auth'
+import { isUuidLike } from '@server/lib/http/uuid'
 import { appEvents } from '@server/lib/events'
 
 const route: FastifyPluginAsync = async (fastify) => {

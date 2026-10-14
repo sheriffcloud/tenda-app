@@ -77,7 +77,7 @@ export default function TabsLayout() {
             paddingVertical: 0,
           },
           tabBarBadgeStyle: {
-            backgroundColor: theme.colors.brand.primary,
+            backgroundColor: theme.colors.brand.solid,
             color: theme.colors.brand.onPrimary,
             fontFamily: typography.fonts.body.bold,
             fontSize: 9.5,
@@ -139,7 +139,7 @@ export default function TabsLayout() {
               <Animated.View
                 style={[
                   s.postIcon,
-                  { backgroundColor: theme.colors.brand.primary, transform: [{ rotate: fabSpin }] },
+                  { backgroundColor: theme.colors.brand.solid, transform: [{ rotate: fabSpin }] },
                 ]}
               >
                 <Plus color={theme.colors.brand.onPrimary} size={POST_ICON_SIZE} strokeWidth={2.8} />

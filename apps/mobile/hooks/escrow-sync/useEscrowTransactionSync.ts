@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { getEvmTransactionStatus, getTransactionStatus } from '@/wallet'
+import { getEvmTransactionStatus } from '@tenda/shared'
+import { getTransactionStatus } from '@/wallet'
 import { subscribeEscrowChannel } from '@/stores/realtime.store'
 import {
   ESCROW_RPC_POLL_MS,

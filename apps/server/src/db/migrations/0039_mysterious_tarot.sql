@@ -1,0 +1,2 @@
+DROP INDEX "user_wallets_one_primary_per_user_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX "user_wallets_one_primary_per_chain_idx" ON "user_wallets" USING btree ("user_id","chain_ns") WHERE "user_wallets"."is_primary" = true;

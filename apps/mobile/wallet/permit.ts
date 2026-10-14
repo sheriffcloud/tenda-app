@@ -12,8 +12,8 @@
  * dispatch's ensureAllowance cover the approve fallback. A wallet DECLINE
  * is not a fallback: the user said no, so it throws to abort the flow.
  */
-import { ErrorCode, type PermitSignatureBody } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { ErrorCode, type PermitSignatureBody, ApiClientError } from '@tenda/shared'
+import { api } from '@/api/client'
 import { signEvmTypedData } from '@/wallet/adapters/walletconnect'
 import { resolveEvmFrom } from '@/wallet/dispatch'
 import { ensureEvmSession } from '@/wallet/ensure-session'

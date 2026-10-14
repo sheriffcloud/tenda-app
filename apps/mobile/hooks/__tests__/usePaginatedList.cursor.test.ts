@@ -1,13 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import type { PaginatedResponse } from '@tenda/shared'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
-
-interface Row { id: string }
-const rows = (...ids: string[]): Row[] => ids.map((id) => ({ id }))
-
-function page(data: Row[], next_cursor: string | null): PaginatedResponse<Row> {
-  return { data, total: 4, limit: 2, offset: 0, next_cursor }
-}
+import { cursorPage as page, rows, type Row } from '../__fixtures__/list-fixtures'
 
 test('uses an opaque server cursor instead of an unstable live-feed offset', async () => {
   const fetchPage = jest
@@ -152,4 +146,116 @@ test('a realtime event cannot be overwritten by an older in-flight HTTP snapshot
   await act(async () => resolveStale?.(page(rows('stale'), null)))
   await waitFor(() => expect(result.current.items).toEqual(rows('realtime', 'server-current')))
   expect(result.current.items).not.toContainEqual({ id: 'stale' })
+})
+
+test('falls back to offsets when the server sends no cursor at all', async () => {
+  // `next_cursor` ABSENT is a third state, distinct from null: this server
+  // does not do cursors, so the walk falls back to offset vs total. Nothing
+  // covered it here — a mutation removing the fallback (making hasMore
+  // permanently true, an endless end-reach) passed all 38 tests. The rule now
+  // lives in @tenda/shared; this pins THIS client's wiring to it.
+  const noCursor = (data: Row[], total: number): PaginatedResponse<Row> => ({
+    data,
+    total,
+    limit: 2,
+    offset: 0,
+  })
+  const fetchPage = jest
+    .fn()
+    .mockResolvedValueOnce(noCursor(rows('a', 'b'), 3))
+    .mockResolvedValueOnce(noCursor(rows('c'), 3))
+  const { result } = renderHook(() =>
+    usePaginatedList({
+      fetchPage,
+      query: {},
+      keyOf: (row: Row) => row.id,
+      pageSize: 2,
+      cursorPagination: true,
+    }),
+  )
+
+  await waitFor(() => expect(result.current.items).toHaveLength(2))
+  expect(result.current.hasMore).toBe(true)
+
+  act(() => result.current.loadMore())
+  await waitFor(() => expect(result.current.items).toHaveLength(3))
+  expect(result.current.hasMore).toBe(false)
+})
+
+test('a failed initial load does not leave the PREVIOUS query cursor claiming another page', async () => {
+  // `clear()` is documented as "back to the start", and in offset mode it is:
+  // the offset returns to 0 and `hasMore` is 0 < 0. In CURSOR mode the offset
+  // is ignored entirely (shared `hasMorePages`: with a cursor present the
+  // answer is `nextCursor !== null`), so resetting only the offset left the
+  // PREVIOUS query's cursor standing over an empty, errored list — which then
+  // reported another page to load, and would have fetched it under the old
+  // cursor. Only `useHomeFeed` sets cursorPagination, and it is also the one
+  // surface whose filters change under a loaded list.
+  const fetchPage = jest
+    .fn()
+    .mockResolvedValueOnce(page(rows('a', 'b'), 'cursor-2'))
+    .mockRejectedValueOnce(new Error('offline'))
+  let query: Record<string, string> = { category: 'first' }
+  const { result, rerender } = renderHook(() =>
+    usePaginatedList({
+      fetchPage,
+      query,
+      keyOf: (row: Row) => row.id,
+      pageSize: 2,
+      cursorPagination: true,
+    }),
+  )
+  await waitFor(() => expect(result.current.items).toHaveLength(2))
+  expect(result.current.hasMore).toBe(true)
+
+  query = { category: 'second' }
+  rerender({})
+  await waitFor(() => expect(result.current.error).not.toBeNull())
+
+  expect(result.current.items).toEqual([])
+  expect(result.current.hasMore).toBe(false)
+})
+
+test('a cache HIT does not inherit the previously-viewed query cursor', async () => {
+  // Same family as the clear() bug above, on the other path that restores a
+  // position. `CachedPage` holds {items, total} and no cursor, so the cache-hit
+  // branch resets the OFFSET to the remembered page and leaves nextCursorRef
+  // holding whatever the query the reader just came from left there. The
+  // revalidation behind the hit normally overwrites it — unless it FAILS, and
+  // 'reload' deliberately keeps state on failure. Then loadMore walks the
+  // previous filter's cursor and merges its rows into this filter's list.
+  // useHomeFeed is the one caller with both cacheQueries and cursorPagination.
+  const fetchPage = jest
+    .fn()
+    .mockResolvedValueOnce(page(rows('a', 'b'), 'cursor-A'))
+    .mockResolvedValueOnce(page(rows('c', 'd'), 'cursor-B'))
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockResolvedValueOnce(page(rows('e', 'f'), null))
+  let query: Record<string, string> = { category: 'first' }
+  const { result, rerender } = renderHook(() =>
+    usePaginatedList({
+      fetchPage,
+      query,
+      keyOf: (row: Row) => row.id,
+      pageSize: 2,
+      cacheQueries: true,
+      cursorPagination: true,
+    }),
+  )
+  await waitFor(() => expect(result.current.items).toEqual(rows('a', 'b')))
+
+  query = { category: 'second' }
+  rerender({})
+  await waitFor(() => expect(result.current.items).toEqual(rows('c', 'd')))
+
+  query = { category: 'first' }
+  rerender({})
+  await waitFor(() => expect(result.current.items).toEqual(rows('a', 'b')))
+  await waitFor(() => expect(result.current.error).not.toBeNull())
+
+  act(() => result.current.loadMore())
+  await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(4))
+  expect(fetchPage).toHaveBeenLastCalledWith(
+    expect.not.objectContaining({ cursor: 'cursor-B' }),
+  )
 })

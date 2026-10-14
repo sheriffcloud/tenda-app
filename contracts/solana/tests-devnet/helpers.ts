@@ -26,6 +26,7 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import IDL_JSON from "../target/idl/tenda_escrow.json";
+import { PLATFORM_STATE_LEN } from "../tests-common/idl-layout";
 import type { TendaEscrow } from "../target/types/tenda_escrow";
 
 // ---------------------------------------------------------------------------
@@ -223,10 +224,11 @@ export const PLATFORM_DEFAULTS = {
 export async function ensurePlatform(ctx: DevnetCtx): Promise<void> {
   const existing = await ctx.connection.getAccountInfo(ctx.platformPda);
   if (existing !== null) {
-    // PlatformState::LEN — a pre-rewrite deployment at the same program id
-    // leaves a smaller legacy account behind; close it so init can run.
-    const CURRENT_LEN = 8 + 32 * 3 + 2 * 2 + 8 * 3 + 1;
-    if (existing.data.length === CURRENT_LEN) return; // initialized + current
+    // A deployment at the same program id can leave an account of a DIFFERENT
+    // size behind (pre-rewrite, or pre-#27 which was 8 bytes longer); close it
+    // so init can run. The length is derived from the IDL — a hand-copied one
+    // went stale at #27 and made this branch close a current account.
+    if (existing.data.length === PLATFORM_STATE_LEN) return; // initialized + current
     await ctx.program.methods
       .closeLegacyPlatform()
       .accountsPartial({
@@ -330,7 +332,7 @@ export async function createSolEscrow(
 
 export async function acceptEscrow(
   ctx: DevnetCtx,
-  e: SolEscrow,
+  e: { escrow: PublicKey },
   signer: Keypair = ctx.counterparty,
 ): Promise<void> {
   await ctx.program.methods
@@ -348,7 +350,7 @@ export const PROOF_HASH = Array.from(randomBytes(32));
 
 export async function submitProof(
   ctx: DevnetCtx,
-  e: SolEscrow,
+  e: { escrow: PublicKey },
   signer: Keypair = ctx.counterparty,
 ): Promise<void> {
   await ctx.program.methods

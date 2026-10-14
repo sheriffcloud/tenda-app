@@ -14,7 +14,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { chain_contracts, chains, escrows } from '@tenda/shared/db/schema'
-import { applySeed, buildSeedRows } from '@server/db/seed-v2'
+import { applySeed, buildSeedRows } from '@server/db/seed/seed-v2'
 import { loadChainSecrets } from '@server/chains/secrets'
 import {
   assertEscrowContractsKnown,
@@ -129,9 +129,9 @@ test('applySeedRows APPENDS on a redeploy: new address arrives, old one stays', 
   // records the new contract without erasing the one still holding funds.
   const app = getApp()
   const env = (escrow: string) => ({
-    CHAIN_EIP155_8453_RPC_URL: 'https://rpc.example',
-    CHAIN_EIP155_8453_ESCROW_ADDR: escrow,
-    CHAIN_EIP155_8453_TREASURY_ADDR: '0x00000000000000000000000000000000000000a1',
+    CHAIN_EIP155_84532_RPC_URL: 'https://rpc.example',
+    CHAIN_EIP155_84532_ESCROW_ADDR: escrow,
+    CHAIN_EIP155_84532_TREASURY_ADDR: '0x00000000000000000000000000000000000000a1',
   })
   const OLD = '0x00000000000000000000000000000000000000e5'
   const NEW = '0x00000000000000000000000000000000000000f6'
@@ -143,7 +143,7 @@ test('applySeedRows APPENDS on a redeploy: new address arrives, old one stays', 
   const rows = await app.db
     .select({ address: chain_contracts.address })
     .from(chain_contracts)
-    .where(eq(chain_contracts.chain_id, 'eip155:8453'))
+    .where(eq(chain_contracts.chain_id, 'eip155:84532'))
   assert.deepStrictEqual(
     rows.map((r) => r.address).sort(),
     [OLD, NEW].sort(),
@@ -155,7 +155,7 @@ test('applySeedRows APPENDS on a redeploy: new address arrives, old one stays', 
   const [chain] = await app.db
     .select({ escrow_program: chains.escrow_program })
     .from(chains)
-    .where(eq(chains.id, 'eip155:8453'))
+    .where(eq(chains.id, 'eip155:84532'))
   assert.strictEqual(chain.escrow_program, NEW)
 })
 

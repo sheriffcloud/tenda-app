@@ -33,6 +33,14 @@ pre-commit:
         - "apps/mobile/package.json"
         - "apps/tendahq/src/content/app-info.ts"
       run: node scripts/check-app-version.mjs
+    # Schema <-> migration: a Drizzle schema edit must ship its migration.
+    # Nothing is generated or staged — the check runs drizzle-kit, restores the
+    # migrations folder and refuses the commit when it would have written.
+    schema-drift:
+      glob:
+        - "packages/shared/src/db/schema/**/*.ts"
+        - "apps/server/src/db/migrations/**"
+      run: node scripts/check-schema-drift.mjs
     # Solana CLI pin: contracts.yml's SOLANA_PIN is the source of truth and the
     # contracts/solana README mirrors it, because CI and a developer's machine
     # have to build the program with the same cargo-build-sbf. Same shape as

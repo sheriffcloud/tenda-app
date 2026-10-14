@@ -3,10 +3,10 @@
  * ahead of the permit signature and the draft. The ordering IS the feature: an
  * underfunded creator used to sign a permit, wait, and watch the create revert,
  * leaving a draft to retry. Also covers fail-open and the pre-existing paths
- * (moderation block, 9D gate) surviving the extraction from the screen.
+ * (moderation block) surviving the extraction from the screen. The 9D
+ * transaction gate has its own sibling, useGigFunding.gate.test.ts.
  */
 import { renderHook, act, waitFor } from '@testing-library/react-native'
-import type { GigFormValues } from '@/components/gig/GigForm'
 const mockPush = jest.fn()
 const mockNavigate = jest.fn()
 const mockSetParams = jest.fn()
@@ -18,6 +18,10 @@ jest.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => mock
 const mockSign = jest.fn()
 const mockResolveSigners = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({
+  // Present so the module loads; the declaration itself is asserted in the
+  // sibling useGigFunding.signer.test.ts.
+  settleSignerFor: jest.fn(),
+  declaredSignerFor: jest.fn(),
   signSendAndReport: (...a: unknown[]) => mockSign(...a),
   resolveSignersForChain: (...a: unknown[]) => mockResolveSigners(...a),
 }))
@@ -38,50 +42,19 @@ jest.mock('@/api/client', () => ({
     },
     gigs: { create: (b: unknown) => mockGigCreate(b) },
   },
-  ApiClientError: class ApiClientError extends Error {
-    code?: string
-    constructor(message: string, code?: string) {
-      super(message)
-      this.code = code
-    }
-  },
-}))
-let mockGate: string | null = null
-jest.mock('@/lib/transaction-gate', () => ({
-  classifyTransactionGateError: () => mockGate,
-  TRANSACTION_GATE_MESSAGE: { link_wallet: 'link a wallet' },
-  transactionGateRoute: () => '/settings/linked-wallets',
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  ApiClientError: jest.requireActual('@tenda/shared').ApiClientError,
 }))
 // Imports stay below mock declarations so their modules observe the test doubles.
-// eslint-disable-next-line import/first
+// The 9D gate is NOT mocked since its move to @tenda/shared: the tests throw
+// the real ApiClientError codes and the hook runs the real classifier.
 import { useGigFunding } from '@/hooks/useGigFunding'
-// eslint-disable-next-line import/first
 import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
-const SIGNERS = ['SoLSigner', 'SoLSecond']
-const VALUES: GigFormValues = {
-  title: 'Fix my sink',
-  description: 'leaky',
-  chainId: 'solana:devnet',
-  asset: 'USDC_SOL',
-  paymentRaw: 10_000_000,
-  completionDuration: 86_400,
-  acceptDeadlineHours: 24,
-  category: 'service',
-  country: 'NG',
-  remote: true,
-  city: null,
-  proofRequirements: [],
-  // Instant mode: the approval-mode create body is asserted separately.
-  requiresApproval: false,
-}
-/** Drive the hook from confirm → funding, the screen's real sequence. */
-async function fund(
-  result: { current: ReturnType<typeof useGigFunding> },
-  values: GigFormValues = VALUES,
-) {
-  await act(async () => { result.current.setPendingValues(values) })
-  await act(async () => { await result.current.runFunding() })
-}
+import {
+  FUNDING_SIGNERS as SIGNERS,
+  FUNDING_VALUES as VALUES,
+  fundWith as fund,
+} from '@/hooks/__fixtures__/gig-funding'
 beforeEach(() => {
   mockPush.mockReset(); mockNavigate.mockReset(); mockSetParams.mockReset()
   mockToast.mockReset()
@@ -92,7 +65,6 @@ beforeEach(() => {
   mockEscrowCreate.mockReset().mockResolvedValue({ escrow_id: 'e1', unsigned: { kind: 'solana-tx' } })
   mockEscrowDelete.mockReset().mockResolvedValue(undefined)
   mockGigCreate.mockReset().mockResolvedValue({})
-  mockGate = null
 })
 const ARGS = { resetForm: jest.fn() }
 test('checks the budget against every candidate wallet before anything else', async () => {
@@ -162,10 +134,10 @@ test('the permit is signed only once the balance clears, for the full budget', a
 })
 // --- paths that must survive the extraction from the screen -----------------
 test('a moderation block surfaces the dialog and discards the orphan draft', async () => {
-  const { ApiClientError } = jest.requireMock<{
-    ApiClientError: new (m: string, c?: string) => Error
-  }>('@/api/client')
-  mockGigCreate.mockRejectedValue(new ApiClientError('This gig breaks our rules', 'CONTENT_MODERATED'))
+  const { ApiClientError } = jest.requireActual<typeof import('@tenda/shared')>('@tenda/shared')
+  mockGigCreate.mockRejectedValue(
+    new ApiClientError(422, 'Unprocessable Entity', 'This gig breaks our rules', 'CONTENT_MODERATED'),
+  )
   const { result } = renderHook(() => useGigFunding(ARGS))
   await fund(result)
   expect(mockEscrowDelete).toHaveBeenCalledWith({ id: 'e1' })
@@ -173,13 +145,6 @@ test('a moderation block surfaces the dialog and discards the orphan draft', asy
   expect(mockSign).not.toHaveBeenCalled()
   await act(async () => { result.current.dismissBlocked() })
   expect(result.current.blockedMessage).toBeNull()
-})
-test('the 9D gate routes instead of dead-ending', async () => {
-  mockEscrowCreate.mockRejectedValue(new Error('gated'))
-  mockGate = 'link_wallet'
-  const { result } = renderHook(() => useGigFunding(ARGS))
-  await fund(result)
-  expect(mockPush).toHaveBeenCalledWith('/settings/linked-wallets')
 })
 test('signing declined after the draft is saved keeps the draft', async () => {
   mockSign.mockRejectedValue(new Error('user declined'))
@@ -213,10 +178,10 @@ test('a funded gig blanks the composer even when it was not a draft repost', asy
   expect(mockSetParams).not.toHaveBeenCalled()
 })
 test('a moderation block leaves the composer intact so the user can edit', async () => {
-  const { ApiClientError } = jest.requireMock<{
-    ApiClientError: new (m: string, c?: string) => Error
-  }>('@/api/client')
-  mockGigCreate.mockRejectedValue(new ApiClientError('This gig breaks our rules', 'CONTENT_MODERATED'))
+  const { ApiClientError } = jest.requireActual<typeof import('@tenda/shared')>('@tenda/shared')
+  mockGigCreate.mockRejectedValue(
+    new ApiClientError(422, 'Unprocessable Entity', 'This gig breaks our rules', 'CONTENT_MODERATED'),
+  )
   const resetForm = jest.fn()
   const { result } = renderHook(() => useGigFunding({ resetForm }))
   await fund(result)

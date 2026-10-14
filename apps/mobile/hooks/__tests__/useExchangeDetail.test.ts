@@ -12,7 +12,7 @@
  */
 import { renderHook, act, waitFor } from '@testing-library/react-native'
 import type { ExchangeDetail } from '@tenda/shared'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { exchangeDetail } from '@/components/exchange/__fixtures__/exchange-detail'
 
 const mockGet = jest.fn()

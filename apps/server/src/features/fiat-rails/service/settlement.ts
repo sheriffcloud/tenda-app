@@ -4,8 +4,8 @@
  * `transition()`, so replays/races can't regress a terminal row.
  */
 
-import { RECONCILE_GIVE_UP_MS } from '../config'
-import type { FiatIntentRow, FiatProvider } from '../types'
+import { RECONCILE_GIVE_UP_MS } from '../core/config'
+import type { FiatIntentRow, FiatProvider } from '../core/types'
 import { toEvent, type FiatDeps } from './deps'
 
 export type ProviderOutcome = 'completed' | 'failed'

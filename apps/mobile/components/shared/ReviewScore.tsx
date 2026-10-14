@@ -23,7 +23,7 @@ export function ReviewScore({ score, size = 12 }: Props) {
 
   return (
     <View style={s.row}>
-      <Text size={size} color={theme.colors.accent.primary}>
+      <Text size={size} color={theme.colors.feedback.warning.base}>
         ★
       </Text>
       <Text size={size} color={theme.colors.content.tertiary}>

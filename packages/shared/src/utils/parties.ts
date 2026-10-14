@@ -10,6 +10,7 @@ import type { EscrowKind } from '../types/escrow'
 // Type-only, and deliberately so: `types/dossier` imports `PartyRole` from
 // here, so a value import would close a runtime cycle. `import type` is erased.
 import type { DossierParty } from '../types/dossier'
+export { abbreviatedName, scopedName, type ScopedNameFields } from './scoped-name'
 
 /** Structural party identity; mirrors the escrow columns and winner enum. */
 export type PartyRole = 'creator' | 'counterparty'
@@ -33,6 +34,32 @@ export function partyRoleLabel(kind: EscrowKind, role: PartyRole): string {
  */
 export function winnerLabel(kind: EscrowKind, winner: PartyRole | 'split'): string {
   return winner === 'split' ? 'Split evenly' : partyRoleLabel(kind, winner)
+}
+
+/**
+ * Semantic accent for a party. A TOKEN NAME, never a colour value — each
+ * client keeps its own presentation, which is the half that legitimately
+ * differs: web looks the token up in a Tailwind class table, while on mobile
+ * it IS a `theme.colors` key (the bubble reads `.primary` off it) and also a
+ * valid Avatar `tone` (the header chip passes it straight through).
+ *
+ * Shared because both clients had declared this identical map privately, each
+ * under a docstring promising the context header and the thread "can never
+ * drift into calling the poster one colour here and another there". That held
+ * WITHIN a client and was exactly the drift it forbade one level up: nothing
+ * stopped web tinting the poster with the accent while mobile tinted the taker
+ * with it (#43).
+ */
+export type PartyAccent = 'accent' | 'brand'
+
+const ROLE_ACCENTS: Readonly<Record<PartyRole, PartyAccent>> = {
+  creator: 'accent',
+  counterparty: 'brand',
+}
+
+/** Accent token for a party, e.g. 'counterparty' → 'brand'. */
+export function partyAccent(role: PartyRole): PartyAccent {
+  return ROLE_ACCENTS[role]
 }
 
 /**
@@ -191,4 +218,26 @@ export function disputeViewerSeat(
 ): DisputeViewerSeat {
   if (viewerId === '' || parties.length === 0) return 'unknown'
   return parties.some((p) => p.user_id === viewerId) ? 'party' : 'mediator'
+}
+
+/**
+ * A person's reputation as a display string ('4.8'), or null when they have
+ * none yet.
+ *
+ * `users.review_score` is `numeric(3,2)` and NULLABLE with no default: NULL is
+ * "nobody has reviewed them", and a stored `0.00` is a real average that must
+ * be shown, not hidden. Four surfaces had four rules for that distinction —
+ * one dropped a genuine zero, one rendered the raw '4.80', one printed an em
+ * dash — so the same person's standing read differently depending on which
+ * screen you were looking at.
+ *
+ * One decimal because the underlying value is an average of a handful of
+ * scores; the second decimal is noise the column happens to store.
+ */
+export function formatReviewScore(review_score: string | null | undefined): string | null {
+  if (review_score === null || review_score === undefined) return null
+  const score = Number.parseFloat(review_score)
+  // Guards the empty string and any non-numeric text: unknown, not zero.
+  if (!Number.isFinite(score)) return null
+  return score.toFixed(1)
 }

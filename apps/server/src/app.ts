@@ -7,7 +7,7 @@ import {
 import AutoLoad, { AutoloadPluginOptions } from '@fastify/autoload'
 import { ErrorCode } from '@tenda/shared'
 import type { ApiError } from '@tenda/shared'
-import { registerErrorHandlers } from './lib/http-errors'
+import { registerErrorHandlers } from './lib/errors/http'
 
 
 
@@ -24,7 +24,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
   fastify,
   opts
 ): Promise<void> => {
-  // Error envelope shared with the test harness (lib/http-errors.ts).
+  // Error envelope shared with the test harness (lib/errors/http.ts).
   registerErrorHandlers(fastify)
 
   // Load all plugins (db, auth, cors, rate-limit, sensible)

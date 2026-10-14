@@ -1,5 +1,5 @@
 /**
- * lib/notify/ — the notification WRITE contract. Three things are pinned
+ * features/notifications/ — the notification WRITE contract. Three things are pinned
  * here because nothing else pins them:
  *
  *  1. `stableNotificationId` must return a WELL-FORMED UUID. `notifications.id`
@@ -18,7 +18,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { NOTIFICATION_SCREEN } from '@tenda/shared'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 import {
   stableNotificationId,
   enqueueNotification,
@@ -28,7 +28,7 @@ import {
   chatPushData,
   fiatIntentPushData,
   toNotificationWire,
-} from '@server/lib/notify'
+} from '@server/features/notifications'
 import { queueDouble } from '../helpers/queue-double'
 
 // ---------- helpers ----------------------------------------------------------

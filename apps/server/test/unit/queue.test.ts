@@ -22,7 +22,7 @@ import * as assert from 'node:assert'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import fastify, { type FastifyInstance } from 'fastify'
-import { stripComments } from '../helpers/source-scan'
+import { stripComments, tsFilesUnder } from '../helpers/source-scan'
 import { AppError } from '@server/lib/errors'
 import queuePlugin, {
   DEFAULT_JOB_OPTIONS,
@@ -34,15 +34,6 @@ import queuePlugin, {
   type JobPayload,
   type QueueService,
 } from '@server/plugins/queue'
-
-/** Every .ts under `dir`, recursively — the source-scan guard's input. */
-function tsFilesUnder(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) return tsFilesUnder(full)
-    return entry.name.endsWith('.ts') ? [full] : []
-  })
-}
 
 interface QueueSite {
   line: number
@@ -440,7 +431,7 @@ test('a directory under src/plugins is exactly one plugin', () => {
   //    depth is capped here instead of just recursing and checking rule 1.
   //    Helpers belong in flat files beside the index, where rule 1 hides them.
   //
-  // Nothing else would catch either: test/helpers/test-app.ts registers
+  // Nothing else would catch either: test/helpers/test-app/app.ts registers
   // `queuePlugin` by hand rather than autoloading src/plugins, so the whole
   // integration suite can pass while the real server boots differently.
   const pluginsDir = join(__dirname, '..', '..', 'src', 'plugins')

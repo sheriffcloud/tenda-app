@@ -21,6 +21,7 @@ function gigDetails(over: Partial<DossierGigDetails> = {}): DossierGigDetails {
     city: 'Lagos',
     remote: false,
     proof_requirements: [],
+    proof_params: null,
     requires_approval: false,
     assigned_from_application: false,
     applicant_count: 0,
@@ -71,7 +72,7 @@ test('PartyCard uses Maker/Taker labels for exchanges and falls back on null nam
 // ─── ProofsGallery ────────────────────────────────────────────────────────────
 
 const proof = (over: Partial<DossierProof> = {}): DossierProof => ({
-  id: 'pr1', url: 'https://res.cloudinary.com/x.jpg', type: 'image', uploaded_at: '2026-06-10T00:00:00.000Z', ...over,
+  id: 'pr1', url: 'https://res.cloudinary.com/x.jpg', payload: null, type: 'image', uploaded_at: '2026-06-10T00:00:00.000Z', ...over,
 })
 
 test('ProofsGallery renders images, video/document tiles, and the fiat payment proof', () => {
@@ -86,6 +87,39 @@ test('ProofsGallery renders images, video/document tiles, and the fiat payment p
   expect(screen.getByText('🎬')).toBeInTheDocument()
   expect(screen.getByText('📄')).toBeInTheDocument()
   expect(screen.getByRole('img', { name: 'Payment proof' })).toBeInTheDocument()
+})
+
+test('ProofsGallery renders a data proof as a payload card — values in full, not a tooltip', () => {
+  // A mediator weighing a dispute needs the reported values themselves.
+  render(
+    <ProofsGallery
+      proofs={[
+        proof({ id: 'd1', type: 'structured', url: null, payload: { values: { count: 3, sealed: true } } }),
+        proof({ id: 'd2', type: 'text', url: null, payload: { text: 'Left at the gate' } }),
+        proof({ id: 'd3', type: 'geotag', url: null, payload: { latitude: 6.52443891, longitude: 3.37921234 } }),
+      ]}
+      paymentProofUrl={null}
+    />,
+  )
+  expect(screen.getByText('count:')).toBeInTheDocument()
+  expect(screen.getByText('3')).toBeInTheDocument()
+  expect(screen.getByText('sealed:')).toBeInTheDocument()
+  expect(screen.getByText('Yes')).toBeInTheDocument()
+  expect(screen.getByText('Left at the gate')).toBeInTheDocument()
+  expect(screen.getByText('6.52444, 3.37921')).toBeInTheDocument()
+  // No dead link and no image for a payload.
+  expect(screen.queryByRole('link')).toBeNull()
+  expect(screen.queryByRole('img')).toBeNull()
+})
+
+test('ProofsGallery renders a file proof with no url as an unlinked tile — never a dead link', () => {
+  // `escrow_proofs.url` is nullable at the schema; a file row without one is
+  // corrupt but must not throw the whole dossier.
+  render(<ProofsGallery proofs={[proof({ id: 'v', type: 'video', url: null })]} paymentProofUrl={null} />)
+  // The tile itself must be a <div>, not an href-less <a>: an anchor with no
+  // href has no link ROLE either, so a role query alone cannot tell them apart.
+  expect(screen.getByText('🎬').closest('a')).toBeNull()
+  expect(screen.getByText('🎬').closest('div')).not.toBeNull()
 })
 
 test('ProofsGallery shows the empty state when there are no proofs at all', () => {

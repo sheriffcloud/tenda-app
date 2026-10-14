@@ -1,5 +1,5 @@
 /**
- * lib/escrow-events — the event→DB application table. Every event maps to
+ * features/escrows/events — the event→DB application table. Every event maps to
  * its status guard, tx type, derived columns and actor; replays absorb via
  * the guard.
  */
@@ -13,7 +13,7 @@ import {
   type ApplyEscrowEventDeps,
   type EscrowEventStore,
   type EscrowPatch,
-} from '@server/lib/escrow-events'
+} from '@server/features/escrows/events'
 import {
   ESCROW_EVENTS,
   EVENT_BY_TX_TYPE,
@@ -131,11 +131,85 @@ test('EscrowAccepted: open→accepted, resolves counterparty wallet, sets comple
   assert.strictEqual(patch.completion_deadline?.getTime(), 1_900_007_200_000)
 })
 
+test('signer addresses: create stamps the creator (and the Solana-attested assignee, when carried)', async () => {
+  // The wallet that ACTUALLY signed, from the event — feeds my_signer_address.
+  const { deps, rec } = makeDeps({ wallets: { Creator111: 'user-creator' } })
+  await applyEscrowEvent(
+    deps,
+    event('EscrowCreated', { amount: '1000', creator: 'Creator111', assigned_counterparty: 'Asgn111' }),
+    TX_REF,
+  )
+  assert.strictEqual(rec.transitions[0].patch.creator_address, 'Creator111')
+  assert.strictEqual(rec.transitions[0].patch.assigned_counterparty_address, 'Asgn111')
+
+  // The EVM create event carries no assignee: the route's build-time stamp
+  // must STAND, so the patch omits the key rather than nulling it.
+  const bare = makeDeps({ wallets: { Creator111: 'user-creator' } })
+  await applyEscrowEvent(
+    bare.deps,
+    event('EscrowCreated', { amount: '1000', creator: 'Creator111' }),
+    TX_REF,
+  )
+  assert.strictEqual(bare.rec.transitions[0].patch.creator_address, 'Creator111')
+  assert.strictEqual('assigned_counterparty_address' in bare.rec.transitions[0].patch, false)
+})
+
+test('signer addresses: the counterparty wallet rides the SAME install/release as its id', async () => {
+  // Install (accept) writes the event wallet…
+  const accepted = makeDeps({ wallets: { Cp111: 'user-cp' } })
+  await applyEscrowEvent(
+    accepted.deps,
+    event('EscrowAccepted', { counterparty: 'Cp111', completion_deadline: '1900007200' }),
+    TX_REF,
+  )
+  assert.strictEqual(accepted.rec.transitions[0].patch.counterparty_address, 'Cp111')
+
+  // …an assign installs (a RE-assign therefore overwrites, never staleness)…
+  const assigned = makeDeps({ wallets: { W2wallet: 'user-w2' } })
+  await applyEscrowEvent(
+    assigned.deps,
+    event('CounterpartyAssigned', {
+      counterparty: 'W2wallet',
+      assigned_by: 'Creator111',
+      completion_deadline: '1900007200',
+    }),
+    TX_REF,
+  )
+  assert.strictEqual(assigned.rec.transitions[0].patch.counterparty_address, 'W2wallet')
+
+  // …and a release clears the wallet WITH the id, even though the event still
+  // names the released worker (the fan-out needs them; the row must not).
+  const released = makeDeps({ wallets: { W2wallet: 'user-w2' } })
+  await applyEscrowEvent(
+    released.deps,
+    event('AssignmentReleased', { counterparty: 'W2wallet', released_by: 'Creator111' }),
+    TX_REF,
+  )
+  assert.strictEqual(released.rec.transitions[0].patch.counterparty_id, null)
+  assert.strictEqual(released.rec.transitions[0].patch.counterparty_address, null)
+})
+
+test('signer addresses: an UNKNOWN wallet still records the chain fact (id null, address kept)', async () => {
+  // A back-door accept from an unlinked wallet: no user resolves, but the
+  // chain bound that wallet — recording it is truthful, and nobody can read
+  // it back (my_signer_address matches on the NULL id, so it reaches no one).
+  const { deps, rec } = makeDeps() // no wallets resolve
+  await applyEscrowEvent(
+    deps,
+    event('EscrowAccepted', { counterparty: 'Stranger1', completion_deadline: '1900007200' }),
+    TX_REF,
+  )
+  assert.strictEqual(rec.transitions[0].patch.counterparty_id, null)
+  assert.strictEqual(rec.transitions[0].patch.counterparty_address, 'Stranger1')
+})
+
 test('EscrowDeclined: status stays (no status in patch), assignment cleared', async () => {
   const { deps, rec } = makeDeps()
   await applyEscrowEvent(deps, event('EscrowDeclined', { declined_by: 'X' }), TX_REF)
   assert.strictEqual(rec.transitions[0].patch.status, undefined)
   assert.strictEqual(rec.transitions[0].patch.assigned_counterparty_id, null)
+  // The baked wallet describes the assignment it belongs to — it goes with it.
+  assert.strictEqual(rec.transitions[0].patch.assigned_counterparty_address, null)
 })
 
 test('ProofSubmitted: accepted→submitted with submitted_at + approval_deadline', async () => {

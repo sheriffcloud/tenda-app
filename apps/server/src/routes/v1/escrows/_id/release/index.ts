@@ -25,7 +25,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
 import { ErrorCode, isDeliveryWindowOpen, type ReleaseAssignmentResponse } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { loadEscrowOr404 } from '@server/features/escrows/routes'
 import { getPlatformConfig } from '@server/lib/platform'
 import { appEvents } from '@server/lib/events'
 

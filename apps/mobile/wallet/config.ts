@@ -1,7 +1,7 @@
 import type { Cluster } from '@solana/web3.js'
 import { solanaChainId, firstEvmChainIdByKind } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
-import type { Namespace } from './types'
+import type { ChainNamespace } from '@tenda/shared'
 
 const env = getEnv()
 
@@ -37,7 +37,7 @@ export const SOLANA_NETWORK: Cluster = env === 'production' ? 'mainnet-beta' : '
  * `evmChainId` above) — Base / Base Sepolia today, but adding a chain never
  * edits this file.
  */
-export const WALLET_CHAINS: Record<Namespace, string> = {
+export const WALLET_CHAINS: Record<ChainNamespace, string> = {
   solana: solanaChainId(SOLANA_NETWORK),
   eip155: evmChainId, // manifest-derived by env kind (Base / Base Sepolia today)
 }

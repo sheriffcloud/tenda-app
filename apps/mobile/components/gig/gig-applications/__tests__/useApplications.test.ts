@@ -8,9 +8,8 @@
  * knowing they are at their cap and thinking the app is broken.
  */
 import { renderHook, act, waitFor } from '@testing-library/react-native'
-import { ApiClientError } from '@/api/request'
+import { ApiClientError, APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from '@tenda/shared'
 import { useApplicantList, useApplications } from '../useApplications'
-import { APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from '../copy'
 
 // jest hoists jest.mock() above the file, so factory-referenced fakes must
 // carry the `mock` prefix the transform whitelists.
@@ -36,6 +35,7 @@ jest.mock('@/api/client', () => ({
 }))
 
 const ESCROW = 'escrow-1'
+const WALLET = '0xWorker'
 
 beforeEach(() => {
   mockApply.mockResolvedValue({ id: 'app-1' })
@@ -50,20 +50,26 @@ describe('useApplications', () => {
     const { result } = renderHook(() => useApplications({ onChanged }))
 
     await act(async () => {
-      await result.current.apply(ESCROW, 'pick me')
+      await result.current.apply(ESCROW, 'pick me', WALLET)
     })
 
-    expect(mockApply).toHaveBeenCalledWith({ id: ESCROW }, { message: 'pick me' })
+    expect(mockApply).toHaveBeenCalledWith(
+      { id: ESCROW },
+      { wallet_address: WALLET, message: 'pick me' },
+    )
     expect(mockShowToast).toHaveBeenCalledWith('success', APPLY_SUCCESS)
     expect(onChanged).toHaveBeenCalled()
   })
 
-  it('sends no body at all when there is no pitch', async () => {
+  it('still sends the chosen wallet when there is no pitch', async () => {
+    // The wallet is not optional the way the pitch is: an assignment BAKES it
+    // on chain, so omitting the body here would hand the choice back to the
+    // server's primary-wallet default — the bug the picker exists to close.
     const { result } = renderHook(() => useApplications())
     await act(async () => {
-      await result.current.apply(ESCROW, null)
+      await result.current.apply(ESCROW, null, WALLET)
     })
-    expect(mockApply).toHaveBeenCalledWith({ id: ESCROW }, undefined)
+    expect(mockApply).toHaveBeenCalledWith({ id: ESCROW }, { wallet_address: WALLET })
   })
 
   it("surfaces the server's own explanation on failure", async () => {
@@ -75,7 +81,7 @@ describe('useApplications', () => {
 
     let ok = true
     await act(async () => {
-      ok = await result.current.apply(ESCROW, null)
+      ok = await result.current.apply(ESCROW, null, WALLET)
     })
 
     expect(ok).toBe(false)
@@ -88,7 +94,7 @@ describe('useApplications', () => {
     mockApply.mockRejectedValue(new Error(''))
     const { result } = renderHook(() => useApplications())
     await act(async () => {
-      await result.current.apply(ESCROW, null)
+      await result.current.apply(ESCROW, null, WALLET)
     })
     expect(mockShowToast).toHaveBeenCalledWith('error', expect.stringMatching(/could not send/i))
   })
@@ -176,7 +182,7 @@ test('a takedown refusal re-reads the gig, though the action FAILED', () => {
         'ESCROW_TAKEN_DOWN',
       ),
     )
-    const ok = await result.current.apply(ESCROW, null)
+    const ok = await result.current.apply(ESCROW, null, WALLET)
 
     expect(ok).toBe(false)
     expect(onChanged).toHaveBeenCalledTimes(1)
@@ -202,7 +208,7 @@ test('any OTHER failure leaves the screen alone', () => {
         'APPLICATION_LIMIT_REACHED',
       ),
     )
-    await result.current.apply(ESCROW, null)
+    await result.current.apply(ESCROW, null, WALLET)
 
     expect(onChanged).not.toHaveBeenCalled()
   })

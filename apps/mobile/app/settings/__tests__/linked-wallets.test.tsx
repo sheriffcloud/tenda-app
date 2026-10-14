@@ -1,168 +1,24 @@
 /**
- * Linked-wallets screen (Stage 4, EVM link parity). "Add another wallet"
- * opens the shared WalletPicker; selecting an adapter runs the store's
- * `linkWallet` action and surfaces the outcome via toasts. On success it
- * returns to this screen (the wallet's `tenda://` auto-return may have popped
- * it). Covers success, decline, no-wallet, and server-error branches.
+ * Linked-wallets screen — the two primary flows: adding a wallet through the
+ * picker, and managing the ones already linked. Failure-copy and dismissal
+ * paths live in linked-wallets.errors.test.tsx; the mocks both files share
+ * live in __fixtures__/linked-wallets-harness.
  */
 import { render, fireEvent, waitFor, screen } from '@testing-library/react-native'
-
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ back: jest.fn() }),
-  // Fire the focus callback once so refreshMe runs on mount.
-  useFocusEffect: (cb: () => void) => cb(),
-}))
-
-const mockReturnToLinkedWallets = jest.fn()
-jest.mock('@/lib/post-auth-nav', () => ({
-  useReturnToLinkedWallets: () => mockReturnToLinkedWallets,
-}))
-
-jest.mock('react-native-unistyles', () => ({
-  useUnistyles: () => ({
-    theme: {
-      colors: {
-        content: { secondary: '#333', tertiary: '#777' },
-        border: { subtle: '#ccc' },
-        brand: { primary: '#00f', primarySurface: '#eee' },
-        feedback: { danger: { base: '#f00', surface: '#fee' } },
-      },
-    },
-  }),
-}))
-
-jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
-
-jest.mock('@/components/ui', () => {
-  const { Pressable, Text, View } = require('react-native')
-  return {
-    ScreenContainer: ({ children }: { children: React.ReactNode }) => children,
-    Header: () => null,
-    Text: Text,
-    BottomSheet: ({ children, visible }: { children: React.ReactNode; visible: boolean }) =>
-      visible ? <View>{children}</View> : null,
-    ConfirmDialog: ({
-      visible,
-      confirmLabel = 'Confirm',
-      cancelLabel = 'Cancel',
-      hideCancel,
-      onConfirm,
-      onCancel,
-    }: {
-      visible: boolean
-      confirmLabel?: string
-      cancelLabel?: string
-      hideCancel?: boolean
-      onConfirm: () => void
-      onCancel: () => void
-    }) =>
-      visible ? (
-        <View>
-          {hideCancel === true ? null : (
-            <Pressable accessibilityRole="button" onPress={onCancel}>
-              <Text>{cancelLabel}</Text>
-            </Pressable>
-          )}
-          <Pressable accessibilityRole="button" onPress={onConfirm}>
-            <Text>{confirmLabel}</Text>
-          </Pressable>
-        </View>
-      ) : null,
-    Button: ({ children, onPress }: { children: React.ReactNode; onPress: () => void }) => (
-      <Pressable accessibilityRole="button" onPress={onPress}>
-        <Text>{children}</Text>
-      </Pressable>
-    ),
-    showToast: jest.fn(),
-  }
-})
-
-jest.mock('@/components/onboarding/WalletCard', () => {
-  const { Pressable, Text } = require('react-native')
-  return {
-    WalletCard: ({
-      wallet,
-      onManage,
-    }: {
-      wallet: { address: string }
-      onManage: () => void
-    }) => (
-      <Pressable accessibilityRole="button" onPress={onManage}>
-        <Text>{`manage-${wallet.address}`}</Text>
-      </Pressable>
-    ),
-  }
-})
-
-const FAKE_ADAPTER = { id: 'metamask', name: 'MetaMask' }
-jest.mock('@/wallet/picker', () => {
-  const { Pressable, Text } = require('react-native')
-  return {
-    WalletPicker: ({
-      visible,
-      onSelect,
-    }: {
-      visible: boolean
-      onSelect: (a: typeof FAKE_ADAPTER) => void
-    }) => (
-      <>
-        {visible ? <Text>picker-visible</Text> : null}
-        <Pressable accessibilityRole="button" onPress={() => onSelect(FAKE_ADAPTER)}>
-          <Text>pick-wallet</Text>
-        </Pressable>
-      </>
-    ),
-  }
-})
-
-jest.mock('@/api/client', () => {
-  class ApiClientError extends Error {
-    code?: string
-    constructor(statusCode: number, error: string, message: string, code?: string) {
-      super(message)
-      this.code = code
-    }
-  }
-  return {
-    api: { auth: { setPrimaryWallet: jest.fn(), unlinkWallet: jest.fn() } },
-    ApiClientError,
-  }
-})
-
-jest.mock('@/stores/auth.store', () => {
-  const state: { wallets: LinkedWallet[]; refreshMe: jest.Mock; linkWallet: jest.Mock } = {
-    wallets: [],
-    refreshMe: jest.fn(async () => {}),
-    linkWallet: jest.fn(),
-  }
-  const useAuthStore = (selector: (s: typeof state) => unknown) => selector(state)
-  useAuthStore.getState = () => state
-  return { useAuthStore }
-})
-
-import LinkedWalletsScreen from '@/app/settings/linked-wallets'
-import { useAuthStore } from '@/stores/auth.store'
-import { api, ApiClientError } from '@/api/client'
-import { WalletError } from '@/wallet/errors'
-import { ErrorCode, type LinkedWallet } from '@tenda/shared'
-import { showToast } from '@/components/ui'
-
-const mockShowToast = showToast as jest.Mock
-const setPrimaryMock = api.auth.setPrimaryWallet as jest.Mock
-const unlinkMock = api.auth.unlinkWallet as jest.Mock
-const authState = useAuthStore.getState()
-const linkMock = authState.linkWallet as jest.Mock
-
-beforeEach(() => {
-  authState.wallets = []
-  linkMock.mockReset()
-  mockReturnToLinkedWallets.mockReset()
-})
-
-function openPickerAndSelect() {
-  fireEvent.press(screen.getByText('Add another wallet'))
-  fireEvent.press(screen.getByText('pick-wallet'))
-}
+import { ApiClientError, ErrorCode, WalletError } from '@tenda/shared'
+import {
+  LinkedWalletsScreen,
+  authState,
+  mockAdapter,
+  linkMock,
+  mockReturnToLinkedWallets,
+  mockShowToast,
+  openPickerAndSelect,
+  setPrimaryMock,
+  unlinkMock,
+  PRIMARY,
+  SECONDARY,
+} from '../__fixtures__/linked-wallets-harness'
 
 describe('LinkedWalletsScreen, add wallet', () => {
   it('opens the picker on "Add another wallet"', () => {
@@ -176,7 +32,7 @@ describe('LinkedWalletsScreen, add wallet', () => {
     linkMock.mockResolvedValue(true)
     render(<LinkedWalletsScreen />)
     openPickerAndSelect()
-    await waitFor(() => expect(linkMock).toHaveBeenCalledWith(FAKE_ADAPTER))
+    await waitFor(() => expect(linkMock).toHaveBeenCalledWith(mockAdapter))
     expect(mockShowToast).toHaveBeenCalledWith('success', 'Wallet linked')
     // Rebuild the stack onto linked-wallets in case the auto-return popped it.
     expect(mockReturnToLinkedWallets).toHaveBeenCalled()
@@ -207,22 +63,23 @@ describe('LinkedWalletsScreen, add wallet', () => {
     openPickerAndSelect()
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith('error', 'already linked'))
   })
+
+  it('still says something when the failure carries no server message', async () => {
+    // A socket hang-up is neither a WalletError nor an ApiClientError. Without
+    // this fallback the reader gets silence after tapping Link.
+    linkMock.mockRejectedValue(new Error('socket hang up'))
+    render(<LinkedWalletsScreen />)
+    openPickerAndSelect()
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'error',
+        'Could not link the wallet, please try again',
+      ),
+    )
+  })
 })
 
 describe('LinkedWalletsScreen, manage wallets', () => {
-  const PRIMARY: LinkedWallet = {
-    chain_ns: 'solana',
-    address: '0xPrimary',
-    is_primary: true,
-    verified_at: '2026-01-01T00:00:00Z',
-  }
-  const SECONDARY: LinkedWallet = {
-    chain_ns: 'eip155',
-    address: '0xSecondary',
-    is_primary: false,
-    verified_at: '2026-01-01T00:00:00Z',
-  }
-
   it('renders a card per linked wallet', () => {
     authState.wallets = [PRIMARY, SECONDARY]
     render(<LinkedWalletsScreen />)
@@ -230,16 +87,16 @@ describe('LinkedWalletsScreen, manage wallets', () => {
     expect(screen.getByText('manage-0xSecondary')).toBeTruthy()
   })
 
-  it('sets a non-primary wallet as primary', async () => {
+  it('sets a wallet as the MAIN one for its chain', async () => {
     authState.wallets = [SECONDARY]
     setPrimaryMock.mockResolvedValue({})
     render(<LinkedWalletsScreen />)
     fireEvent.press(screen.getByText('manage-0xSecondary'))
-    fireEvent.press(screen.getByText('Make primary'))
+    fireEvent.press(screen.getByText('Make main EVM wallet'))
     await waitFor(() =>
       expect(setPrimaryMock).toHaveBeenCalledWith({ chain_ns: 'eip155', address: '0xSecondary' }),
     )
-    expect(mockShowToast).toHaveBeenCalledWith('success', 'Primary wallet updated')
+    expect(mockShowToast).toHaveBeenCalledWith('success', 'Main EVM wallet updated')
   })
 
   it('confirms then unlinks a wallet', async () => {
@@ -289,7 +146,7 @@ describe('LinkedWalletsScreen, manage wallets', () => {
     await waitFor(() =>
       expect(mockShowToast).toHaveBeenCalledWith(
         'error',
-        'Make another wallet your primary first, then unlink this one',
+        'Make another wallet the main one for this chain first, then unlink this one',
       ),
     )
   })

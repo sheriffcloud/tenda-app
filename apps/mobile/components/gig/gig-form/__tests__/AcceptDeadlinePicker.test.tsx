@@ -4,7 +4,7 @@
  * (the refactor must preserve the hours unit, not leak seconds).
  */
 import { render, fireEvent, screen } from '@testing-library/react-native'
-import { ACCEPT_DEADLINE_OPTIONS } from '../constants'
+import { ACCEPT_DEADLINE_OPTIONS } from '@tenda/shared'
 
 interface Captured {
   label: string

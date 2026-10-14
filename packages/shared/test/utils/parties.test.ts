@@ -8,6 +8,7 @@ import {
   hasCompleteName,
   resolveDisputeSender,
   disputeViewerSeat,
+  formatReviewScore,
   type DisputeSenderArgs,
 } from '../../src/utils/parties'
 import type { DossierParty } from '../../src/types/dossier'
@@ -266,4 +267,30 @@ test('hasCompleteName: a real name passes, padding and all', () => {
 test('hasCompleteName: empty and null are not names', () => {
   assert.equal(hasCompleteName('', ''), false)
   assert.equal(hasCompleteName(null, null), false)
+})
+
+test('formatReviewScore: renders one decimal', () => {
+  assert.equal(formatReviewScore('4.80'), '4.8')
+  assert.equal(formatReviewScore('5.00'), '5.0')
+  assert.equal(formatReviewScore('3'), '3.0')
+})
+
+test('formatReviewScore: NULL is "no reviews yet", not a zero', () => {
+  assert.equal(formatReviewScore(null), null)
+  assert.equal(formatReviewScore(undefined), null)
+})
+
+test('formatReviewScore: a stored zero is a REAL average and is shown', () => {
+  // The column is nullable with no default, so NULL alone means unreviewed.
+  // Hiding 0.00 would flatter the worst-rated accounts on the product.
+  assert.equal(formatReviewScore('0'), '0.0')
+  assert.equal(formatReviewScore('0.00'), '0.0')
+})
+
+test('formatReviewScore: unparseable input is unknown, never zero', () => {
+  assert.equal(formatReviewScore(''), null)
+  assert.equal(formatReviewScore('   '), null)
+  assert.equal(formatReviewScore('not-a-number'), null)
+  assert.equal(formatReviewScore('NaN'), null)
+  assert.equal(formatReviewScore('Infinity'), null)
 })

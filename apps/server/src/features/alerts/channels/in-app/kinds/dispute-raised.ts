@@ -24,11 +24,11 @@
  */
 
 import type { EscrowKind } from '@tenda/shared'
-import { disputePushData } from '@server/lib/notify'
-import { alertPartyName } from '../../../identities'
-import type { AlertPartyNames } from '../../../identities'
+import { disputePushData } from '@server/features/notifications'
+import { alertPartyName } from '../../../identity/identities'
+import type { AlertPartyNames } from '../../../identity/identities'
 import type { AlertOf } from '../../../types'
-import type { InAppNotice } from '../notice'
+import type { InAppNotice } from '../render/notice'
 
 type DisputeRaised = AlertOf<'dispute.raised'>
 

@@ -1,11 +1,11 @@
 # chains/
 
 Per-chain adapter registry. Each chain implements `ChainAdapter` (see
-`types.ts`); the rest of the server routes by `escrow.chain_id` → adapter
+`types/`); the rest of the server routes by `escrow.chain_id` → adapter
 without knowing which protocol is underneath.
 
 Adapters are built **generically** from the active chain secrets against the
-shared `CHAIN_MANIFEST` (see `secrets.ts` + `index.ts#buildAdapters`):
+shared `CHAIN_MANIFEST` (see `secrets/` + `index.ts#buildAdapters`):
 `namespace` picks the adapter (`solana/` vs `evm/`), `gasPolicy` picks the dep
 wiring (paymaster / feeCurrency / plain), and confirmations + token addresses
 come from the manifest. **Adding a chain is one manifest entry plus its
@@ -45,7 +45,7 @@ Solana has no second address to watch and must not acquire one. The program id
 is `declare_id!`, propagated through the IDL (`ESCROW_IDL.address`), and every
 PDA derives from it; `anchor upgrade` replaces the CODE while keeping the id.
 Deploying a *new* program id on mainnet would strand every existing escrow's
-PDAs, and no server-side registry can rescue that. `chains/solana/builders.ts`
+PDAs, and no server-side registry can rescue that. `chains/solana/build/builders.ts`
 therefore refuses outright when asked to build against any other program, and
 the multi-address listener work is EVM-only by design.
 
@@ -57,4 +57,4 @@ Tests live under `apps/server/test/` (`unit/chains/secrets.test.ts`,
 The plan calls for explicit per-chain isolation so a vendor outage on one
 chain can't bleed into another's code path. Each chain's RPC clients, error
 classification, builders, and listeners are self-contained; the only shared
-surface is the interface defined in `types.ts`.
+surface is the interface defined in `types/`.

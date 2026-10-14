@@ -4,17 +4,16 @@
  * EvmAdapterArgs). Slots into the Stage-0 registry beside the Solana
  * adapter; verify-tx, reconcile and the routes are untouched.
  *
- * Sponsorship: when the paymaster is configured AND lib/sponsor.ts says
+ * Sponsorship: when the paymaster is configured AND lib/chain/sponsor.ts says
  * the user qualifies, buildTx returns an `evm-userop` skeleton (calldata +
  * paymaster fields); otherwise a plain `evm-tx`. The reservation /
- * decrement lifecycle stays in lib/sponsor.ts + verify-tx (Stage 0
+ * decrement lifecycle stays in lib/chain/sponsor.ts + verify-tx (Stage 0
  * pattern).
  */
 
 import { computePlatformFee } from '@server/lib/escrow'
-import { verifyWalletSignature } from '@server/lib/wallet-signature'
+import { verifyWalletSignature } from '@server/lib/chain/wallet-signature'
 import {
-  type AmountRaw,
   type AssetId,
   type BuildTxArgs,
   type ChainAdapter,
@@ -24,12 +23,18 @@ import {
   type VerifyAuthSigArgs,
   type VerifyTxArgs,
 } from '@server/chains/types'
-import { buildEvmCall } from './builders'
-import { verifyEvmReceipt } from './verify-receipt'
+import { buildEvmCall, approvalHint } from './build/builders'
+import { tagCalldata } from '@server/features/attribution'
+import { verifyEvmReceipt } from './verify/verify-receipt'
 import { createEvmRpc, type EvmRpc } from './rpc'
-import { buildContext, fetchEscrowState, type EvmAdapterContext } from './state'
-import { buildPermitPayload } from './permit-payload'
-import { ENTRY_POINT_V06, type PaymasterHttp } from './paymaster'
+import { buildContext, fetchEscrowState, type EvmAdapterContext } from './build/state'
+import { cachedApprovalWindow } from '@server/chains/shared/approval-window'
+import { resolveEvmSigner } from './sender/signer'
+import { buildPermitPayload } from './build/permit-payload'
+import { ENTRY_POINT_V06, type PaymasterHttp } from './sender/paymaster'
+import { evmEscrowRelay } from './relay'
+import { evmEscrowSweep } from './sender/sweep'
+import type { EvmRelayer } from './relay/relayer'
 
 export interface EvmAdapterDeps {
   /** user_id → the user's EVM wallet address (0x-hex). */
@@ -37,7 +42,7 @@ export interface EvmAdapterDeps {
   /** AssetId → ERC-20 address (`null` = native). Throws on unknown. */
   resolveAsset(asset: AssetId): Promise<{ token_address: string | null }>
   /**
-   * Should this user's next tx be sponsored? (lib/sponsor.ts policy,
+   * Should this user's next tx be sponsored? (lib/chain/sponsor.ts policy,
    * remaining quota etc.). A `true` result has ALREADY reserved (decremented)
    * a quota slot, see `releaseSponsorship`. Absent = never sponsor.
    */
@@ -60,6 +65,11 @@ export interface EvmAdapterDeps {
   rpc?: EvmRpc
   /** Paymaster endpoint seam; absent = sponsorship unavailable. */
   paymaster?: PaymasterHttp
+  /** Relayer hot wallet (#18); absent = relayed funding unavailable. */
+  relayer?: EvmRelayer
+  /** May this chain spend the relayer float on sweeps (#43)? Default false;
+   *  the wallet says a sweep is POSSIBLE, this says it is wanted. */
+  sweepEnabled?: boolean
 }
 
 export interface EvmAdapterArgs {
@@ -113,7 +123,18 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     // the transaction is built for one contract and paid to another.
     const target = (build.contract ?? args.escrow_contract) as `0x${string}`
     const ctx = await buildContext(context, build, target)
-    const call = buildEvmCall(build, ctx)
+    // ERC-8021 attribution (#83): the suffix rides the calldata the client
+    // signs, so it has to be appended HERE — before the sponsorship fork, so
+    // the userop path carries it too — and can never be added afterwards.
+    const untagged = buildEvmCall(build, ctx)
+    const call = { ...untagged, data: tagCalldata(args.chain_id, untagged.data) }
+    // The signer contract: the account this call must be sent from — the
+    // chain-bound party address for transitions, the client-declared wallet
+    // for create. Null = unknown (fail-open read) → the field is omitted and
+    // the client behaves as before it existed. Runs before the sponsorship
+    // fork so a bound-mismatch 422 can never be eaten by the degradation
+    // catch below.
+    const signer = await resolveEvmSigner(context, build, target, ctx.escrow_state)
 
     const sponsorable =
       args.deps.paymaster !== undefined &&
@@ -130,7 +151,11 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       // failure → plain-tx degradation), wallet resolution included, so it
       // sits inside the try.
       try {
-        const sender = (await args.deps.resolveWalletAddress(build.user_id)) as `0x${string}`
+        // The userop's sender IS the signer: the resolved (chain-bound or
+        // client-declared) address when known, else the primary — sponsoring
+        // the primary for an escrow bound to another wallet would mint an
+        // operation the bound wallet cannot use.
+        const sender = (signer ?? (await args.deps.resolveWalletAddress(build.user_id))) as `0x${string}`
         const sponsored = await args.deps.paymaster.sponsorUserOperation(
           { sender, call_data: call.data },
           ENTRY_POINT_V06,
@@ -138,6 +163,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
         return {
           kind: 'evm-userop',
           entry_point: ENTRY_POINT_V06,
+          signer_address: sender,
           user_op: {
             sender,
             nonce: '0x0', // bundler-resolved client-side (EOA 4337 flow)
@@ -172,62 +198,10 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       to: target,
       data: call.data,
       value: call.value_raw,
+      ...(signer !== null ? { signer_address: signer } : {}),
       ...(args.fee_currency !== undefined ? { fee_currency: args.fee_currency } : {}),
-      ...approvalHint(build, ctx, target),
+      ...approvalHint(build, ctx, target, args.chain_id),
     }
-  }
-
-  /**
-   * ERC-20 prerequisite the wallet must satisfy before broadcasting a PLAIN
-   * call: allowance(owner → escrow) ≥ the pull amount. Permit-built calls
-   * carry their own allowance; native assets fund via msg.value.
-   */
-  function approvalHint(
-    build: BuildTxArgs,
-    ctx: { asset_address: string | null; permit_encodable: boolean },
-    spender: `0x${string}`,
-  ): { approval?: { token: string; spender: string; amount_raw: AmountRaw } } {
-    if (ctx.asset_address === null) return {}
-    const token = ctx.asset_address
-
-    // Driven by what the call ACTUALLY encodes, never by what the caller
-    // supplied. A permit that `buildEvmCall` declines to encode (its spender
-    // cannot match a superseded contract) still leaves the pull needing an
-    // allowance, so the hint has to take over — and both branches must agree on
-    // that, or one of them emits neither a permit nor a hint and the
-    // transaction reverts on a zero allowance.
-    //
-    // The spender is the contract that will actually pull the tokens: the
-    // escrow's own, not the chain's current one.
-    if (build.action === 'createEscrow' && !encodesPermit(build, ctx.permit_encodable)) {
-      return { approval: { token, spender, amount_raw: build.payload.amount_raw } }
-    }
-    if (
-      build.action === 'disputeEscrow' &&
-      !encodesPermit(build, ctx.permit_encodable) &&
-      build.payload.bond_raw !== '0'
-    ) {
-      return { approval: { token, spender, amount_raw: build.payload.bond_raw } }
-    }
-    return {}
-  }
-
-  /**
-   * Will this build encode a `*WithPermit` entry point?
-   *
-   * Mirrors `buildEvmCall`'s condition exactly — the two must not be able to
-   * disagree, since one decides whether the allowance rides the transaction and
-   * the other whether the wallet is told to grant it separately.
-   *
-   * `permit_encodable` is decided once, in `buildContext`: a permit's spender is
-   * fixed when the payload is signed, and `/v1/blockchain/permit-payload` mints
-   * it for the chain's CURRENT contract (it takes no escrow and cannot know
-   * about a superseded one), so against any other contract the signature is
-   * unusable by construction.
-   */
-  function encodesPermit(build: BuildTxArgs, permit_encodable: boolean): boolean {
-    if (build.action !== 'createEscrow' && build.action !== 'disputeEscrow') return false
-    return build.payload.permit !== undefined && permit_encodable
   }
 
   // Current first, so a receipt carrying logs from two generations decodes the
@@ -261,11 +235,23 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     disputeAuthority: args.dispute_authority,
     // The contract every tx in this adapter targets — see ChainAdapter.
     escrowAddress: args.escrow_contract,
+    // The CURRENT contract's window: it is the one new escrows are stamped with.
+    approvalWindowSeconds: cachedApprovalWindow(async () => Number(await rpc.readApprovalWindow(args.escrow_contract))),
+    // The CURRENT contract's fees: the ones new escrows are charged under.
+    getFees: async () => {
+      const fees = await rpc.readFees(args.escrow_contract)
+      return { fee_bps: fees.feeBps, seeker_fee_bps: fees.seekerFeeBps }
+    },
     buildTx,
     buildPermitPayload: (payload_args) => buildPermitPayload(context, payload_args),
+    ...(args.deps.relayer !== undefined ? { relay: evmEscrowRelay(context, args.deps.relayer) } : {}),
+    // BOTH: a wallet that can pay, and the operator's say-so (#43).
+    ...(args.deps.relayer !== undefined && args.deps.sweepEnabled === true
+      ? { sweep: evmEscrowSweep(args.chain_id, args.deps.relayer) }
+      : {}),
     verifyTx,
     // Namespace-level crypto (EIP-191 ecrecover), single source in
-    // lib/wallet-signature; the registry's verifyAuthSig delegates to the same.
+    // lib/chain/wallet-signature; the registry's verifyAuthSig delegates to the same.
     verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('eip155', a),
     fetchEscrowState: (escrow_ref) => fetchEscrowState(context, escrow_ref),
     computeFee: (fee_args) => computePlatformFee(fee_args),

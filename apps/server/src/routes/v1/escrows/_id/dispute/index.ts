@@ -20,9 +20,9 @@ import { AppError, requireBody } from '@server/lib/errors'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { ErrorCode, EXCHANGE_DISPUTE_REASON_MIN_LENGTH, EXCHANGE_DISPUTE_REASON_MAX_LENGTH } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
-import { guardTransition } from '@server/lib/escrow-routes'
-import { buildEscrowTx } from '@server/lib/escrow'
-import { validateWirePermit } from '@server/chains/evm/permit'
+import { guardTransition } from '@server/features/escrows/routes'
+import { assertCallerWallet, buildEscrowTx, partyCaller, readSignerPreference } from '@server/lib/escrow'
+import { validateWirePermit } from '@server/chains/evm/build/permit'
 import { isAmountRaw } from '@server/chains/types'
 
 interface Body {
@@ -30,6 +30,11 @@ interface Body {
   reason: string
   /** EIP-2612 signature covering the ERC-20 bond (EVM only). */
   permit?: unknown
+  /** The wallet the client intends to sign with — a bound mismatch is
+   *  refused with the required address named, so the client can switch and
+   *  retry (rebuilding its permit for the right owner) instead of
+   *  broadcasting a tx that reverts. The triage upsert tolerates the retry. */
+  signer_address?: string
 }
 
 const route: FastifyPluginAsync = async (fastify) => {
@@ -69,7 +74,7 @@ const route: FastifyPluginAsync = async (fastify) => {
           : null
 
       const cfg = await getPlatformConfig(fastify.db)
-      const { escrow } = await guardTransition({
+      const { escrow, caller } = await guardTransition({
         db: fastify.db,
         escrow_id: request.params.id,
         user_id: request.user.id,
@@ -87,6 +92,18 @@ const route: FastifyPluginAsync = async (fastify) => {
           `permit is not supported on ${escrow.chain_id}`,
         )
       }
+      // Declared signer, if any: must be the caller's own wallet. The adapter
+      // then refuses a mismatch with the CHAIN-BOUND raiser address by name,
+      // which is what lets the client re-target and rebuild the permit with
+      // the right owner before anything signs.
+      const signer_address = readSignerPreference(request.body)
+      if (signer_address !== undefined) {
+        await assertCallerWallet(fastify.db, {
+          user_id: request.user.id,
+          chain_ns: adapter.namespace,
+          address: signer_address,
+        })
+      }
 
       // Triage row for the admin queue. Upsert: a retry after a failed
       // broadcast refreshes the reason rather than 409ing.
@@ -100,6 +117,8 @@ const route: FastifyPluginAsync = async (fastify) => {
       const unsigned = await buildEscrowTx(fastify, escrow, {
         action: 'disputeEscrow',
         user_id: request.user.id,
+        caller: partyCaller(caller),
+        ...(signer_address !== undefined ? { signer_address } : {}),
         payload: { escrow_id: escrow.id, bond_raw, ...(permit !== null ? { permit } : {}) },
       })
       return { unsigned }

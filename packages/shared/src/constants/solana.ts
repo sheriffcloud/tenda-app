@@ -2,6 +2,14 @@
 export const SOLANA_TX_FEE_LAMPORTS = 5_000n
 
 /**
+ * How long a recent blockhash stays usable (~150 slots at ~400ms). A relayed
+ * create quoted on Solana is exactly as fresh as its blockhash, so the terms
+ * expire this far after they are issued — an agent that signs slower than
+ * this requests fresh terms rather than a durable nonce (not offered).
+ */
+export const SOLANA_BLOCKHASH_VALIDITY_SECONDS = 60
+
+/**
  * Canonical CAIP-2 ids per Solana network — the SINGLE source both the
  * server chain registry and the mobile auth flow resolve through. Note the
  * deliberate asymmetry: the cluster is named 'mainnet-beta' but the CAIP id
@@ -25,6 +33,19 @@ export function solanaChainId(network: string): string {
     throw new Error(`unsupported Solana network '${network}' (expected 'devnet' or 'mainnet-beta')`)
   }
   return caip
+}
+
+/**
+ * Public Solana cluster JSON-RPC endpoint for a canonical CAIP-2 id, or null
+ * when the id is not a registered Solana chain. The same URLs
+ * @solana/web3.js's `clusterApiUrl` produces, recorded here so fetch-based
+ * readers (shared wallet balances) need no web3.js dependency. Client-safe
+ * public endpoints only — the server's keyed RPC is a secret.
+ */
+export function solanaPublicRpcUrl(chainId: string): string | null {
+  if (chainId === 'solana:devnet') return 'https://api.devnet.solana.com'
+  if (chainId === 'solana:mainnet') return 'https://api.mainnet-beta.solana.com'
+  return null
 }
 
 /**

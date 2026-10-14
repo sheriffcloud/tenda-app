@@ -16,7 +16,7 @@ import Redis from 'ioredis'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { getConfig } from '@server/config'
-import { redisQuoteCache, type QuoteCache } from '@server/features/fiat-rails/quote-cache'
+import { redisQuoteCache, type QuoteCache } from '@server/features/fiat-rails/core/quote-cache'
 
 function unavailable(): AppError {
   return new AppError(

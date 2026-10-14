@@ -6,7 +6,7 @@
  */
 import { renderHook, act } from '@testing-library/react-native'
 import { AppState, type AppStateStatus } from 'react-native'
-import { ESCROW_EVENT_DEBOUNCE_MS, ESCROW_FOCUSED_POLL_MS } from '@/hooks/escrow-live/constants'
+import { ESCROW_EVENT_DEBOUNCE_MS, ESCROW_FOCUSED_POLL_MS } from '@tenda/shared'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { isAppStateActive } from '@/hooks/escrow-live/useEscrowLiveRefresh'
 

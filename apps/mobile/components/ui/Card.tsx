@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { Pressable, View, type ViewProps, StyleSheet, type ViewStyle } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing, shadows } from '@/theme/tokens'
+import { radius, spacing, shadows } from '@/theme/tokens'
 
 type Variant = 'elevated' | 'outlined' | 'filled'
 
@@ -14,7 +14,9 @@ interface CardProps extends ViewProps {
 
 const s = StyleSheet.create({
   base: {
-    borderRadius: 18,
+    // The card token, not a literal: this sat at 18 against `radius.card` 20
+    // while web and tendahq drew every card at the token (#59f).
+    borderRadius: radius.card,
     padding: spacing.md,
   },
 })

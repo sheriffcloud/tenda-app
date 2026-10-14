@@ -1,5 +1,5 @@
 /**
- * jobs/expire-escrows — windowed nudge handler.
+ * queue/jobs/expire-escrows — windowed nudge handler.
  *
  * Idempotency model under test: bounded lookback window + deterministic
  * notification job_id. An unbounded scan would re-notify on every tick
@@ -17,7 +17,7 @@ import {
   type ExpireEscrowsDeps,
   type ExpiredOpenEscrow,
   type StalledAcceptedEscrow,
-} from '@server/jobs/expire-escrows'
+} from '@server/queue/jobs/expire-escrows'
 import type { JobPayload } from '@server/plugins/queue'
 import { queueDouble, type CapturedJob, type QueueDouble } from '../helpers/queue-double'
 
@@ -167,6 +167,24 @@ test('full batch → overflow warning (no silent cap)', async () => {
   assert.strictEqual(result.enqueued, EXPIRE_BATCH_LIMIT)
   assert.strictEqual(warns.length, 1)
   assert.match(warns[0], /batch limit/)
+})
+
+test("notice job ids satisfy BullMQ's custom-id rule (zero or exactly two colons)", () => {
+  // A HARD BullMQ constraint, not a style choice (bullmq classes/job.js
+  // 1047-1049, read from the installed copy): a custom jobId containing ':'
+  // throws 'Custom Id cannot contain :' unless split(':').length === 3.
+  // `expire-notice:<uuid>` carried ONE colon, so every notice enqueue threw
+  // and took the whole expire-escrows tick with it — observed live
+  // 2026-08-27, expiry notices dying platform-wide 3 retries per tick.
+  // Same guard verify-tx.test.ts and alerts-enqueue.test.ts pin for their
+  // own factories; this file was the one producer without it.
+  for (const id of [expireNoticeJobId('e-1'), stalledNoticeJobId('e-1')]) {
+    const parts = id.split(':').length
+    assert.ok(
+      parts === 1 || parts === 3,
+      `job id "${id}" would be rejected by BullMQ (${parts - 1} colon(s))`,
+    )
+  }
 })
 
 test('expireNoticeJobId is stable per escrow (dedup key)', () => {

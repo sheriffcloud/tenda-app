@@ -9,7 +9,7 @@ import { stdin, stdout } from 'node:process'
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import * as schema from '@tenda/shared/db/schema'
-import type { AdminCandidate } from '@server/lib/admin-auth'
+import type { AdminCandidate } from '@server/features/auth/admin/admin-auth'
 
 export function maskEmail(e: string): string {
   const [local, domain] = e.split('@')

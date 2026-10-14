@@ -1,4 +1,4 @@
-import { providerWebhookPlugin } from '@server/features/fiat-rails/webhooks'
+import { providerWebhookPlugin } from '@server/features/fiat-rails/http/webhooks'
 
 export default providerWebhookPlugin({
   provider: 'yellowcard',

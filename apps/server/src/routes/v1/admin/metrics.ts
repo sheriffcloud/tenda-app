@@ -6,10 +6,11 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { sql } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { requirePermission } from '@server/lib/guards'
+import type { AdminContract } from '@tenda/shared'
+import { requirePermission } from '@server/lib/http/guards'
 
 const route: FastifyPluginAsync = async (fastify) => {
-  fastify.get(
+  fastify.get<{ Reply: AdminContract['metrics']['response'] }>(
     '/',
     { preHandler: [fastify.authenticate, requirePermission('metrics.read')] },
     async () => {

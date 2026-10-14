@@ -57,7 +57,7 @@ beforeEach(() => {
 test('fires for a USDC budget above the USDC balance (the case that never fired)', () => {
   mockUseSpendableBalance.mockReturnValue(known('5000000')) // 5 USDC
 
-  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={10_000_000} />)
+  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="10000000" />)
 
   expect(screen.getByLabelText(NUDGE)).toBeTruthy()
 })
@@ -65,7 +65,7 @@ test('fires for a USDC budget above the USDC balance (the case that never fired)
 test('reads the balance for the form’s selected chain and asset', () => {
   mockUseSpendableBalance.mockReturnValue(known('5000000'))
 
-  render(<AddFundsNudge chainId="eip155:84532" asset="USDC_BASE" paymentRaw={1} />)
+  render(<AddFundsNudge chainId="eip155:84532" asset="USDC_BASE" paymentRaw="1" />)
 
   expect(mockUseSpendableBalance).toHaveBeenCalledWith('eip155:84532', 'USDC_BASE')
 })
@@ -73,7 +73,7 @@ test('reads the balance for the form’s selected chain and asset', () => {
 test('stays silent when the balance covers the budget', () => {
   mockUseSpendableBalance.mockReturnValue(known('50000000'))
 
-  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={10_000_000} />)
+  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="10000000" />)
 
   expect(screen.queryByLabelText(NUDGE)).toBeNull()
 })
@@ -81,7 +81,7 @@ test('stays silent when the balance covers the budget', () => {
 test('stays silent when the budget exactly equals the balance', () => {
   mockUseSpendableBalance.mockReturnValue(known('10000000'))
 
-  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={10_000_000} />)
+  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="10000000" />)
 
   expect(screen.queryByLabelText(NUDGE)).toBeNull()
 })
@@ -89,7 +89,7 @@ test('stays silent when the budget exactly equals the balance', () => {
 test('fires one base unit over', () => {
   mockUseSpendableBalance.mockReturnValue(known('10000000'))
 
-  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={10_000_001} />)
+  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="10000001" />)
 
   expect(screen.getByLabelText(NUDGE)).toBeTruthy()
 })
@@ -97,7 +97,7 @@ test('fires one base unit over', () => {
 test('an UNKNOWN balance never accuses the user of being short', () => {
   mockUseSpendableBalance.mockReturnValue(UNKNOWN)
 
-  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={10_000_000} />)
+  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="10000000" />)
 
   expect(screen.queryByLabelText(NUDGE)).toBeNull()
 })
@@ -105,7 +105,7 @@ test('an UNKNOWN balance never accuses the user of being short', () => {
 test('stays silent while the balance is still loading', () => {
   mockUseSpendableBalance.mockReturnValue(LOADING)
 
-  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={10_000_000} />)
+  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="10000000" />)
 
   expect(screen.queryByLabelText(NUDGE)).toBeNull()
 })
@@ -113,7 +113,7 @@ test('stays silent while the balance is still loading', () => {
 test('an empty budget never nudges', () => {
   mockUseSpendableBalance.mockReturnValue(known('0'))
 
-  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={0} />)
+  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="" />)
 
   expect(screen.queryByLabelText(NUDGE)).toBeNull()
 })
@@ -121,14 +121,14 @@ test('an empty budget never nudges', () => {
 test('a zero balance with a real budget nudges', () => {
   mockUseSpendableBalance.mockReturnValue(known('0'))
 
-  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={1_000_000} />)
+  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="1000000" />)
 
   expect(screen.getByLabelText(NUDGE)).toBeTruthy()
 })
 
 test('tapping it routes to the exchange so the draft survives the detour', () => {
   mockUseSpendableBalance.mockReturnValue(known('5000000'))
-  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={10_000_000} />)
+  render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="10000000" />)
 
   fireEvent.press(screen.getByLabelText(NUDGE))
 
@@ -136,12 +136,14 @@ test('tapping it routes to the exchange so the draft survives the detour', () =>
 })
 
 test('an unparseable budget stays silent instead of crashing the form', () => {
-  // A draft whose amount_raw came back malformed reaches the form as NaN. A
-  // bare BigInt(NaN) throws — an advisory hint must never take the screen down.
+  // A draft whose amount_raw came back malformed reaches the form as a
+  // non-canonical STRING (it was NaN before the budget became a base-unit
+  // string). BigInt('not-a-number') throws just the same — an advisory hint
+  // must never take the screen down.
   mockUseSpendableBalance.mockReturnValue(known('5000000'))
 
   expect(() =>
-    render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={NaN} />),
+    render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="not-a-number" />),
   ).not.toThrow()
   expect(screen.queryByLabelText(NUDGE)).toBeNull()
 })
@@ -150,7 +152,7 @@ test('an unparseable BALANCE stays silent rather than throwing', () => {
   mockUseSpendableBalance.mockReturnValue(known('not-a-number'))
 
   expect(() =>
-    render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw={10_000_000} />),
+    render(<AddFundsNudge chainId={CHAIN} asset={USDC} paymentRaw="10000000" />),
   ).not.toThrow()
   expect(screen.queryByLabelText(NUDGE)).toBeNull()
 })

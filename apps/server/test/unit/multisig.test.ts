@@ -1,5 +1,5 @@
 /**
- * lib/multisig.ts is a typed surface only — the Squads-SDK-backed bodies
+ * lib/chain/multisig.ts is a typed surface only — the Squads-SDK-backed bodies
  * land once the multisig vault exists (#30 key ceremony). These tests pin
  * the surface so callers can be written against it today, and the stubs
  * fail loud (501) rather than silently no-opping.
@@ -12,7 +12,7 @@ import {
   type AdminOp,
   type MultisigClient,
   squadsClient,
-} from '@server/lib/multisig'
+} from '@server/lib/chain/multisig'
 
 const ARGS = {
   vault: 'SquadsVaultPDA1111111111111111111111111111',
@@ -73,7 +73,7 @@ test('getProposalStatus: stub throws 501', async () => {
 // ---------- type-surface regression --------------------------------------
 
 test('AdminOp discriminated union covers all 5 protocol-admin ops', () => {
-  // If a variant is added/removed in lib/multisig.ts without updating this
+  // If a variant is added/removed in lib/chain/multisig.ts without updating this
   // exhaustive list, this test still passes structurally — but the explicit
   // list serves as documentation + grep-anchor for review.
   const ops: ReadonlyArray<AdminOp> = [

@@ -1,4 +1,5 @@
 import { ExpoConfig, ConfigContext } from 'expo/config'
+import { APP_INFO } from '@tenda/shared'
 
 const apiHost = process.env.EXPO_PUBLIC_API_URL
   ? new URL(process.env.EXPO_PUBLIC_API_URL).host
@@ -23,8 +24,12 @@ const apiHost = process.env.EXPO_PUBLIC_API_URL
  */
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'Tenda',
+  name: APP_INFO.name,
   slug: 'tenda-app',
+  // Sourced rather than typed, so the store blurb cannot drift from the one
+  // the web app, the landing and the wallet modal all show. The Play Console
+  // listing is edited outside this repo — this is the string to paste there.
+  description: APP_INFO.description,
   scheme: ['tenda'],
   orientation: 'portrait',
   icon: './assets/images/icon.png',
@@ -54,9 +59,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // edge tucked under the keyboard.
     softwareKeyboardLayoutMode: 'resize',
     adaptiveIcon: {
-      // App dark-surface color (badge ground); the foreground is glyph-only
+      // App light-surface color (badge ground); the foreground is glyph-only
       // ("t" + dot) so the OS mask (circle/squircle) produces the badge shape.
-      backgroundColor: '#0D1018',
+      // White, not the dark surface, since the icon family inverted to the
+      // light logo — this colour IS the other half of the icon, so it has to
+      // move with android-icon-foreground.png or the glyph vanishes into it.
+      backgroundColor: '#FFFFFF',
       foregroundImage: './assets/images/android-icon-foreground.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
@@ -78,7 +86,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     favicon: './assets/images/favicon.png',
   },
   extra: {
-    APP_ENV: process.env.APP_ENV ?? 'development',
+    // NO `?? 'development'` DEFAULT (#128). lib/env.ts is the only reader, and
+    // its whole job is telling "nobody set this" apart from "somebody chose
+    // development" — a production binary that silently talks to the dev API is
+    // the failure it exists to catch. Defaulting here collapsed those two into
+    // one value before the guard ever saw them, so the guard could only be
+    // right by accident. Leave it undefined when unset and let env.ts decide.
+    APP_ENV: process.env.APP_ENV,
     eas: {
       projectId: '9428bdad-8f0c-4a7d-b0cb-20e6a3fc63de'
     }
@@ -86,11 +100,24 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     './plugins/with-wallet-queries',
     'expo-router',
+    // MUST stay BEFORE 'expo-notifications'. Config mods run in REVERSE
+    // registration order — withMod's `interceptingMod` hands each action the
+    // previously-registered mod as `nextMod` — so an entry listed LATER runs
+    // EARLIER. This plugin asserts expo-notifications has already written
+    // `notification_icon_color`, so it must be registered ahead of it in order
+    // to run after it. Listed after, its guard fires on a clean prebuild.
+    './plugins/with-notification-color-night',
     [
       'expo-notifications',
       {
         // Must be white-on-transparent: Android tints the small icon by alpha.
         icon: './assets/images/notification-icon.png',
+        // The LIGHT-ground half of the tint only. This colour lands in
+        // values/colors.xml as `notification_icon_color`, and it tints the
+        // small icon in a notification shade whose theme is the SYSTEM's, not
+        // ours — so ./plugins/with-notification-color-night adds the dark-ground
+        // half (#5E87E8) in values-night. Both are `brand.primary` for their
+        // ground; see that plugin for why one value cannot serve both.
         color: '#2E5BD6',
         defaultChannel: 'default',
       },

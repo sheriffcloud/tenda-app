@@ -11,13 +11,14 @@
  * NULL; omit `status` for the full history.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { and, or, eq, desc, isNull, isNotNull, sql, type SQL } from 'drizzle-orm'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
+import { eq, desc, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { disputes, escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { ErrorCode, displayName } from '@tenda/shared'
 import type { ApiError, MyDisputeRow, MyDisputesQuery, PaginatedResponse, PartyRole } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { myDisputeConditions } from '@server/features/disputes/my-disputes'
 
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())
 
@@ -39,16 +40,7 @@ const myDisputes: FastifyPluginAsync = async (fastify) => {
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
 
-    const isParty = or(
-      eq(escrows.creator_id, me),
-      eq(escrows.counterparty_id, me),
-      eq(escrows.assigned_counterparty_id, me),
-    ) as SQL
-
-    const conditions: SQL[] = [isParty]
-    if (status === 'open') conditions.push(isNull(disputes.resolved_at), eq(escrows.status, 'disputed'))
-    if (status === 'resolved') conditions.push(isNotNull(disputes.resolved_at))
-    const where = and(...conditions)
+    const where = myDisputeConditions(me, status)
 
     // The effective counterparty is the accepted worker/taker, falling back to
     // a pre-assignment — the same rule the dossier/thread context use.

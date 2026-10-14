@@ -54,10 +54,10 @@ export function SeekerWelcomeSheet({ onDismiss }: SeekerWelcomeSheetProps) {
   return (
     <BottomSheet visible={visible} onClose={handleDismiss} title="Welcome, Seeker!">
       <View style={[s.iconCircle, {
-        backgroundColor: theme.colors.accent.primarySurface,
-        borderColor: theme.colors.accent.primaryBorder,
+        backgroundColor: theme.colors.feedback.warning.surface,
+        borderColor: theme.colors.feedback.warning.border,
       }]}>
-        <Cpu size={32} color={theme.colors.accent.primary} />
+        <Cpu size={32} color={theme.colors.feedback.warning.base} />
       </View>
       <Spacer size={spacing.sm} />
       <Text variant="body" align="center" style={s.subtitle}>
@@ -67,8 +67,8 @@ export function SeekerWelcomeSheet({ onDismiss }: SeekerWelcomeSheetProps) {
       <View style={s.perks}>
         {PERKS.map(({ Icon, text }) => (
           <View key={text} style={s.perkRow}>
-            <View style={[s.perkIcon, { backgroundColor: theme.colors.accent.primarySurface }]}>
-              <Icon size={16} color={theme.colors.accent.primary} />
+            <View style={[s.perkIcon, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+              <Icon size={16} color={theme.colors.feedback.warning.base} />
             </View>
             <Text variant="body">{text}</Text>
           </View>

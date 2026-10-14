@@ -11,7 +11,7 @@ let mockSelection = { options: [OPTION] as ExchangeAssetOption[], option: OPTION
 let mockAccount: { id: string; country: string } | null = { id: 'acc1', country: 'NG' }
 const mockConfirm = jest.fn()
 const mockRefetch = jest.fn()
-let mockInstant = { quote: { rate: 1600, fee_amount: 0, fiat_amount: 16000, provider: 'yellowcard' } as unknown, expiresIn: 300, loading: false, error: null as string | null, refetch: mockRefetch, currency: 'NGN', currencySymbol: '₦', submitting: false, confirm: mockConfirm }
+let mockInstant = { quote: { rate: 1600, fee_amount: 0, fiat_amount: 16000, provider: 'yellowcard' } as unknown, expiresIn: 300, loading: false, error: null as string | null, refetch: mockRefetch, currency: 'NGN', submitting: false, confirm: mockConfirm }
 
 jest.mock('react-native-unistyles', () => ({ useUnistyles: () => ({ theme: { colors: { content: { tertiary: '#999' }, feedback: { danger: { base: '#f00' } } } } }) }))
 jest.mock('../useAssetSelection', () => ({ useAssetSelection: () => mockSelection }))
@@ -57,7 +57,7 @@ import { InstantSellTab } from '../InstantSellTab'
 beforeEach(() => {
   mockSelection = { options: [OPTION], option: OPTION, selectedKey: 'k', select: jest.fn() }
   mockAccount = { id: 'acc1', country: 'NG' }
-  mockInstant = { quote: { rate: 1600, fee_amount: 0, fiat_amount: 16000, provider: 'yellowcard' }, expiresIn: 300, loading: false, error: null, refetch: mockRefetch, currency: 'NGN', currencySymbol: '₦', submitting: false, confirm: mockConfirm }
+  mockInstant = { quote: { rate: 1600, fee_amount: 0, fiat_amount: 16000, provider: 'yellowcard' }, expiresIn: 300, loading: false, error: null, refetch: mockRefetch, currency: 'NGN', submitting: false, confirm: mockConfirm }
   mockConfirm.mockReset()
   mockRefetch.mockReset()
 })

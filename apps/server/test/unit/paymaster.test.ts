@@ -1,5 +1,5 @@
 /**
- * chains/evm/paymaster — fetchPaymasterHttp JSON-RPC client + ENTRY_POINT.
+ * chains/evm/sender/paymaster — fetchPaymasterHttp JSON-RPC client + ENTRY_POINT.
  * Fully offline: global `fetch` is stubbed per test (no network). Covers the
  * request shape (pm_sponsorUserOperation envelope, snake→camel userOp), the
  * happy-path field mapping, and every failure branch (HTTP !ok, JSON-RPC
@@ -9,7 +9,7 @@
 
 import { test, afterEach } from 'node:test'
 import * as assert from 'node:assert'
-import { fetchPaymasterHttp, ENTRY_POINT_V06 } from '@server/chains/evm/paymaster'
+import { fetchPaymasterHttp, ENTRY_POINT_V06 } from '@server/chains/evm/sender/paymaster'
 import { AppError } from '@server/lib/errors'
 import type { UserOperation } from '@server/chains/types'
 

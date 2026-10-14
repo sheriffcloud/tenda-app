@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Platform-state admin instructions.
 //!
 //! All mutating instructions (every `set_*` here) are gated on
@@ -52,4 +53,14 @@ pub struct AdminUpdate<'info> {
     pub platform_state: Account<'info, PlatformState>,
 
     pub protocol_admin: Signer<'info>,
+}
+
+/// An authority may never be the default (all-zero) pubkey — mirror of the
+/// EVM contract's `ZeroAddress` guard on the constructor and every rotation.
+/// A zero `protocol_admin` bricks every admin instruction, a zero
+/// `dispute_admin` leaves every dispute unresolvable, a zero `treasury`
+/// burns every fee; none of the three is recoverable on-chain.
+pub(crate) fn require_authority(key: &Pubkey) -> Result<()> {
+    require_keys_neq!(*key, Pubkey::default(), TendaError::ZeroAuthority);
+    Ok(())
 }

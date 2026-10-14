@@ -31,7 +31,7 @@ export function WalletEmptyState() {
       </Text>
       <Pressable
         onPress={() => router.push('/settings/linked-wallets' as RouterPush)}
-        style={({ pressed }) => [s.button, { backgroundColor: theme.colors.brand.primary }, pressed && { opacity: 0.85 }]}
+        style={({ pressed }) => [s.button, { backgroundColor: theme.colors.brand.solid }, pressed && { opacity: 0.85 }]}
         accessibilityRole="button"
         accessibilityLabel="Link a wallet"
       >

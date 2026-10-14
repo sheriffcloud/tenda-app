@@ -14,7 +14,7 @@
  * nothing reads the field, and a false premise the moment something does.
  */
 import { randomUUID } from 'node:crypto'
-import { INTERNAL_EVENT_BY_WIRE, type EscrowRepublishEvent } from '@server/lib/escrow-events'
+import { INTERNAL_EVENT_BY_WIRE, type EscrowRepublishEvent } from '@server/features/escrows/events'
 import type { EscrowEvent } from '@server/chains/types'
 
 /**

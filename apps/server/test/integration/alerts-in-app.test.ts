@@ -9,7 +9,7 @@
  * in test/unit/alerts-in-app-copy.test.ts.
  *
  * The queue is a double: this channel's job is to PRODUCE notification jobs,
- * and what the delivery worker then does with them is lib/notify's contract,
+ * and what the delivery worker then does with them is features/notifications's contract,
  * covered by its own tests.
  *
  * Gated on TEST_DATABASE_URL.
@@ -21,7 +21,7 @@ import { displayName, NOTIFICATION_SCREEN, type AdminRole } from '@tenda/shared'
 import { alertIdentity } from '@server/features/alerts'
 import type { AlertDeps, AlertOf } from '@server/features/alerts'
 import { inAppAlertChannel } from '@server/features/alerts/channels/in-app'
-import { stableNotificationId } from '@server/lib/notify'
+import { stableNotificationId } from '@server/features/notifications'
 import { TEST_DB_CONFIGURED, useTestApp, createUser } from '../helpers/test-app'
 import { queueDouble, type QueueDouble } from '../helpers/queue-double'
 import { alertLogSpy, type AlertLogSpy } from '../helpers/alert-log'

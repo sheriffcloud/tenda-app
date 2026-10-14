@@ -1,9 +1,9 @@
 import { FastifyPluginAsync } from 'fastify'
-import { uuidParamGuard } from '@server/lib/guards'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { uuidParamGuard } from '@server/lib/http/guards'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { eq, sql } from 'drizzle-orm'
 import { reviews } from '@tenda/shared/db/schema'
-import { ensureUserExists } from '@server/lib/users'
+import { ensureUserExists } from '@server/lib/db/users'
 import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 
@@ -45,7 +45,10 @@ const userReviews: FastifyPluginAsync = async (fastify) => {
     ])
 
     return {
-      data,
+      data: data.map((review) => ({
+        ...review,
+        created_at: review.created_at.toISOString(),
+      })),
       total:  countResult[0].count,
       limit:  safeLimit,
       offset: safeOffset,

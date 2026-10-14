@@ -9,7 +9,7 @@
  */
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { formatFullName } from '@tenda/shared'
+import { formatFullName, applicantStatusLine } from '@tenda/shared'
 import type { GigApplicant } from '@tenda/shared'
 import { spacing, radius } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
@@ -18,7 +18,6 @@ import { Avatar } from '@/components/ui/Avatar'
 import { ReviewScore } from '@/components/shared/ReviewScore'
 import { DeadlineCountdownDisplay } from '@/components/shared/DeadlineCountdown'
 import { useCountdown } from '@/hooks/useCountdown'
-import { applicantStatusLine } from './copy'
 
 interface Props {
   applicant: GigApplicant

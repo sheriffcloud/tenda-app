@@ -7,7 +7,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { unavailableQuoteCache } from '@server/plugins/quote-cache'
-import type { StoredQuote } from '@server/features/fiat-rails/quote-cache'
+import type { StoredQuote } from '@server/features/fiat-rails/core/quote-cache'
 import { AppError } from '@server/lib/errors'
 
 const QUOTE: StoredQuote = {

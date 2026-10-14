@@ -9,6 +9,19 @@ via_ir = true
 # Settlement golden vectors (shared with the Anchor litesvm suite).
 fs_permissions = [{ access = "read", path = "../settlement-vectors.json" }]
 
+# 0G (Galileo 16602 + mainnet 16661) is cancun-level — the CLZ/osaka opcode
+# probe reverts on both RPCs — while this default profile resolves to osaka
+# under solc 0.8.35, and the two builds' bytecode DIFFERS. Select with
+# FOUNDRY_PROFILE=0g for 0G deploys. A profile rather than a flag because
+# forge 1.7.1 silently IGNORES `--evm-version` on the CLI (verified: the
+# artifact metadata still said osaka); FOUNDRY_EVM_VERSION works but two
+# loose env vars are easy to forget — the profile is committed and atomic.
+# Inherits solc/via_ir/optimizer from default; its own `out` keeps the
+# default artifacts (source of the shared-ABI drift guard) untouched.
+[profile.0g]
+evm_version = "cancun"
+out = "out-0g"
+
 # Stateful fuzzing (#123): the handler only performs valid transitions, so
 # ANY unexpected revert is itself a finding — hence fail_on_revert. Bump
 # runs/depth locally for deeper campaigns; these defaults keep CI fast.

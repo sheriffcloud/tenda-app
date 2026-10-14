@@ -4,12 +4,19 @@ import { useUnistyles } from 'react-native-unistyles'
 import { radius, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { DeadlineCountdown } from '@/components/shared'
-import { formatFiat, formatPaymentWindow } from '@/lib/currency'
-import { chainLabel } from '@/lib/chains'
-import { formatDate } from '@/lib/gig-display'
+import {
+  chainLabel,
+  formatDate,
+  assetSymbol,
+  computeRelevantDeadline,
+  formatAssetAmount,
+  formatPaymentWindow,
+  formatRate,
+  truncateWallet,
+  BOUND_WALLET_LABEL,
+} from '@tenda/shared'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
-import { ASSET_META, computeRelevantDeadline, formatAssetAmount } from '@tenda/shared'
-import type { ExchangeDetail, SupportedCurrency, EscrowStatus } from '@tenda/shared'
+import type { ExchangeDetail, EscrowStatus } from '@tenda/shared'
 
 /**
  * Status-aware label for the single live-deadline row. Deliberately DISTINCT
@@ -40,8 +47,10 @@ interface TermRow {
  */
 export function ExchangeTermsCard({ offer }: { offer: ExchangeDetail }) {
   const { theme } = useUnistyles()
-  const rate = formatFiat(Number(offer.rate), offer.fiat_currency as SupportedCurrency)
-  const symbol = ASSET_META[offer.asset]?.symbol ?? offer.asset
+  // A rate keeps its decimals; the amount rows below it do not — whole units
+  // are right for a total and wrong for the figure offers are compared on.
+  const rate = formatRate(Number(offer.rate), offer.fiat_currency)
+  const symbol = assetSymbol(offer.asset)
 
   // Projection of the contract's settlement math for THIS escrow's fee tier.
   const { feeRaw, netRaw, feePct } = useEscrowFee(offer.is_seeker, offer.amount_raw)
@@ -60,9 +69,12 @@ export function ExchangeTermsCard({ offer }: { offer: ExchangeDetail }) {
       emphasis: true,
     },
   ]
-  if (offer.created_at !== null) {
-    rows.push({ label: 'Listed', value: formatDate(offer.created_at) })
+  // Viewer-relative on the wire: only the party this row belongs to is ever
+  // sent an address, so rendering it needs no viewer logic here.
+  if (offer.my_signer_address !== null) {
+    rows.push({ label: BOUND_WALLET_LABEL, value: truncateWallet(offer.my_signer_address) })
   }
+  rows.push({ label: 'Listed', value: formatDate(offer.created_at) })
 
   // The concrete "by when" for the current stage — a LIVE ticking clock, the
   // gap the old card had: it only ever showed the static window duration.
@@ -122,7 +134,7 @@ const s = StyleSheet.create({
   },
   label: { fontSize: 13, lineHeight: 18 },
   value: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 13.5,
     lineHeight: 18,
     fontWeight: '600',

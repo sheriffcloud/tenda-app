@@ -1,4 +1,5 @@
 import { Platform, type PlatformAndroidStatic } from 'react-native'
+import { localeCountryOrNull } from '@tenda/shared'
 
 /**
  * Detects Solana Seeker device via Platform.constants.Model.
@@ -12,12 +13,13 @@ export function isSeekerDevice(): boolean {
 }
 
 /**
- * Returns the ISO 3166-1 alpha-2 country code inferred from the device locale
- * (e.g. 'NG' from 'en-NG'). Returns null if the locale has no region subtag.
+ * The supported-market country inferred from the device locale (e.g. 'NG'
+ * from 'en-NG'), or null. Delegates to the shared derivation (web's
+ * getBrowserCountry is the same three lines): unsupported regions and
+ * script subtags ('zh-Hans-CN' → 'HANS' under the old naive split) answer
+ * null instead of seeding pickers with a "country" they cannot display.
  * No permission required, uses Intl only.
  */
 export function getDeviceCountry(): string | null {
-  const locale = Intl.DateTimeFormat().resolvedOptions().locale
-  const region = locale.split('-')[1]?.toUpperCase()
-  return region ?? null
+  return localeCountryOrNull(Intl.DateTimeFormat().resolvedOptions().locale)
 }

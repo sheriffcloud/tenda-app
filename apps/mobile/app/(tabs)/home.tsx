@@ -17,7 +17,7 @@ import { spacing } from '@/theme/tokens'
 import { useAuthStore } from '@/stores/auth.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { useHomeFeed } from '@/hooks/useHomeFeed'
-import { formatFullName } from '@tenda/shared'
+import { APP_INFO, formatFullName } from '@tenda/shared'
 import type { GigSummary, GigCategory } from '@tenda/shared'
 
 export default function HomeScreen() {
@@ -43,7 +43,7 @@ export default function HomeScreen() {
       onClose={() => setDrawerOpen(false)}
     >
       <DrawerHeader
-        title="Tenda"
+        title={APP_INFO.name}
         onMenuPress={() => setDrawerOpen(true)}
         rightIcon={Bell}
         badgeCount={unreadNotifications}

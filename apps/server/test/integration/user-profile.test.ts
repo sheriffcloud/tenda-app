@@ -4,11 +4,15 @@
  *   PATCH /v1/users/:id                (own-only, avatar/country/coord/orphan-city)
  *   GET   /v1/users/:id/reviews        (paginated)
  *   GET   /v1/users/:id/transactions   (own-only escrow tx history)
+ *   GET   /v1/users/me                 (the caller's OWN profile — #38 added the
+ *                                       created_at wire-shape case; the route is
+ *                                       otherwise exercised by the auth suites)
  *
  * Real app via fastify.inject; gated on TEST_DATABASE_URL.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
+import { abbreviatedName } from '@tenda/shared'
 import { reviews, escrow_transactions } from '@tenda/shared/db/schema'
 import {
   TEST_DB_CONFIGURED,
@@ -29,7 +33,12 @@ test('GET /v1/users/:id: returns the public profile, no PII', { skip }, async ()
   const res = await app.inject({ method: 'GET', url: `/v1/users/${row.id}` })
   assert.strictEqual(res.statusCode, 200)
   const body = res.json()
-  assert.strictEqual(body.first_name, 'Ada')
+  // #180: what the route says depends on who asks, and an anonymous reader gets
+  // the abbreviation — the legal-name parts are never wire fields at all (the
+  // full matrix lives in public-profile-scope.test.ts).
+  assert.strictEqual(body.display_name, abbreviatedName('Ada', 'Lovelace'))
+  assert.strictEqual(body.full_name, null)
+  assert.ok(!('first_name' in body) && !('last_name' in body), 'legal-name parts must not be wire fields')
   assert.strictEqual(body.bio, 'hi')
   assert.ok(!('phone_e164' in body), 'phone must not leak')
   assert.ok(!('wallet_address' in body))
@@ -74,6 +83,14 @@ test('PATCH /v1/users/:id: rejects an unsupported country', { skip }, async () =
     headers: authHeader(u.token), payload: { country: 'ZZ' },
   })
   assert.strictEqual(res.statusCode, 400)
+  // …including a key every plain object inherits: `'toString' in LOCATIONS` is
+  // TRUE, so a membership check written that way PERSISTED it, and the stored
+  // value then rides UserRef.country on every gig this user posts.
+  const proto = await app.inject({
+    method: 'PATCH', url: `/v1/users/${u.row.id}`,
+    headers: authHeader(u.token), payload: { country: 'toString' },
+  })
+  assert.strictEqual(proto.statusCode, 400, proto.body)
 })
 
 test('PATCH /v1/users/:id: a valid update persists', { skip }, async () => {
@@ -177,4 +194,26 @@ test('GET /v1/users/:id/transactions: a resolve row serves BOTH parties\' payout
     assert.strictEqual(row.amount_raw, '501') // counterparty share
     assert.strictEqual(row.creator_payout_raw, '500') // creator share
   }
+})
+
+// ---------- GET /v1/users/me: the created_at contract (#38) -----------------------
+
+test('GET /v1/users/me: created_at reaches the wire as an ISO STRING, never null', { skip }, async () => {
+  // `MeUser.created_at` was narrowed to `string` in #38 because users.created_at
+  // is NOT NULL. Unlike every other route in that change, this one does not call
+  // `.toISOString()` — it spreads the Drizzle row and lets Fastify serialise the
+  // Date. So the type rests on the SERIALISER's behaviour, and nothing measured
+  // it. This does: a Date that reached the client as `{}`, or a schema that
+  // dropped the field, would both satisfy the compiler and break every reader.
+  const app = getApp()
+  const { row, token } = await createUser(app, { first_name: 'Ada', last_name: 'Lovelace' })
+
+  const res = await app.inject({ method: 'GET', url: '/v1/users/me', headers: authHeader(token) })
+
+  assert.strictEqual(res.statusCode, 200)
+  const { user } = res.json()
+  assert.strictEqual(typeof user.created_at, 'string', 'not a Date, not an object, not absent')
+  assert.strictEqual(user.created_at, row.created_at.toISOString(), 'the row’s own instant')
+  // Round-trips through the parser every client uses to render it.
+  assert.ok(!Number.isNaN(new Date(user.created_at).getTime()))
 })

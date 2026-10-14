@@ -224,6 +224,47 @@ test('POST /read-all clears the badge: notifications read + announcement cursor 
   assert.strictEqual(after.json().count, 0)
 })
 
+// The reported bug: the badge cleared but the broadcast stayed pinned at the
+// top of the list for good, so every personal notice that arrived afterwards
+// rendered beneath it. The feed and the count now share one predicate.
+test('read-all UNPINS the broadcast: a cleared announcement leaves the feed, not just the count', { skip }, async () => {
+  const app = getApp()
+  const me = await createUser(app)
+  const stale = await insertAnn(app, { title: 'maintenance' })
+
+  const before = await app.inject({ method: 'GET', url: feedUrl, headers: authHeader(me.token) })
+  assert.deepStrictEqual(
+    before.json().announcements.map((a: { id: string }) => a.id),
+    [stale],
+    'precondition: an uncleared broadcast is pinned',
+  )
+
+  await app.inject({ method: 'POST', url: `${feedUrl}/read-all`, headers: authHeader(me.token) })
+
+  // A personal notice that arrives AFTER the clear is what used to be buried.
+  await insertNotif(app, me.row.id, { title: 'newer' })
+  const after = await app.inject({ method: 'GET', url: feedUrl, headers: authHeader(me.token) })
+  assert.deepStrictEqual(after.json().announcements, [], 'the cleared broadcast is gone from the feed')
+  assert.deepStrictEqual(after.json().notifications.map((n: { title: string }) => n.title), ['newer'])
+})
+
+test('the pinned set is exactly the counted set, before and after read-all', { skip }, async () => {
+  const app = getApp()
+  const me = await createUser(app) // no personal notices, so the count IS the broadcast count
+  await insertAnn(app, { title: 'one' })
+  await insertAnn(app, { title: 'two' })
+
+  const before = await app.inject({ method: 'GET', url: feedUrl, headers: authHeader(me.token) })
+  assert.strictEqual(before.json().announcements.length, 2)
+  assert.strictEqual(before.json().unread_count, 2)
+
+  await app.inject({ method: 'POST', url: `${feedUrl}/read-all`, headers: authHeader(me.token) })
+
+  const after = await app.inject({ method: 'GET', url: feedUrl, headers: authHeader(me.token) })
+  assert.strictEqual(after.json().announcements.length, 0)
+  assert.strictEqual(after.json().unread_count, 0)
+})
+
 test('an announcement published AFTER read-all counts as unread again', { skip }, async () => {
   const app = getApp()
   const me = await createUser(app)
@@ -233,4 +274,9 @@ test('an announcement published AFTER read-all counts as unread again', { skip }
 
   const res = await app.inject({ method: 'GET', url: `${feedUrl}/unread-count`, headers: authHeader(me.token) })
   assert.strictEqual(res.json().count, 1)
+
+  // ...and is pinned again, not merely counted: clearing must not be permanent
+  // for broadcasts published later.
+  const feed = await app.inject({ method: 'GET', url: feedUrl, headers: authHeader(me.token) })
+  assert.deepStrictEqual(feed.json().announcements.map((a: { title: string }) => a.title), ['fresh'])
 })

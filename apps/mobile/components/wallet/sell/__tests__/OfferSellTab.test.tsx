@@ -9,13 +9,15 @@ import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
 
 const OPTION = { chainId: 'solana:devnet', assetId: 'USDC_SOL', symbol: 'USDC', decimals: 6, chainName: 'Solana', walletAddress: 'sol1' } as ExchangeAssetOption
 let mockSelection = { options: [OPTION] as ExchangeAssetOption[], option: OPTION as ExchangeAssetOption | null, selectedKey: 'k', select: jest.fn() }
-const mockAccount = {
+const NG_ACCOUNT = {
   id: 'acc1',
   country: 'NG',
   bank_code: '058',
   account_number_masked: '******4821',
   account_name: 'Ada',
 }
+// `let` so a test can hand the tab an account whose market no longer exists.
+let mockAccount: typeof NG_ACCOUNT = NG_ACCOUNT
 const mockSubmit = jest.fn()
 
 jest.mock('react-native-unistyles', () => ({ useUnistyles: () => ({ theme: { colors: {
@@ -60,6 +62,7 @@ import { OfferSellTab } from '../OfferSellTab'
 
 beforeEach(() => {
   mockSelection = { options: [OPTION], option: OPTION, selectedKey: 'k', select: jest.fn() }
+  mockAccount = NG_ACCOUNT
   mockSubmit.mockReset()
 })
 
@@ -108,11 +111,41 @@ test('submits with the computed fiat total and the default accept + payment wind
   expect(mockSubmit).toHaveBeenCalledWith({
     option: OPTION,
     amountRaw: '2000000', // 2 USDC @ 6dp
-    account: mockAccount,
+    account: NG_ACCOUNT,
     fiatTotal: 3200, // 2 * 1600
     currency: 'NGN',
     rate: 1600,
     acceptHours: DEFAULT_ACCEPT_WINDOW_SECONDS / 3600, // 168 (7d)
     paymentWindowSeconds: EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS, // 12h
   })
+})
+
+/**
+ * A saved account whose country is no longer a payout market.
+ *
+ * Reachable by retiring a market — the spec is commented out of the registry
+ * while someone still has an account saved for it. `payoutCurrencyForCountry`
+ * then answers null, and the tab has to treat that as "no usable payout
+ * account" rather than as a currency it can post in.
+ *
+ * The regression this guards: an earlier version left the CTA ENABLED and had
+ * handleSubmit return silently on the null currency, so the button did nothing
+ * at all — worse than a disabled one, because it gives no reason.
+ */
+test('an account in a retired market disables the CTA instead of deadening it', () => {
+  mockAccount = { ...NG_ACCOUNT, country: 'ZW' } // never a payout market
+  render(<OfferSellTab />)
+  fireEvent.changeText(screen.getByLabelText('amount'), '2')
+  fireEvent.changeText(screen.getByLabelText('rate'), '1600')
+
+  expect(screen.getByText('Choose a payout account to post your offer')).toBeTruthy()
+  fireEvent.press(screen.getByText('Post offer'))
+  expect(mockSubmit).not.toHaveBeenCalled()
+})
+
+test('the rate label falls back when no currency is resolved', () => {
+  mockAccount = { ...NG_ACCOUNT, country: 'ZW' }
+  render(<OfferSellTab />)
+  // "NGN per USDC" would be a currency this account cannot be paid in.
+  expect(screen.queryByText(/NGN per/)).toBeNull()
 })

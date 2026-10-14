@@ -12,7 +12,7 @@ import { spacing } from '@/theme/tokens'
 import { EmptyState, ExpandableNotice, SegmentedTabs, Text } from '@/components/ui'
 import { GigListSkeleton } from '@/components/gig/GigListSkeleton'
 import { ApplicantRow } from './ApplicantRow'
-import { APPLICANTS_EMPTY, APPLICANT_REVIEW_INFORMATION } from './copy'
+import { APPLICANTS_EMPTY, APPLICANT_REVIEW_INFORMATION } from '@tenda/shared'
 import type { ApplicantFilter } from './useApplications'
 
 interface Props {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { eq } from 'drizzle-orm'
 import { parseWsServerFrame, type GigFeedServerFrame } from '@tenda/shared'
 import { escrows } from '@tenda/shared/db/schema'
-import { buildVerifyTxDeps } from '@server/workers/processors'
+import { buildVerifyTxDeps } from '@server/queue/workers/processors'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import { republishEvent } from '../helpers/republish-event'
 import {

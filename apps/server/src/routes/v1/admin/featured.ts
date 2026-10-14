@@ -8,10 +8,10 @@ import { desc, eq, gte } from 'drizzle-orm'
 import { escrows, gig_details, featured_slots } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { ApiError, CreateFeaturedSlotBody, FeaturedSlotRow, UpdateFeaturedSlotBody } from '@tenda/shared'
-import { requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
-import { invalidateFeaturedCache } from '@server/lib/featured'
+import { invalidateFeaturedCache } from '@server/features/gigs/featured'
 
 const MAX_POSITION = 100
 

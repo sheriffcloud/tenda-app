@@ -59,6 +59,10 @@ export function useExchangeScreen(): ExchangeScreenState {
     // Never issue the request without an id — it would 403 on someone else's
     // escrows rather than simply not running.
     enabled: userId !== null,
+    // NO `cacheQueries` here, unlike `market` above, and deliberately: these
+    // rows are ACCOUNT-SCOPED. The page-zero cache has no account guard on
+    // mobile (see hooks/pagination/usePageCache), so caching them is the
+    // cross-account leak #45 fixed on web. Add the guard before the cache.
   })
 
   // Mirrored into refs so the focus callback's identity never changes when a

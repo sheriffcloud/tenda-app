@@ -16,6 +16,14 @@
  *     present-but-malformed                → BOOT ERROR (names the exact key)
  * Plus: at most ONE active chain per `family` (Base mainnet XOR Base Sepolia),
  * and any unrecognised `CHAIN_*` env var is a boot error (kills silent typos).
+ * And a configured chain must be one the manifest declares `status: 'live'`
+ * (#145): the manifest is what the landing announces and the env is what this
+ * process serves, and nothing else makes the two agree. A `planned` chain with
+ * env set would be SERVED as settleable while the site says it is coming; a
+ * `launching` chain already running would keep announcing a launch. Either is
+ * refused at boot, naming the chain — the fix is to flip the manifest in the
+ * same release as the env, never to widen this rule. Availability still comes
+ * from ENV; the manifest supplies facts, and this only makes the two agree.
  *
  * Was one 314-line file, split along the seam the activation rule already
  * describes: ./schema is which vars exist and whether a value is well-formed,
@@ -26,8 +34,15 @@
  */
 
 import { CHAIN_MANIFEST, chainById, type ChainManifestEntry } from '@tenda/shared'
-import { optionalEnv } from '@server/lib/env'
-import { chainEnvPrefix, isValid, knownChainEnvKeys, schemaFor } from './schema'
+import { optionalEnv } from '@server/config/env'
+import {
+  chainEnvPrefix,
+  describeKind,
+  describeShape,
+  isValid,
+  knownChainEnvKeys,
+  schemaFor,
+} from './schema'
 import { assemble } from './resolve'
 import type { EvmChainSecret, ResolvedChainSecret, SolanaChainSecret } from './resolve'
 
@@ -65,12 +80,21 @@ export function loadChainSecrets(
     for (const spec of schema) {
       // Empty / whitespace-only is treated as ABSENT, not malformed, so a
       // commented-out or blank `VAR=` line leaves the chain inactive —
-      // `optionalEnv` (lib/env.ts) is where that rule lives for every reader.
+      // `optionalEnv` (config/env.ts) is where that rule lives for every reader.
       const value = optionalEnv(`${prefix}_${spec.envSuffix}`, env)
       if (value !== null) present.set(spec.key, value)
     }
 
     if (present.size === 0) continue // inactive, chain not configured here
+
+    // Diagnosed alongside the field errors rather than instead of them, so a
+    // deployment that is wrong twice hears about both on the one restart.
+    const notLive = entry.status !== 'live'
+    if (notLive) {
+      errors.push(
+        `${entry.id}: configured (${prefix}_*) but the manifest declares status '${entry.status}' — only a 'live' chain may be served; flip CHAIN_MANIFEST to 'live' in the same release, or unset its env`,
+      )
+    }
 
     const missingRequired = schema
       .filter((s) => s.required && !present.has(s.key))
@@ -79,7 +103,12 @@ export function loadChainSecrets(
     for (const spec of schema) {
       const value = present.get(spec.key)
       if (value !== undefined && !isValid(spec.kind, value)) {
-        malformed.push(`${prefix}_${spec.envSuffix}`)
+        // Name the expectation AND the observed shape. The value itself never
+        // appears — these are private keys and metered endpoints, and this
+        // string goes to container logs. See describeShape.
+        malformed.push(
+          `${prefix}_${spec.envSuffix} (expected ${describeKind(spec.kind)}, got ${describeShape(spec.kind, value)})`,
+        )
       }
     }
 
@@ -89,7 +118,7 @@ export function loadChainSecrets(
     if (malformed.length > 0) {
       errors.push(`${entry.id}: malformed value(s) for ${malformed.join(', ')}`)
     }
-    if (missingRequired.length > 0 || malformed.length > 0) continue
+    if (notLive || missingRequired.length > 0 || malformed.length > 0) continue
 
     const clash = activeByFamily.get(entry.family)
     if (clash !== undefined) {

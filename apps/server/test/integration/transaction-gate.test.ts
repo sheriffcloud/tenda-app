@@ -14,9 +14,9 @@ import { user_wallets } from '@tenda/shared/db/schema/identity'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
+  createTransactableUser,
   createUser,
   createEscrow,
-  makeTransactable,
   authHeader,
 } from '../helpers/test-app'
 import { createEscrowBody } from '../helpers/escrow-states'
@@ -65,8 +65,7 @@ test('create: wallet present but no verified contact → 403 CONTACT_REQUIRED', 
 
 test('create: wallet + verified contact → 201 (gate passes)', { skip }, async () => {
   const app = getApp()
-  const u = await createUser(app)
-  await makeTransactable(app, u.row.id)
+  const u = await createTransactableUser(app)
   const res = await postCreate(app, u.token)
   assert.strictEqual(res.statusCode, 201)
 })
@@ -75,8 +74,7 @@ test('create: wallet + verified contact → 201 (gate passes)', { skip }, async 
 
 test('create: direct-assign to a walletless counterparty → 422 ASSIGNEE_WALLET_REQUIRED', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id) // caller clears the gate first
+  const creator = await createTransactableUser(app) // caller clears the gate first
   const assignee = await createUser(app) // no wallet — can't have their address baked in
   const res = await app.inject({
     method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token),
@@ -90,10 +88,8 @@ test('create: direct-assign to a walletless counterparty → 422 ASSIGNEE_WALLET
 
 test('create: direct-assign to a counterparty WITH a wallet → 201', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
-  const assignee = await createUser(app)
-  await makeTransactable(app, assignee.row.id) // assignee has a solana wallet to bake in
+  const creator = await createTransactableUser(app)
+  const assignee = await createTransactableUser(app) // assignee has a solana wallet to bake in
   const res = await app.inject({
     method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token),
     payload: createEscrowBody({ assigned_counterparty_id: assignee.row.id }),

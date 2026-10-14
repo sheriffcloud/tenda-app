@@ -1,17 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as SplashScreen from 'expo-splash-screen'
 import { useFonts } from 'expo-font'
-import {
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold,
-} from '@expo-google-fonts/space-grotesk'
-import {
-  Manrope_400Regular,
-  Manrope_500Medium,
-  Manrope_600SemiBold,
-  Manrope_700Bold,
-} from '@expo-google-fonts/manrope'
+import { FONT_ASSETS } from '@/theme/fonts'
 import { useAuthStore } from '@/stores/auth.store'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
@@ -29,15 +19,10 @@ import { useNotificationPermissionStore } from '@/stores/notification-permission
 export function useAppReady(): boolean {
   const [sessionLoaded, setSessionLoaded] = useState(false)
 
-  const [fontsLoaded, fontError] = useFonts({
-    SpaceGrotesk_500Medium,
-    SpaceGrotesk_600SemiBold,
-    SpaceGrotesk_700Bold,
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-  })
+  // The asset list lives in `theme/fonts.ts` beside a test that checks it
+  // against the family names the tokens declare — a family the app names but
+  // never registers does not error, it silently renders as the platform sans.
+  const [fontsLoaded, fontError] = useFonts(FONT_ASSETS)
 
   useEffect(() => {
     Promise.all([

@@ -1038,16 +1038,8 @@ export type TendaEscrow = {
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "associatedTokenProgram",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        },
-        {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "rent",
-          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": [
@@ -1335,6 +1327,108 @@ export type TendaEscrow = {
           "name": "payer",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "programData",
+          "docs": [
+            "The program's OWN ProgramData account — where the upgrade authority set",
+            "by `solana program deploy` lives.",
+            "",
+            "Solana has no constructor: `initialize_platform` is necessarily a",
+            "separate transaction from the deploy, so without this gate the first",
+            "caller after a deploy wins and names themselves protocol_admin,",
+            "dispute_admin and treasury — taking every fee and the power to resolve",
+            "disputes, which moves escrowed user funds. It is irrecoverable",
+            "(`close_legacy_platform` cannot touch a current-length PDA, and every",
+            "`set_*` needs the incumbent admin), so the gate belongs on-chain rather",
+            "than in a \"run init quickly\" operational note.",
+            "",
+            "Unforgeable on both halves: the ADDRESS is derived from this program's",
+            "id under the upgradeable loader, and `Account<ProgramData>` requires that",
+            "loader to own it.",
+            "",
+            "NOTE: a program whose upgrade authority has been removed (made immutable)",
+            "carries `None` here and can never be initialized — so initialize BEFORE",
+            "making the program immutable."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  9,
+                  21,
+                  247,
+                  47,
+                  233,
+                  251,
+                  233,
+                  182,
+                  228,
+                  32,
+                  106,
+                  249,
+                  137,
+                  186,
+                  93,
+                  177,
+                  253,
+                  74,
+                  31,
+                  94,
+                  25,
+                  112,
+                  224,
+                  210,
+                  92,
+                  169,
+                  73,
+                  193,
+                  179,
+                  127,
+                  148,
+                  56
+                ]
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                2,
+                168,
+                246,
+                145,
+                78,
+                136,
+                161,
+                176,
+                226,
+                16,
+                21,
+                62,
+                247,
+                99,
+                174,
+                43,
+                0,
+                194,
+                185,
+                61,
+                22,
+                193,
+                36,
+                210,
+                192,
+                83,
+                122,
+                16,
+                4,
+                128,
+                0,
+                0
+              ]
+            }
+          }
         },
         {
           "name": "systemProgram",
@@ -2889,6 +2983,16 @@ export type TendaEscrow = {
       "code": 6039,
       "name": "approvalModeCannotPreassign",
       "msg": "approval mode cannot also pre-assign a counterparty; the modes are exclusive"
+    },
+    {
+      "code": 6040,
+      "name": "zeroAuthority",
+      "msg": "authority pubkey must not be the default (all-zero) pubkey"
+    },
+    {
+      "code": 6041,
+      "name": "notUpgradeAuthority",
+      "msg": "only the program's upgrade authority may initialize the platform"
     }
   ],
   "types": [
@@ -3314,7 +3418,11 @@ export type TendaEscrow = {
           {
             "name": "vaultBump",
             "docs": [
-              "Bump for the per-escrow SOL vault PDA. 0 if `kind != Sol`."
+              "Bump for the per-escrow vault PDA that holds the funds: the SOL vault",
+              "(`ESCROW_VAULT_SEED`) for native escrows, the token vault",
+              "(`ESCROW_TOKEN_SEED`) for SPL escrows — `create_escrow_spl` stores",
+              "`ctx.bumps.vault_token_account` here. The settlement structs re-derive",
+              "the matching PDA from it."
             ],
             "type": "u8"
           }
@@ -3817,13 +3925,6 @@ export type TendaEscrow = {
           {
             "name": "gracePeriodSeconds",
             "type": "i64"
-          },
-          {
-            "name": "totalVolume",
-            "docs": [
-              "Saturating-add — analytics only, never gates logic."
-            ],
-            "type": "u64"
           },
           {
             "name": "bump",

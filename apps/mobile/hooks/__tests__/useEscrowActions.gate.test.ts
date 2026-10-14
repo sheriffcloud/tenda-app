@@ -14,7 +14,12 @@ const mockShowToast = jest.fn()
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockShowToast(...a) }))
 
 const mockSignSendAndReport = jest.fn()
+const mockSettleSignerFor: jest.Mock<Promise<void>, [string]> = jest.fn()
+const mockDeclaredSignerFor: jest.Mock<string | undefined, [string]> = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({
+  // The signer declaration: settled (a no-op off EVM) then read.
+  settleSignerFor: (chainId: string) => mockSettleSignerFor(chainId),
+  declaredSignerFor: (chainId: string) => mockDeclaredSignerFor(chainId),
   signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a),
   resolveSignersForChain: () => ['SIGNER'],
 }))
@@ -33,21 +38,13 @@ jest.mock('@/stores/escrow.store', () => ({
 }))
 
 jest.mock('@/api/client', () => {
-  class ApiClientError extends Error {
-    statusCode: number
-    code?: string
-    constructor(statusCode: number, error: string, message: string, code?: string) {
-      super(message)
-      this.statusCode = statusCode
-      this.code = code
-    }
-  }
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  const { ApiClientError } = jest.requireActual('@tenda/shared')
   return { api: {}, ApiClientError }
 })
 
 import { useEscrowActions } from '@/hooks/useEscrowActions'
-import { ApiClientError } from '@/api/client'
-import { TRANSACTION_GATE_MESSAGE } from '@/lib/transaction-gate'
+import { ApiClientError, TRANSACTION_GATE_MESSAGE } from '@tenda/shared'
 
 const ARGS = { escrowId: 'e1', chainId: 'solana:devnet', asset: 'USDC_SOL', amountRaw: '1000000' }
 

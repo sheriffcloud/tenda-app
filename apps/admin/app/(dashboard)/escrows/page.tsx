@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { displayName, type AdminEscrowRow } from '@tenda/shared'
+import { ESCROW_STATUS_ORDER, displayName, type AdminEscrowRow, type EscrowStatusName } from '@tenda/shared'
 import { AppHeader } from '@/components/layout/header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,11 @@ import { ApiError } from '@/lib/api'
 
 const PAGE_SIZE = 20
 
+/** The status filter is a free-text select value; only a real status is sent as a filter. */
+function isEscrowStatus(value: string): value is EscrowStatusName {
+  return (ESCROW_STATUS_ORDER as readonly string[]).includes(value)
+}
+
 export default function EscrowsPage() {
   const [kind, setKind] = useState('')
   const [status, setStatus] = useState('')
@@ -48,7 +53,7 @@ export default function EscrowsPage() {
     let alive = true
     const query: EscrowListAdminQuery = { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }
     if (kind === 'gig' || kind === 'exchange') query.kind = kind
-    if (status !== '') query.status = status
+    if (isEscrowStatus(status)) query.status = status
     adminApi.escrows
       .list(query)
       .then((res) => {

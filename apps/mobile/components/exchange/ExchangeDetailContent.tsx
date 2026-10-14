@@ -8,18 +8,15 @@ import { ScreenContainer, Text, Divider, Spacer, showToast } from '@/components/
 import { GigActionSheets, type ActiveSheet } from '@/components/gig'
 import { ExchangeCTA } from '@/components/exchange'
 import { ExchangeOfferOverview } from '@/components/exchange/ExchangeOfferOverview'
-import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TakedownNotice, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
-import { ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
+import { DetailChrome, DetailBottomBar, DisputeReasonBlock, EscrowTransactionMonitor, ReportContentLink, TakedownNotice, TxConfirmDialog } from '@/components/escrow'
+import { txSuccessCopy, formatAssetAmount, formatFiat } from '@tenda/shared'
+import { ReviewsSection, ProofsGrid, DataProofList, fileProofMediaItems, type MediaItem } from '@/components/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
-import { TransactionMonitor } from '@/components/feedback'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
-import { formatFiat } from '@/lib/currency'
-import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
+import { useEscrowActions, type EscrowProofInput } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
-import { formatAssetAmount } from '@tenda/shared'
-import type { EscrowTxType, ExchangeDetail, SupportedCurrency } from '@tenda/shared'
-import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
+import type { EscrowTxType, ExchangeDetail } from '@tenda/shared'
 import { api } from '@/api/client'
 
 /**
@@ -45,6 +42,9 @@ export function ExchangeDetailContent({
   const [reportOpen, setReportOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedProof, setSelectedProof] = useState<MediaItem | null>(null)
+  // Media surfaces render FILE proofs only; data proofs render as their
+  // payload in DataProofList below (see fileProofMediaItems).
+  const fileProofs = fileProofMediaItems(offer.proofs)
 
   const actions = useEscrowActions({
     escrowId: offer.escrow_id,
@@ -84,7 +84,7 @@ export function ExchangeDetailContent({
       case 'decline': return void actions.decline()
     }
   }
-  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
+  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency)
   const contextTitle = `Trade: ${offer.fiat_amount} ${offer.fiat_currency}`
 
   async function handleRefresh() {
@@ -110,11 +110,18 @@ export function ExchangeDetailContent({
   }
 
   // Buyer's fiat-payment evidence → off-chain proof rows + on-chain submit.
-  async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
-    return actions.submit(proofs)
+  async function handleProofsReady(proofs: EscrowProofInput[]): Promise<boolean> {
+    const submitted = await actions.submit(proofs)
+    // A failed submit is HALF done: the files uploaded, the transaction did
+    // not. Re-read so the sheet's "already attached" is the truth when the
+    // buyer reopens it — without this the prop was empty in exactly the
+    // situation it was written for, and the retry demanded the same upload
+    // again.
+    if (!submitted) void refresh()
+    return submitted
   }
 
-  async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
+  async function handleAddProofsReady(proofs: EscrowProofInput[]): Promise<void> {
     if (await actions.addProofs(proofs)) void refresh()
   }
 
@@ -143,11 +150,15 @@ export function ExchangeDetailContent({
             <View style={s.sectionHead}>
               <Text style={s.sectionTitle}>Payment proof</Text>
               <Text style={[s.sectionTrail, { color: theme.colors.content.tertiary }]}>
-                {offer.proofs.length} {offer.proofs.length === 1 ? 'file' : 'files'}
+                {offer.proofs.length} {offer.proofs.length === 1 ? 'proof' : 'proofs'}
               </Text>
             </View>
             <Spacer size={spacing.sm} />
-            <ProofsGrid proofs={offer.proofs} onProofPress={setSelectedProof} />
+            {fileProofs.length > 0 && (
+              <ProofsGrid proofs={fileProofs} onProofPress={setSelectedProof} />
+            )}
+            {/* Data proofs (API-attached — no exchange capture UI) still render. */}
+            <DataProofList proofs={offer.proofs} />
           </>
         )}
 
@@ -203,6 +214,8 @@ export function ExchangeDetailContent({
 
       <TxConfirmDialog
         action={confirmAction}
+        chainId={offer.chain_id}
+        boundSigner={offer.my_signer_address}
         ctx={{
           amount: formatAssetAmount(offer.amount_raw, offer.asset),
           kind: 'exchange',
@@ -223,20 +236,13 @@ export function ExchangeDetailContent({
         onDisputeReady={handleDisputeReady}
       />
 
-      <TransactionMonitor
-        signature={actions.pendingTxRef}
-        phase={actions.phase}
-        actionLabel={actions.activeAction !== null ? TX_PROGRESS_LABEL[actions.activeAction] : undefined}
+      <EscrowTransactionMonitor
+        actions={actions}
         escrowId={offer.escrow_id}
         chainId={offer.chain_id}
-        checkApplied={() =>
-          checkEscrowTransitionApplied(actions.pendingAction, () => api.exchange.get({ id: offer.escrow_id }))
-        }
+        readDetail={() => api.exchange.get({ id: offer.escrow_id })}
+        refresh={() => void refresh()}
         onConfirmed={handleTransactionConfirmed}
-        onFailed={(msg) => {
-          actions.clearPending()
-          showToast('info', msg || 'Transaction pending, will sync when confirmed')
-        }}
       />
 
       <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} contentType="escrow" contentId={offer.escrow_id} />

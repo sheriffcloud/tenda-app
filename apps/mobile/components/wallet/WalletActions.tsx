@@ -19,7 +19,7 @@ export function WalletActions() {
       onPress={() => router.push('/wallet/buy-sell' as RouterPush)}
       style={({ pressed }) => [
         s.button,
-        { backgroundColor: theme.colors.brand.primary },
+        { backgroundColor: theme.colors.brand.solid },
         pressed && { opacity: 0.85 },
       ]}
       accessibilityRole="button"

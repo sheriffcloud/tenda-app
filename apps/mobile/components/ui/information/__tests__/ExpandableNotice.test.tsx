@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports -- Jest factories must load RN after hoisting. */
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { ExpandableNotice } from '../ExpandableNotice'
 import { InformationSheet } from '../InformationSheet'

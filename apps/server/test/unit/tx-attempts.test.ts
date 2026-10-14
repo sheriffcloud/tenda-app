@@ -1,18 +1,18 @@
 /**
- * lib/tx-attempts — client-ping intake: idempotent insert + best-effort
+ * features/escrows/tx-attempts — client-ping intake: idempotent insert + best-effort
  * verify-tx enqueue with the documented degradation path (queue down →
  * recorded but not enqueued, never thrown).
  */
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { dedupKey } from '@server/core/queue/idempotency'
+import { dedupKey } from '@server/queue/idempotency'
 import {
   recordTxAttempt,
   type RecordTxAttemptDeps,
   type RecordTxAttemptInput,
   type TxAttemptRow,
-} from '@server/lib/tx-attempts'
+} from '@server/features/escrows/tx-attempts'
 import type { JobPayload } from '@server/plugins/queue'
 import { queueDouble, type CapturedJob, type QueueDouble } from '../helpers/queue-double'
 

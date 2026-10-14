@@ -1,9 +1,17 @@
 /**
  * Exchange order-book surface (cutover §3 rewrite): escrows kind='exchange'
  * ⨝ exchange_details ⨝ users.
- *   GET  /, the order book (auth required to keep it off public scrapers).
- *            Browsing/accepting is open to ALL users; advanced_mode_enabled
- *            gates offer CREATION only (decision #14, settled 2026-06-05).
+ *   GET  /, the order book — ANONYMOUS, exactly like GET /v1/gigs (#179).
+ *            This REVERSES the signed-in-only gate that decision #14 implied
+ *            and #112 pinned, knowingly: the gate cost a scraper about two
+ *            minutes (`POST /v1/agent/register` mints a bearer from a fresh
+ *            wallet at 10/min, and MAX_PAGINATION_LIMIT is 100), so it was not
+ *            doing the job its old docblock claimed. What made the exposure
+ *            real was the money-movement PAIRING on each row, and #175 removed
+ *            that — the book now carries an abbreviated label, never a legal
+ *            name or a face. Ship order matters: #175 first, then this.
+ *            Accepting still requires a session; only READING is open.
+ *            `advanced_mode_enabled` gates offer CREATION only.
  *   POST /, attach exchange_details to the caller's DRAFT escrow (CO4
  *            advanced-mode offer creation, mirror of the gig create-detail
  *            step). Transitions live under /v1/escrows. The data carries no
@@ -11,11 +19,12 @@
  *            bank_accounts, revealed only inside an accepted intent).
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { eq, and, gt, gte, isNull, lte, or, desc, sql, type SQL } from 'drizzle-orm'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
+import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, exchange_details, users } from '@tenda/shared/db/schema'
 import {
   ErrorCode,
+  isSupportedCurrency,
   payoutCurrencyForCountry,
   SUPPORTED_CURRENCIES,
   EXCHANGE_PAYMENT_WINDOW_MIN_SECONDS,
@@ -24,60 +33,48 @@ import {
   EXCHANGE_MAX_FIAT_AMOUNT,
   EXCHANGE_MAX_RATE,
 } from '@tenda/shared'
-import type { ExchangeContract, ApiError, SupportedCurrency } from '@tenda/shared'
-import { isAmountRaw } from '@server/chains/types'
+import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { loadEscrowOr404 } from '@server/features/escrows/routes'
 import { assertExchangeAsset } from '@server/lib/escrow'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
-import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/lib/exchange-read'
-import { chainFilterCondition } from '@server/lib/chain-filter'
+import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/features/fiat-rails/rates/exchange-read'
+import { publicExchangeConditions } from './public-feed'
+import { chainFilterCondition } from '@server/lib/http/chain-filter'
+import { amountWindowConditions } from '@server/lib/http/amount-window'
+import { PUBLIC_FEED_RATE_LIMIT } from '@server/lib/http/rate-limits'
 
 type ListRoute = ExchangeContract['list']
 type CreateRoute = ExchangeContract['create']
 
 const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/exchange, order book (auth required to prevent scraping)
+  // GET /v1/exchange, the order book. NO preHandler — anonymous, like the gig
+  // feed. Nothing here reads `request.user`, which is what makes that safe:
+  // the rows are chosen by `publicExchangeConditions` alone and serialized by
+  // `toExchangeSummary`, which reveals only the scoped public identity — never
+  // the seller's legal name or avatar — on this surface.
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
-  }>('/', { preHandler: [fastify.authenticate] }, async (request) => {
+  }>('/', { config: { rateLimit: PUBLIC_FEED_RATE_LIMIT } }, async (request) => {
     const { currency, chain_id, min_amount_raw, max_amount_raw, limit = 20, offset = 0 } = request.query
 
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
 
+    // ONE `now` for both queries below — the rule's own docblock explains why
+    // the book and its `total` must judge the deadline against one instant.
     const now = new Date()
-    const conditions: SQL[] = [
-      eq(escrows.kind, 'exchange'),
-      // Market feed: open offers whose accept window hasn't passed,
-      // display-correct even between expire-escrows job ticks. Taken-down
-      // offers (CO1) never surface here.
-      eq(escrows.status, 'open'),
-      eq(escrows.hidden, false),
-      or(isNull(escrows.accept_deadline), gt(escrows.accept_deadline, now)) as SQL,
-    ]
+    const conditions: SQL[] = publicExchangeConditions(now)
 
     if (currency) conditions.push(eq(exchange_details.fiat_currency, currency.toUpperCase()))
 
     const chainCondition = chainFilterCondition(fastify.chains, chain_id)
     if (chainCondition !== null) conditions.push(chainCondition)
 
-    if (min_amount_raw !== undefined && !isAmountRaw(min_amount_raw)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be a decimal integer string')
-    }
-    if (max_amount_raw !== undefined && !isAmountRaw(max_amount_raw)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'max_amount_raw must be a decimal integer string')
-    }
-    if (
-      min_amount_raw !== undefined &&
-      max_amount_raw !== undefined &&
-      BigInt(min_amount_raw) > BigInt(max_amount_raw)
-    ) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be ≤ max_amount_raw')
-    }
-    if (min_amount_raw !== undefined) conditions.push(gte(escrows.amount_raw, min_amount_raw))
-    if (max_amount_raw !== undefined) conditions.push(lte(escrows.amount_raw, max_amount_raw))
+    // Same rule the gigs feed runs, and it stays HERE in the sequence: after
+    // chain_id, so an unregistered chain is still the message a caller gets.
+    conditions.push(...amountWindowConditions({ min_amount_raw, max_amount_raw }))
 
     const where = and(...conditions)
 
@@ -143,7 +140,7 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
       )
     }
     const fiat_currency = String(body.fiat_currency ?? '').toUpperCase()
-    if (!SUPPORTED_CURRENCIES.includes(fiat_currency as SupportedCurrency)) {
+    if (!isSupportedCurrency(fiat_currency)) {
       throw new AppError(
         400,
         ErrorCode.VALIDATION_ERROR,
@@ -188,7 +185,20 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     if (account === null) {
       throw new AppError(404, ErrorCode.NOT_FOUND, 'payout account not found')
     }
-    if (payoutCurrencyForCountry(account.country) !== fiat_currency) {
+    // Two distinct failures, told apart because the fixes differ: an account in
+    // a country we do not serve needs a different account, while a mismatch
+    // needs a different price. `payoutCurrencyForCountry` answers null for the
+    // first — it used to answer NGN, which turned an unserved country into a
+    // Nigerian one and let it satisfy an NGN-priced offer.
+    const accountCurrency = payoutCurrencyForCountry(account.country)
+    if (accountCurrency === null) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_ERROR,
+        `payouts are not supported in '${account.country}'`,
+      )
+    }
+    if (accountCurrency !== fiat_currency) {
       throw new AppError(
         400,
         ErrorCode.VALIDATION_ERROR,

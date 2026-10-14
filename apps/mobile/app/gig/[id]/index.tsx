@@ -18,26 +18,29 @@ import {
   GigDetailGate,
   type ActiveSheet,
 } from '@/components/gig'
-import { ApplySheet, useApprovalFlow } from '@/components/gig/gig-applications'
-import { partiesOf } from '@/components/gig/gig-cta'
+import { ApplySheet, useGigApprovalFlow } from '@/components/gig/gig-applications'
+import {
+  partiesOf,
+  txSuccessCopy,
+  apiConfig,
+  canAccept,
+  formatAssetAmount,
+  formatDuration,
+  gigShareMessage,
+  type EscrowTxType,
+  type GigDetail,
+} from '@tenda/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import type { MediaItem } from '@/components/shared/media/types'
-import { DetailChrome, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
-import { TransactionMonitor } from '@/components/feedback'
+import { DetailChrome, EscrowTransactionMonitor, TxConfirmDialog } from '@/components/escrow'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
-import { useOnboardingStore } from '@/stores/onboarding.store'
-import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
-import { useGigsStore } from '@/stores'
-import { apiConfig, canAccept, formatAssetAmount } from '@tenda/shared'
+import { useGigsStore, useOnboardingStore, useNotificationPromptStore } from '@/stores'
 import { getEnv } from '@/lib/env'
-import { formatDuration } from '@/lib/gig-display'
-import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
 import { api } from '@/api/client'
-import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
+import { useEscrowActions, type EscrowProofInput } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
-import type { EscrowTxType, GigDetail } from '@tenda/shared'
 
 function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()
@@ -70,7 +73,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   // Approval mode. The flow owns which action opens a sheet, which asks first,
   // and which comes back here for the wallet; each refetches the detail,
   // because its `viewer` block decides the CTA the user sees next.
-  const approval = useApprovalFlow({
+  const approval = useGigApprovalFlow({
     escrowId: gig.escrow_id,
     onChanged: () => void fetchGigDetail(gig.escrow_id),
     onRequestUnassign: () => setConfirmAction('unassign'),
@@ -123,7 +126,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   function handleShare() {
     const baseUrl = apiConfig[getEnv()].baseUrl
-    Share.share({ message: `${gig.title} on Tenda\n${baseUrl}/gig/${gig.escrow_id}` })
+    Share.share({ message: `${gigShareMessage(gig.title)}\n${baseUrl}/gig/${gig.escrow_id}` })
   }
 
   function handleTransactionConfirmed() {
@@ -145,11 +148,18 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   }
 
   // Sheet-confirmed handlers (sheets collect input; the hook signs).
-  async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
-    return actions.submit(proofs)
+  async function handleProofsReady(proofs: EscrowProofInput[]): Promise<boolean> {
+    const submitted = await actions.submit(proofs)
+    // A failed submit is HALF done: the files uploaded, the transaction did
+    // not. Re-read so the sheet's "already attached" is the truth when the
+    // worker reopens it — without this the prop was empty in exactly the
+    // situation it was written for, and the retry demanded the same upload
+    // again.
+    if (!submitted) void fetchGigDetail(gig.escrow_id)
+    return submitted
   }
 
-  async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
+  async function handleAddProofsReady(proofs: EscrowProofInput[]): Promise<void> {
     if (await actions.addProofs(proofs)) {
       void fetchGigDetail(gig.escrow_id)
     }
@@ -209,6 +219,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
         <TxConfirmDialog
           action={confirmAction}
+          chainId={gig.chain_id}
+          boundSigner={gig.my_signer_address}
           ctx={{
             amount: formatAssetAmount(gig.amount_raw, gig.asset),
             kind: 'gig',
@@ -231,25 +243,20 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           onDisputeReady={handleDisputeReady}
         />
 
-        <TransactionMonitor
-          signature={actions.pendingTxRef}
-          phase={actions.phase}
-          actionLabel={actions.activeAction !== null ? TX_PROGRESS_LABEL[actions.activeAction] : undefined}
+        <EscrowTransactionMonitor
+          actions={actions}
           escrowId={gig.escrow_id}
           chainId={gig.chain_id}
-          checkApplied={() =>
-            checkEscrowTransitionApplied(actions.pendingAction, () => api.gigs.get({ id: gig.escrow_id }))
-          }
+          readDetail={() => api.gigs.get({ id: gig.escrow_id })}
+          refresh={() => void fetchGigDetail(gig.escrow_id)}
           onConfirmed={handleTransactionConfirmed}
-          onFailed={(msg) => {
-            actions.clearPending()
-            showToast('info', msg || 'Transaction pending, will sync when confirmed')
-          }}
         />
 
         <ApplySheet
           visible={approval.applyOpen}
           busy={approval.busy}
+          chainId={gig.chain_id}
+          initialWallet={gig.viewer?.application?.wallet_address ?? null}
           onClose={approval.closeApply}
           onSubmit={approval.apply}
         />

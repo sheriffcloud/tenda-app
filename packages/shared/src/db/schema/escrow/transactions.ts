@@ -4,10 +4,9 @@
  */
 
 import { sql } from 'drizzle-orm'
-import { boolean, check, index, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, index, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { escrows } from './escrows'
 import { users } from '../identity'
-import { chains } from '../chains'
 import { escrowTxTypeEnum } from './enums'
 
 export const escrow_transactions = pgTable(
@@ -34,7 +33,7 @@ export const escrow_transactions = pgTable(
      */
     creator_payout_raw: numeric('creator_payout_raw', { precision: 78, scale: 0 }),
     actor_id: uuid('actor_id').references(() => users.id, { onDelete: 'restrict' }),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('escrow_transactions_escrow_idx').on(t.escrow_id),
@@ -54,9 +53,9 @@ export const tx_attempts = pgTable(
     escrow_id: uuid('escrow_id').references(() => escrows.id, { onDelete: 'cascade' }),
     action: escrowTxTypeEnum('action').notNull(),
     tx_ref: text('tx_ref').notNull().unique('tx_attempts_tx_ref_uq'),
-    submitted_at: timestamp('submitted_at').notNull().defaultNow(),
-    confirmed_at: timestamp('confirmed_at'),
-    failed_at: timestamp('failed_at'),
+    submitted_at: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+    confirmed_at: timestamp('confirmed_at', { withTimezone: true }),
+    failed_at: timestamp('failed_at', { withTimezone: true }),
     failure_code: text('failure_code'),
     // Set at reservation time by lib/sponsor.ts; verify-tx job reads this to
     // decide whether to commit the sponsored_tx_remaining decrement or

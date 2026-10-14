@@ -26,36 +26,38 @@ const getApp = useTestApp()
 const { maxPlatformFeeBps, maxGracePeriodSeconds, minUnassignWindowSeconds, maxUnassignWindowSeconds } =
   ESCROW_LIMITS
 
-type PatchBody = {
-  fee_bps?: number
-  seeker_fee_bps?: number
-  grace_period_seconds?: number
-  max_pending_gigs?: number
-  unassign_window_seconds?: number
-  max_open_applications?: number
-  application_ttl_seconds?: number
+/** The route updates the singleton row, so it must exist. */
+async function seedConfig(app: ReturnType<typeof getApp>) {
+  await app.db.insert(platform_config).values({ id: 1 }).onConflictDoNothing()
 }
 
-async function patch(app: ReturnType<typeof getApp>, token: string, payload: PatchBody) {
+/** `object`: the retired fee fields are sent on purpose, to prove they are refused. */
+async function patch(app: ReturnType<typeof getApp>, token: string, payload: object) {
   return app.inject({ method: 'PATCH', url: '/v1/admin/platform-config', headers: authHeader(token), payload })
 }
 
-test('rejects fee_bps above the on-chain MAX_PLATFORM_FEE_BPS', { skip }, async () => {
+test('the fee fields are refused BY NAME, whatever the value: the fee lives on each contract', { skip }, async () => {
   const app = getApp()
+  await seedConfig(app)
   const admin = await createUser(app, { role: 'super_admin' })
-  for (const fee_bps of [maxPlatformFeeBps + 1, 10_000]) {
-    const res = await patch(app, admin.token, { fee_bps })
-    assert.strictEqual(res.statusCode, 400, `fee_bps=${fee_bps} → ${res.statusCode}`)
+  for (const payload of [{ fee_bps: 300 }, { fee_bps: 0 }, { seeker_fee_bps: 50 }, { fee_bps: 300, seeker_fee_bps: 100 }, { fee_bps: maxPlatformFeeBps + 1 }]) {
+    const res = await patch(app, admin.token, payload)
+    assert.strictEqual(res.statusCode, 400, `${JSON.stringify(payload)} → ${res.statusCode}`)
     assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+    assert.match(res.json().message, /fee:set/)
+    assert.match(res.json().message, new RegExp(Object.keys(payload)[0]))
   }
 })
 
-test('rejects seeker_fee_bps above the cap', { skip }, async () => {
+test('a refused fee field changes NOTHING, even alongside a valid one', { skip }, async () => {
   const app = getApp()
+  await seedConfig(app)
   const admin = await createUser(app, { role: 'super_admin' })
-  const res = await patch(app, admin.token, { seeker_fee_bps: maxPlatformFeeBps + 1 })
+  const before = (await app.db.select().from(platform_config))[0]
+  const res = await patch(app, admin.token, { fee_bps: 300, max_pending_gigs: 4 })
   assert.strictEqual(res.statusCode, 400)
-  assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+  const after = (await app.db.select().from(platform_config))[0]
+  assert.deepStrictEqual(after, before, 'the valid half of a refused request must not be applied either')
 })
 
 test('rejects grace_period_seconds above the on-chain MAX_GRACE_PERIOD_SECONDS', { skip }, async () => {
@@ -70,7 +72,7 @@ test('rejects grace_period_seconds above the on-chain MAX_GRACE_PERIOD_SECONDS',
 test('rejects negative / non-integer values', { skip }, async () => {
   const app = getApp()
   const admin = await createUser(app, { role: 'super_admin' })
-  for (const payload of [{ fee_bps: -1 }, { fee_bps: 1.5 }, { grace_period_seconds: -1 }]) {
+  for (const payload of [{ grace_period_seconds: -1 }, { max_pending_gigs: 1.5 }]) {
     const res = await patch(app, admin.token, payload)
     assert.strictEqual(res.statusCode, 400, `${JSON.stringify(payload)} → ${res.statusCode}`)
   }
@@ -81,7 +83,7 @@ test('boundary values pass validation (not a range 400)', { skip }, async () => 
   const admin = await createUser(app, { role: 'super_admin' })
   // At the cap exactly: validation must accept it. The write may 200 (seeded)
   // or 404 (unseeded row) — both prove validation did not reject the value.
-  for (const payload of [{ fee_bps: maxPlatformFeeBps }, { grace_period_seconds: maxGracePeriodSeconds }]) {
+  for (const payload of [{ grace_period_seconds: maxGracePeriodSeconds }]) {
     const res = await patch(app, admin.token, payload)
     assert.notStrictEqual(res.statusCode, 400, `${JSON.stringify(payload)} → ${res.statusCode}`)
   }
@@ -92,10 +94,6 @@ test('boundary values pass validation (not a range 400)', { skip }, async () => 
 // so the field must be reachable through this route — it was not, and nothing
 // caught that because the happy path had no test at all.
 
-/** The route updates the singleton row, so it must exist. */
-async function seedConfig(app: ReturnType<typeof getApp>) {
-  await app.db.insert(platform_config).values({ id: 1 }).onConflictDoNothing()
-}
 
 test('rejects max_pending_gigs of 0 (would lock every worker out)', { skip }, async () => {
   const app = getApp()
@@ -148,9 +146,9 @@ test('updates several fields in one call', { skip }, async () => {
   const app = getApp()
   await seedConfig(app)
   const admin = await createUser(app, { role: 'super_admin' })
-  const res = await patch(app, admin.token, { fee_bps: 300, max_pending_gigs: 4 })
+  const res = await patch(app, admin.token, { grace_period_seconds: 1_800, max_pending_gigs: 4 })
   assert.strictEqual(res.statusCode, 200)
-  assert.strictEqual(res.json().fee_bps, 300)
+  assert.strictEqual(res.json().grace_period_seconds, 1_800)
   assert.strictEqual(res.json().max_pending_gigs, 4)
 })
 
@@ -159,8 +157,11 @@ test('an empty body is refused and names every editable field', { skip }, async 
   const admin = await createUser(app, { role: 'super_admin' })
   const res = await patch(app, admin.token, {})
   assert.strictEqual(res.statusCode, 400)
-  for (const field of ['fee_bps', 'seeker_fee_bps', 'grace_period_seconds', 'max_pending_gigs']) {
+  for (const field of ['grace_period_seconds', 'max_pending_gigs']) {
     assert.match(res.json().message, new RegExp(field))
+  }
+  for (const retired of ['fee_bps', 'seeker_fee_bps']) {
+    assert.doesNotMatch(res.json().message, new RegExp(`\\b${retired}\\b`), `${retired} is no longer editable here`)
   }
 })
 

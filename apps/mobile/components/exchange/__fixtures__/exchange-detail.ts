@@ -9,7 +9,8 @@
  * Lives in __fixtures__, not __tests__: jest-expo's testMatch treats every file
  * under __tests__ as a suite and fails one that declares no tests.
  */
-import type { EscrowStatus, ExchangeDetail, UserRef } from '@tenda/shared'
+import { abbreviatedName } from '@tenda/shared'
+import type { EscrowStatus, ExchangeDetail, ExchangePartyRef, UserRef } from '@tenda/shared'
 
 export const SELLER_ID = 'seller-id'
 export const BUYER_ID = 'buyer-id'
@@ -23,6 +24,37 @@ export function userRef(id: string, overrides: Partial<UserRef> = {}): UserRef {
     avatar_url: null,
     review_score: '0',
     is_seeker: false,
+    is_agent: false,
+    country: 'NG',
+    ...overrides,
+  }
+}
+
+/** The name columns the label below is built FROM — not exported, because the wire never carries them. */
+const PARTY_FIRST_NAME = 'Chidinma'
+const PARTY_LAST_NAME = 'Okonkwo'
+
+/**
+ * An exchange party as the server serves them (#175): an abbreviated label,
+ * with the legal name and the face WITHHELD by default — which is what every
+ * reader outside the trade receives, so a test that does not think about it
+ * gets the restrictive case. Pass `full_name`/`avatar_url` for the revealed one.
+ *
+ * `display_name` is built with the helper the serializer uses rather than typed
+ * out, so this fixture cannot outlive the rule it stands for.
+ */
+export function exchangeParty(
+  id: string,
+  overrides: Partial<ExchangePartyRef> = {},
+): ExchangePartyRef {
+  return {
+    id,
+    display_name: abbreviatedName(PARTY_FIRST_NAME, PARTY_LAST_NAME),
+    full_name: null,
+    avatar_url: null,
+    review_score: '0',
+    is_seeker: false,
+    is_agent: false,
     country: 'NG',
     ...overrides,
   }
@@ -45,7 +77,7 @@ export function exchangeDetail(overrides: Partial<ExchangeDetail> = {}): Exchang
     payment_window_seconds: 43_200,
     accept_deadline: null,
     created_at: '2026-07-01T00:00:00.000Z',
-    creator: userRef(SELLER_ID),
+    creator: exchangeParty(SELLER_ID),
     is_seeker: false,
     payment_proof_url: null,
     /** Visible by default; takedown tests opt in explicitly. */
@@ -53,6 +85,7 @@ export function exchangeDetail(overrides: Partial<ExchangeDetail> = {}): Exchang
     requires_approval: false,
     is_assigned: false,
     assigned_counterparty_id: null,
+    my_signer_address: null,
     dispute_bond_raw: '0',
     completion_deadline: null,
     submitted_at: null,

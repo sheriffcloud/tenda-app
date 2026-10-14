@@ -1,0 +1,11 @@
+{
+  "agentId": "9815",
+  "chain_id": "eip155:42220",
+  "registry": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+  "wallet": "0x041e487c82f364aefC17871F22Ec997A50DF5757",
+  "agentURI": "https://api.tendahq.com/.well-known/agents/0x041e487c82f364aefc17871f22ec997a50df5757.json",
+  "txHash": "0x696d20703ffc3f242f7257491562c24cd05c0e706b64abc5eebc96a9f938c6fc",
+  "blockNumber": "76726757",
+  "gasUsed": "200940",
+  "mintedAt": "2026-09-05T16:58:35.528Z"
+}

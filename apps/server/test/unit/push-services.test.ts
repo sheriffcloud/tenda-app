@@ -1,5 +1,5 @@
 /**
- * lib/push-services — JWT shapes (decoded + verified against real
+ * features/notifications/push-services — JWT shapes (decoded + verified against real
  * keypairs), provider-token caching, per-platform routing with loud
  * degradation, unregistered-token accounting.
  */
@@ -19,7 +19,7 @@ import {
   type ApnsTransport,
   type FcmTransport,
   type PlatformToken,
-} from '@server/lib/push-services'
+} from '@server/features/notifications/push-services'
 import type { PushService } from '@server/chains/types'
 
 const NOW = 1_900_000_000_000

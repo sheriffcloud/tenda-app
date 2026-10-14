@@ -25,11 +25,11 @@ export function ProfileMenu({ items }: { items: MenuItem[] }) {
         const tone = item.tone ?? 'inset'
         const iconBg =
           tone === 'brand'  ? theme.colors.brand.primarySurface :
-          tone === 'accent' ? theme.colors.accent.primarySurface :
+          tone === 'accent' ? theme.colors.feedback.warning.surface :
                               theme.colors.surface.inset
         const iconFg =
           tone === 'brand'  ? theme.colors.brand.primary :
-          tone === 'accent' ? theme.colors.accent.primary :
+          tone === 'accent' ? theme.colors.feedback.warning.base :
                               theme.colors.content.primary
         return (
           <View key={item.label}>
@@ -67,7 +67,7 @@ const s = StyleSheet.create({
   rowIc: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { fontSize: 15, letterSpacing: -0.075, flexShrink: 1 },
   rowValue: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12,
     letterSpacing: 0.12,
     flexShrink: 0,

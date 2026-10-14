@@ -17,7 +17,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { PERMISSIONS, ROLE_PERMISSIONS, ADMIN_ROLES, type Permission } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/http/guards'
 
 // ---------- map invariants --------------------------------------------------
 

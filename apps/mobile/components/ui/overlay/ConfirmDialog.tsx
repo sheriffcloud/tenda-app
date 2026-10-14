@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Modal, StyleSheet, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { radius, spacing } from '@/theme/tokens'
@@ -15,6 +16,13 @@ export interface ConfirmDialogProps {
   destructive?: boolean
   loading?: boolean
   hideCancel?: boolean
+  /**
+   * Rendered between the message and the buttons. For facts the reader needs
+   * BEFORE confirming — today the signer preview on a wallet-opening action.
+   * A slot rather than more props: what belongs here is per-caller, and the
+   * dialog has no business knowing about wallets.
+   */
+  extra?: ReactNode
   onConfirm: () => void
   onCancel: () => void
 }
@@ -28,6 +36,7 @@ export function ConfirmDialog({
   destructive = false,
   loading = false,
   hideCancel = false,
+  extra,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -52,6 +61,12 @@ export function ConfirmDialog({
             <>
               <Spacer size={spacing.sm} />
               <Text variant="body" color={theme.colors.content.secondary}>{message}</Text>
+            </>
+          ) : null}
+          {extra !== undefined && extra !== null ? (
+            <>
+              <Spacer size={spacing.md} />
+              {extra}
             </>
           ) : null}
           <Spacer size={spacing.lg} />

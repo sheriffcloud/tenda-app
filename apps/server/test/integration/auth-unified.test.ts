@@ -11,8 +11,9 @@
  */
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
-import { auth_otps, user_identities, user_wallets } from '@tenda/shared/db/schema'
-import { hashOtpCode, type OtpChannel } from '@server/lib/otp'
+import { eq } from 'drizzle-orm'
+import { auth_otps, user_identities, user_wallets, users } from '@tenda/shared/db/schema'
+import { hashOtpCode, type OtpChannel } from '@server/features/auth/otp'
 import {
   TEST_DB_CONFIGURED,
   TEST_CHAIN_ID,
@@ -213,6 +214,35 @@ test('verify link: re-linking the same identity to the same user is idempotent',
 })
 
 // ---------- verify: suspended gate ------------------------------------------
+
+test('verify bootstrap: is_seeker lands at CREATE only — a later login can never flip it', { skip }, async () => {
+  // is_seeker selects seeker_fee_bps on every escrow the user creates. It is a
+  // device-derived signup fact the orchestrator reads ONLY on INSERT; PATCH
+  // /v1/users/me no longer accepts it (see seeker-fee-flag.test.ts), so this
+  // bootstrap is the flag's one write path and must stay creation-scoped.
+  const app = getApp()
+  const seekerIsFor = async (id: string): Promise<boolean> => {
+    const [r] = await app.db.select({ is_seeker: users.is_seeker }).from(users).where(eq(users.id, id))
+    return r.is_seeker
+  }
+
+  const phone = uniqPhone()
+  await seedOtp(app, { channel: 'phone', identifier: phone, user_id: null })
+  const created = await verify(app, { method: 'phone', identifier: phone, code: CODE, is_seeker: true })
+  assert.strictEqual(created.json().is_new, true)
+  assert.strictEqual(await seekerIsFor(created.json().user.id), true)
+
+  // An existing NON-seeker account re-logging-in WITH the flag stays false:
+  // outside creation the bootstrap is dead weight, not an upgrade path.
+  const plain = uniqPhone()
+  await seedOtp(app, { channel: 'phone', identifier: plain, user_id: null })
+  const plainId = (await verify(app, { method: 'phone', identifier: plain, code: CODE })).json().user.id
+  await seedOtp(app, { channel: 'phone', identifier: plain, user_id: null })
+  const relog = await verify(app, { method: 'phone', identifier: plain, code: CODE, is_seeker: true })
+  assert.strictEqual(relog.statusCode, 200)
+  assert.strictEqual(relog.json().is_new, false)
+  assert.strictEqual(await seekerIsFor(plainId), false, 'login must not rewrite the fee tier')
+})
 
 test('verify: a suspended account cannot log in (403)', { skip }, async () => {
   const app = getApp()

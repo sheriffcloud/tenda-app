@@ -13,21 +13,21 @@
  */
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { PLATFORM_CONFIG_DEFAULTS, type EscrowTxType, type GigDetail } from '@tenda/shared'
-import { spacing, radius } from '@/theme/tokens'
-import { Text } from '@/components/ui/Text'
-import { usePlatformConfigStore } from '@/stores/platform-config.store'
 import {
-  ApprovalCTA,
-  LifecycleCTA,
+  PLATFORM_CONFIG_DEFAULTS,
   assignSlots,
   gigCtaBranches,
   isEmptyArrangement,
   type ActiveSheet,
-  type ApprovalAction,
   type CtaBranch,
   type CtaWidth,
-} from './gig-cta'
+  type EscrowTxType,
+  type GigDetail,
+} from '@tenda/shared'
+import { spacing, radius } from '@/theme/tokens'
+import { Text } from '@/components/ui/Text'
+import { usePlatformConfigStore } from '@/stores/platform-config.store'
+import { ApprovalCTA, LifecycleCTA, type ApprovalAction } from './gig-cta'
 
 export type { ActiveSheet, ApprovalAction }
 

@@ -8,14 +8,14 @@ import { GigForm } from '@/components/gig/GigForm'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { TransactionMonitor } from '@/components/feedback'
-import { TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
+import { TxConfirmDialog } from '@/components/escrow'
+import { TX_PROGRESS_LABEL } from '@tenda/shared'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { api } from '@/api/client'
-import { coerceCityForCountry, formatAssetAmount } from '@tenda/shared'
+import { coerceCityForCountry, DEFAULT_COMPLETION_SECONDS, formatAssetAmount, type GigFormValues } from '@tenda/shared'
 import { useGigFunding } from '@/hooks/useGigFunding'
 import { ModerationBlockedDialog } from '@/components/moderation/ModerationBlockedDialog'
-import { DEFAULT_COMPLETION_SECONDS } from '@/components/gig/gig-form/constants'
-import type { GigFormValues } from '@/components/gig/GigForm'
+
 
 export default function PostGigScreen() {
   const params = useLocalSearchParams<{ draftId?: string }>()
@@ -57,13 +57,19 @@ export default function PostGigScreen() {
           description: draft.description ?? '',
           chainId: draft.chain_id,
           asset: draft.asset,
-          paymentRaw: Number(draft.amount_raw),
+          // Straight through as the base-unit string it already is. It was
+          // Number()'d here, which is exactly the corruption #32 removes: a
+          // resumed 18-decimal draft came back as an approximation of itself.
+          paymentRaw: draft.amount_raw,
           completionDuration: draft.completion_duration_seconds ?? DEFAULT_COMPLETION_SECONDS,
           category: draft.category,
           country: draft.country,
           remote: draft.remote,
           city: draft.city,
           proofRequirements: draft.proof_requirements,
+          latitude: draft.latitude,
+          longitude: draft.longitude,
+          proofParams: draft.proof_params,
           requiresApproval: draft.requires_approval,
         })
       } catch {
@@ -119,10 +125,14 @@ export default function PostGigScreen() {
 
       <TxConfirmDialog
         action={pendingValues !== null ? 'create' : null}
+        // No `boundSigner`: nothing is bound until this create lands, so the
+        // row previews the free resolution — which is also what the create
+        // declares, so the preview and the bake cannot disagree.
+        chainId={pendingValues?.chainId}
         ctx={{
           amount:
             pendingValues !== null
-              ? formatAssetAmount(String(pendingValues.paymentRaw), pendingValues.asset)
+              ? formatAssetAmount(pendingValues.paymentRaw, pendingValues.asset)
               : '',
           kind: 'gig',
         }}

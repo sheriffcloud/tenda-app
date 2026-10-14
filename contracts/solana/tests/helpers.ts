@@ -37,6 +37,7 @@ import { assert } from "chai";
 import * as path from "node:path";
 
 import IDL_JSON from "../target/idl/tenda_escrow.json";
+import { PLATFORM_STATE_LEN } from "../tests-common/idl-layout";
 import type { TendaEscrow } from "../target/types/tenda_escrow";
 
 // ---------------------------------------------------------------------------
@@ -71,6 +72,21 @@ export const LIMITS = {
   maxUnassignWindowSeconds: 24 * 3_600,
 } as const;
 
+export {
+  PLATFORM_STATE_LEN,
+  idlAccountFields,
+  idlInstructionAccounts,
+} from "../tests-common/idl-layout";
+
+/**
+ * What `PlatformState` measured BEFORE #27 removed the reserved `total_volume:
+ * u64` that no instruction ever wrote. Every platform PDA initialized by an
+ * older deployment is still this size, which is precisely why it is migratable:
+ * `close_legacy_platform` closes any platform PDA whose length is not the
+ * current `LEN`.
+ */
+export const PLATFORM_STATE_LEN_PRE_27 = PLATFORM_STATE_LEN + 8;
+
 /** Platform defaults used by initPlatform unless a test overrides them. */
 export const PLATFORM_DEFAULTS = {
   feeBps: 250,
@@ -78,6 +94,69 @@ export const PLATFORM_DEFAULTS = {
   approvalWindowSeconds: 172_800, // 48h
   gracePeriodSeconds: 3_600, // 1h
 } as const;
+
+// ---------------------------------------------------------------------------
+// Upgrade authority (the gate on initialize_platform)
+// ---------------------------------------------------------------------------
+
+/**
+ * LiteSVM loads the program under BPFLoader2 with NO ProgramData account, but a
+ * real cluster deploys it under the upgradeable loader, where the deployer's key
+ * lives in a ProgramData account at a PDA of [program_id]. `initialize_platform`
+ * gates on that key, so the harness has to supply the account a real deployment
+ * would have.
+ *
+ * Layout is `UpgradeableLoaderState::ProgramData` (bincode):
+ *   u32 variant tag (3) | u64 slot | Option<Pubkey> authority (1 tag + 32)
+ * followed by the program ELF. The trailing bytes are written even though
+ * nothing reads them, because a header-only ProgramData account does not exist
+ * on any cluster — devnet's is 613,245 bytes — and a fixture the producer
+ * cannot emit proves nothing about the deserializer. Verified against the real
+ * thing: planting devnet's actual 613,245 bytes refuses with the same
+ * `NotUpgradeAuthority`, so bincode stops after the header and tolerates the rest.
+ */
+export const BPF_LOADER_UPGRADEABLE = new PublicKey(
+  "BPFLoaderUpgradeab1e11111111111111111111111",
+);
+
+export function programDataPda(programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [programId.toBuffer()],
+    BPF_LOADER_UPGRADEABLE,
+  )[0];
+}
+
+/** Header bytes; on a real account the program ELF follows. */
+const PROGRAM_DATA_HEADER = 45;
+/** Enough trailing bytes to be a realistic account rather than a bare header. */
+const PROGRAM_DATA_ELF_STUB = 1_024;
+
+/**
+ * Install a ProgramData account naming `authority` as the upgrade authority.
+ * `null` writes `Option::None`, which is what a program made IMMUTABLE
+ * (`solana program set-upgrade-authority --final`) actually carries.
+ */
+export function setUpgradeAuthority(
+  ctx: TestCtx,
+  authority: PublicKey | null,
+): void {
+  const data = Buffer.alloc(PROGRAM_DATA_HEADER + PROGRAM_DATA_ELF_STUB);
+  data.writeUInt32LE(3, 0); // UpgradeableLoaderState::ProgramData
+  data.writeBigUInt64LE(0n, 4); // slot
+  if (authority !== null) {
+    data.writeUInt8(1, 12); // Option::Some
+    authority.toBuffer().copy(data, 13);
+  } // else leave the tag 0 = Option::None
+  const address = programDataPda(ctx.program.programId);
+  ctx.svm.setAccount(address, {
+    lamports: Number(
+      ctx.svm.minimumBalanceForRentExemption(BigInt(data.length)),
+    ),
+    data,
+    owner: BPF_LOADER_UPGRADEABLE,
+    executable: false,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Test context
@@ -130,7 +209,7 @@ export function newCtx(): TestCtx {
     [PLATFORM_SEED],
     program.programId,
   );
-  return {
+  const ctx: TestCtx = {
     svm,
     provider,
     program,
@@ -143,6 +222,10 @@ export function newCtx(): TestCtx {
     outsider,
     platformPda,
   };
+  // Mirror a real deployment: the fee payer is the upgrade authority, so the
+  // suites that call initPlatform behave as the deployer does.
+  setUpgradeAuthority(ctx, payer.publicKey);
+  return ctx;
 }
 
 // ---------------------------------------------------------------------------

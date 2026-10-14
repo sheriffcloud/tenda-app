@@ -9,8 +9,8 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import { stripComments } from '../helpers/source-scan'
 
 const SERVER_ROOT = join(__dirname, '..', '..')
@@ -84,7 +84,7 @@ test('the type-only rule reads both kinds of export correctly', () => {
 
 test('every c8-excluded type file is still type-only', () => {
   // The exclusions in .c8rc.json are not all alike. Three of them —
-  // features/fiat-rails/types.ts, features/moderation/types.ts and
+  // features/fiat-rails/core/types.ts, features/moderation/core/types.ts and
   // plugins/queue/payloads.ts — are excluded on ONE ground: they declare types
   // and nothing else, so their compiled output is the ~110-byte `use strict` +
   // `__esModule` stub, they are never required at runtime, and `all: true`
@@ -142,5 +142,59 @@ test('every c8-excluded path still exists', () => {
       existsSync(join(SERVER_ROOT, rel)),
       `.c8rc.json excludes ${rel}, which no longer exists — drop the entry`,
     )
+  }
+})
+
+/** Every file under `dir`, as SERVER_ROOT-relative POSIX paths. */
+function filesUnder(dir: string): string[] {
+  const found: string[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) found.push(...filesUnder(full))
+    else found.push(relative(SERVER_ROOT, full).split('\\').join('/'))
+  }
+  return found
+}
+
+/** A c8 glob as a regex: `**` crosses folders, `*` stays inside one. */
+function globToRegex(glob: string): RegExp {
+  const source = glob
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*\//g, '\uE000')
+    .replace(/\*\*/g, '.*')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\uE000/g, '(?:.*/)?')
+  return new RegExp(`^${source}$`)
+}
+
+function c8Includes(config: string): string[] {
+  const parsed: unknown = JSON.parse(readFileSync(join(SERVER_ROOT, config), 'utf8'))
+  if (typeof parsed !== 'object' || parsed === null || !('include' in parsed)) {
+    assert.fail(`${config} has no \`include\` key`)
+  }
+  const { include } = parsed
+  if (!Array.isArray(include)) assert.fail(`${config} \`include\` is not an array`)
+  return include.filter((entry): entry is string => typeof entry === 'string')
+}
+
+test('every c8 include in every .c8rc*.json still matches a file', () => {
+  // The mirror of the exclusion check above, and it has a worse failure mode.
+  // A stale EXCLUDE merely exempts a name; a stale INCLUDE silently narrows what
+  // a scoped coverage gate measures to nothing at all. `.c8rc.contracts.json` named
+  // `src/chains/evm/listener-polling.ts` for a long time after that file became a
+  // folder: c8 matched nothing, the gate stayed green, and the listener it was
+  // meant to hold to 90% was never measured.
+  const sources = filesUnder(join(SERVER_ROOT, 'src'))
+  const configs = readdirSync(SERVER_ROOT).filter((name) => /^\.c8rc.*\.json$/.test(name))
+  assert.ok(configs.length >= 5, `expected the five c8 configs, found ${configs.length}`)
+
+  for (const config of configs) {
+    for (const entry of c8Includes(config)) {
+      const matcher = globToRegex(entry)
+      assert.ok(
+        sources.some((file) => matcher.test(file)),
+        `${config} includes "${entry}", which matches no file — the gate is measuring less than it says`,
+      )
+    }
   }
 })

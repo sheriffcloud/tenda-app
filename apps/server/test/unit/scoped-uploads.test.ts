@@ -1,5 +1,5 @@
 /**
- * lib/uploads/scoped — pure folder + attachment-URL helpers for the scoped
+ * features/uploads/scoped — pure folder + attachment-URL helpers for the scoped
  * upload registry (chat, dispute). The `authorize` half is DB-backed and
  * exercised by the integration suites; here we pin the path construction and
  * the strict URL check that stops a signature being replayed cross-scope.
@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 
-import { scopedUploadFolder, isValidScopedAttachmentUrl } from '@server/lib/uploads/scoped'
+import { scopedUploadFolder, isValidScopedAttachmentUrl } from '@server/features/uploads/scoped'
 
 test('scopedUploadFolder: <base>/<scopeId>/<userId> per type', () => {
   assert.strictEqual(scopedUploadFolder('chat', 'conv-1', 'user-1'), 'tenda/chat/conv-1/user-1')

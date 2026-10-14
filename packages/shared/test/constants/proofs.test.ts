@@ -9,12 +9,18 @@ import { test } from 'node:test'
 import * as assert from 'node:assert'
 import {
   PROOF_TYPES,
+  FILE_PROOF_TYPES,
+  DATA_PROOF_TYPES,
   PROOF_TYPE_LABEL,
   MAX_PROOF_REQUIREMENTS,
   isProofType,
+  isFileProofType,
+  isDataProofType,
   normaliseProofRequirements,
   missingProofTypes,
   formatProofTypeList,
+  proofIdentity,
+  canonicalJson,
   type ProofType,
 } from '../../src/constants/proofs'
 
@@ -30,6 +36,52 @@ test('isProofType rejects unknown strings and non-strings', () => {
   for (const bad of ['location', 'audio', '', 'IMAGE', null, undefined, 3, {}, []]) {
     assert.equal(isProofType(bad), false, `expected ${String(bad)} to be rejected`)
   }
+})
+
+// ---------- proof classes --------------------------------------------------
+
+test('the file and data classes partition the vocabulary', () => {
+  assert.deepEqual([...FILE_PROOF_TYPES, ...DATA_PROOF_TYPES], [...PROOF_TYPES])
+  for (const type of PROOF_TYPES) {
+    // Exactly one class claims each type.
+    assert.equal(isFileProofType(type) !== isDataProofType(type), true, type)
+  }
+})
+
+test('file types stay FIRST in PROOF_TYPES — the frozen pre-data order', () => {
+  // normalise order is stored order, and the pre-existing enum values must
+  // keep their positions for the additive migration to be additive.
+  assert.deepEqual(PROOF_TYPES.slice(0, 3), ['image', 'video', 'document'])
+})
+
+// ---------- proofIdentity / canonicalJson ----------------------------------
+
+test('file proofs are identified by url', () => {
+  assert.equal(
+    proofIdentity({ type: 'image', url: 'https://cdn/a.jpg' }),
+    proofIdentity({ type: 'image', url: 'https://cdn/a.jpg', payload: null }),
+  )
+  assert.notEqual(
+    proofIdentity({ type: 'image', url: 'https://cdn/a.jpg' }),
+    proofIdentity({ type: 'video', url: 'https://cdn/a.jpg' }),
+  )
+})
+
+test('data proofs are identified by canonicalised payload — key order blind', () => {
+  const a = proofIdentity({ type: 'geotag', url: null, payload: { latitude: 1, longitude: 2 } })
+  const b = proofIdentity({ type: 'geotag', url: null, payload: { longitude: 2, latitude: 1 } })
+  assert.equal(a, b)
+  const c = proofIdentity({ type: 'geotag', url: null, payload: { latitude: 1, longitude: 3 } })
+  assert.notEqual(a, c)
+})
+
+test('canonicalJson sorts keys recursively and keeps arrays ordered', () => {
+  assert.equal(
+    canonicalJson({ b: { d: 1, c: [2, 1] }, a: 'x' }),
+    '{"a":"x","b":{"c":[2,1],"d":1}}',
+  )
+  assert.equal(canonicalJson(null), 'null')
+  assert.equal(canonicalJson('s'), '"s"')
 })
 
 // ---------- labels ---------------------------------------------------------

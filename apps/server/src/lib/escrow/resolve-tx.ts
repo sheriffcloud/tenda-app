@@ -18,6 +18,7 @@ import {
   type ContractRegistry,
   type EscrowContractRef,
 } from '@server/chains/contracts'
+import { requireChainAdapter } from './chain-adapter'
 
 export interface BuildResolveTxDeps {
   db: AppDatabase
@@ -57,7 +58,7 @@ export async function buildResolveTx(
     )
   }
 
-  const adapter = deps.chains.get(args.escrow.chain_id)
+  const adapter = requireChainAdapter(deps.chains, args.escrow.chain_id)
 
   // The resolve tx is authorised by the chain's dispute-resolution key, whose
   // public address rides the adapter (from its secret). It is the signer

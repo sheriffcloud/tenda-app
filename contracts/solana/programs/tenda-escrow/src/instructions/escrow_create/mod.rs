@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Escrow creation + creator-initiated unwinds (cancel, refund_expired).
 //!
 //! SOL and SPL paths split into separate instructions so each can declare a

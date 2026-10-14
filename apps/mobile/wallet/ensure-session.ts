@@ -14,8 +14,7 @@
  */
 
 import { connectionSignal } from '@/wallet/reown/connection-signal'
-import { isLinkedWallet } from '@/wallet/wallet-address'
-import { WalletError } from '@/wallet/errors'
+import { isLinkedWallet, WalletError } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 
 export async function ensureEvmSession(): Promise<void> {

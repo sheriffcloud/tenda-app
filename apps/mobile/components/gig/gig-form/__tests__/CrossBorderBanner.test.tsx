@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports -- Jest factory loads RN after hoisting. */
 import { render, screen } from '@testing-library/react-native'
 import { CrossBorderBanner } from '../CrossBorderBanner'
 

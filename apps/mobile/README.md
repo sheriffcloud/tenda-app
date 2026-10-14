@@ -2,38 +2,35 @@
 
 React Native app for the Tenda gig marketplace. Android only (for now).
 
-## Stack
-
 Expo SDK · Expo Router (typed routes) · Unistyles · Zustand · multi-transport
-wallets (Solana MWA, Phantom universal links, Reown/WalletConnect for EVM,
+wallets (Solana MWA, Phantom universal links, Reown/WalletConnect for EVM —
 see `wallet/README.md`) · Sentry
 
 ## Setup
 
 ```bash
-pnpm install
+pnpm install                        # from the repo root
 pnpm --filter @tenda/shared build   # required before first run
-
-# Start dev client (requires a development build installed on device/emulator)
-pnpm dev
+pnpm dev                            # dev client (needs a development build on device/emulator)
 ```
 
-## Tests
+Point the app at a local API via the env in `.env` / `app.config` (see
+`.env.example`).
 
-```bash
-pnpm test        # jest-expo suite
-npx tsc --noEmit && npx expo lint
-```
+## Scripts
 
-## Builds
+| Command | Description |
+|---|---|
+| `pnpm dev` | Expo dev client |
+| `pnpm android` | Build + run on connected device/emulator |
+| `pnpm test` / `pnpm test:watch` / `pnpm test:cov` | jest-expo suite |
+| `pnpm type-check` / `pnpm lint` | tsc / expo lint |
+| `pnpm build:apk` | Android APK via EAS (`testnet` profile) |
+| `pnpm build:apk:dev` / `pnpm build:apk:preview` | EAS `development` / `preview` profile |
+| `pnpm build:aab` | Android AAB via EAS (`production` profile) |
 
-```bash
-pnpm build:apk   # Android APK via EAS (preview profile → staging)
-pnpm build:aab   # Android AAB via EAS (production profile)
-```
-
-EAS build profiles: `development` → `preview` (staging) → `production`.
-Set `APP_ENV` in each profile in `eas.json`, do not rely on the profile name.
+EAS profiles are defined in `eas.json`; each sets `APP_ENV` explicitly — the
+profile name is not the environment.
 
 ## Smart contracts
 

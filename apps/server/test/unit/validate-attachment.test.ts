@@ -1,5 +1,5 @@
 /**
- * lib/uploads/validate-attachment — shared attachment-field validation for
+ * features/uploads/validate-attachment — shared attachment-field validation for
  * chat + dispute message POSTs. All-three-or-none, type/size bounds, and a
  * scope-folder URL check.
  */
@@ -18,7 +18,7 @@ process.env.SOLANA_TREASURY_ADDRESS ??= '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5
 process.env.SOLANA_PROGRAM_ID ??= '7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes'
 process.env.API_BASE_URL ??= 'https://api.tenda.test'
 
-import { validateMessageAttachment } from '@server/lib/uploads/validate-attachment'
+import { validateMessageAttachment } from '@server/features/uploads/validate-attachment'
 
 const SCOPE = { type: 'dispute' as const, scopeId: 'escrow-1', userId: 'user-1' }
 const URL_OK = 'https://res.cloudinary.com/demo/image/upload/v1/tenda/dispute/escrow-1/user-1/e.pdf'

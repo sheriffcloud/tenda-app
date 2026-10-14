@@ -1,5 +1,4 @@
-import type { LinkedWallet } from '@tenda/shared'
-import type { SpikeAccount } from '@/wallet/types'
+import type { LinkedWallet, WalletAccount } from '@tenda/shared'
 
 jest.mock('@/wallet/reown/connection-signal', () => ({
   connectionSignal: {
@@ -16,12 +15,12 @@ jest.mock('@/stores/auth.store', () => ({
 import { ensureEvmSession } from '@/wallet/ensure-session'
 import { connectionSignal } from '@/wallet/reown/connection-signal'
 import { useAuthStore } from '@/stores/auth.store'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 
 const EVM = '0xAbC0000000000000000000000000000000000001'
 const PROVIDER = { request: jest.fn() }
 
-const account = (address = EVM): SpikeAccount => ({
+const account = (address = EVM): WalletAccount => ({
   namespace: 'eip155',
   chainId: 'eip155:8453',
   address,

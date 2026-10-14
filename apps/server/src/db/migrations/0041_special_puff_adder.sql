@@ -1,0 +1,1 @@
+ALTER TABLE "platform_config" DROP COLUMN "approval_window_seconds";

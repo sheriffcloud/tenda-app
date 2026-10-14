@@ -6,8 +6,15 @@ import { CheckCircle2, Clock, XCircle } from 'lucide-react-native'
 import type { FiatIntentDetail } from '@tenda/shared'
 import { ScreenContainer, Text, Header, Button, ConfirmDialog, showToast } from '@/components/ui'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
-import { api, ApiClientError } from '@/api/client'
-import { instructionCopy, INTENT_STATUS_COPY, isCancellable, isTerminal } from '@/lib/fiat'
+import { api } from '@/api/client'
+import {
+  ApiClientError,
+  formatFiat,
+  instructionCopy,
+  INTENT_STATUS_COPY,
+  isCancellable,
+  isTerminal,
+} from '@tenda/shared'
 import { spacing } from '@/theme/tokens'
 
 const POLL_MS = 10_000
@@ -103,7 +110,12 @@ export default function FiatIntentScreen() {
           <StatusIcon size={44} color={tone} />
           <Text variant="subheading" align="center">{INTENT_STATUS_COPY[intent.status]}</Text>
           <Text size={13} color={theme.colors.content.secondary} align="center">
-            ₦{Number(intent.fiat_amount).toLocaleString()} · {intent.provider}
+            {/* The intent's OWN currency: a KES or GHS cash-out showed a naira
+                figure on the page a reader watches their money settle on. Same
+                defect as #29 — money formatted by hand rather than through the
+                shared helper. */}
+            {formatFiat(Number(intent.fiat_amount), intent.fiat_currency)} ·{' '}
+            {intent.provider}
           </Text>
         </View>
 

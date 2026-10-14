@@ -5,9 +5,23 @@
  *
  * Drafts are private staging rows (fiat-rails opens them; my-offers lists
  * them), visible to their CREATOR only, 404 to everyone else.
+ *
+ * ANONYMOUS-TOLERANT since #179: the preHandler is `identifyViewer`, not
+ * `authenticate`, so a stranger reads the listing half and a signed-in party
+ * still gets theirs. Two consequences, both inherited from the gig detail that
+ * has worked this way all along:
+ *   - a private row (draft or taken-down) escalates to the FULL `authenticate`
+ *     before deciding, so suspended accounts are rejected there like everywhere
+ *     else — and an anonymous caller gets the 404 directly, because a 401 would
+ *     confirm the id exists.
+ *   - disclosure is decided by PARTY MEMBERSHIP only, never by role.
+ *     `identifyViewer` does a bare `jwtVerify`, so a role claim on this path can
+ *     be up to a token lifetime out of date; `escrow-detail-scope`'s header sets
+ *     out why gating disclosure on that would hand a demoted admin every
+ *     escrow's private half for a week. Admins read escrows through the dossier.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { uuidParamGuard } from '@server/lib/guards'
+import { optionalUserId, uuidParamGuard } from '@server/lib/http/guards'
 import { eq, inArray } from 'drizzle-orm'
 import { escrows, exchange_details, users, reviews, bank_accounts } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
@@ -17,10 +31,12 @@ import {
   canViewHiddenEscrow,
   scopeEscrowAcceptanceMode,
   scopeEscrowPrivateFields,
-} from '@server/lib/escrow-detail-scope'
-import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
-import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow-party'
-import { USER_COLS } from '@server/lib/users'
+  scopeMySignerAddress,
+} from '@server/features/escrows/detail/scope'
+import { loadEscrowEvidence } from '@server/features/escrows/detail/evidence'
+import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow/party'
+import { toExchangePartyRef } from '@server/features/fiat-rails/rates/exchange-read'
+import { USER_COLS } from '@server/lib/db/users'
 
 type GetRoute = ExchangeContract['get']
 
@@ -34,7 +50,7 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: GetRoute['params']
     Reply: GetRoute['response'] | ApiError
-  }>('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  }>('/', { preHandler: [fastify.identifyViewer] }, async (request, reply) => {
     const { id } = request.params
 
     const [row] = await fastify.db
@@ -49,18 +65,27 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     const escrow = row.escrows
     const details = row.exchange_details
 
-    // Route is authenticated, the creator check needs no extra verify.
-    if (escrow.status === 'draft' && escrow.creator_id !== request.user.id) {
-      throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-    }
-
-    // Taken-down offers (CO1) 404 to the public but stay visible to the
-    // parties (the escrow may be mid-flight on-chain) and to admins.
-    if (
-      escrow.hidden &&
-      !canViewHiddenEscrow(escrow, { id: request.user.id, role: request.user.role })
-    ) {
-      throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
+    // Private rows — pre-publish drafts, and taken-down offers (CO1) which stay
+    // visible to their parties because the escrow may be mid-flight on-chain.
+    // An anonymous caller is refused HERE, with a 404 rather than a 401: the
+    // 401 would confirm the id exists. A caller who sent a bearer goes through
+    // the full `authenticate` first, so a suspended account is rejected on this
+    // route exactly as on every other, and the role `canViewHiddenEscrow` reads
+    // is the freshly re-read one rather than whatever the token claimed.
+    // Structure and reasoning copied from the gig detail, not invented here.
+    if (escrow.status === 'draft' || escrow.hidden) {
+      if (request.headers.authorization === undefined) {
+        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
+      }
+      await fastify.authenticate(request, reply)
+      if (reply.sent) return reply
+      const allowed =
+        escrow.status === 'draft'
+          ? request.user.id === escrow.creator_id
+          : canViewHiddenEscrow(escrow, { id: request.user.id, role: request.user.role })
+      if (!allowed) {
+        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
+      }
     }
 
     const userIds =
@@ -72,7 +97,19 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     // helper as the gig detail, so the two surfaces cannot drift. Admins are
     // NOT included (they read the dossier); see escrow-detail-scope. Derived
     // before the reads because it decides whether the evidence is read at all.
-    const isParty = isEscrowPartyOrAssignedRow(escrow, request.user.id)
+    // `null` for an anonymous reader, and every predicate below takes that:
+    // `matchesAnyRow` refuses null explicitly, because two of the three party
+    // columns are nullable and an unclaimed escrow would otherwise report every
+    // stranger as a party. Read AFTER the private-row branch above, which is
+    // the path that decorates the request when a draft or hidden row is hit.
+    const viewerId = optionalUserId(request)
+    const isParty = isEscrowPartyOrAssignedRow(escrow, viewerId)
+    // The NARROWER of the two party questions: the creator and an ACCEPTED
+    // counterparty, with a pending direct-offer assignee excluded. Two things
+    // sit behind this one line — the seller's bank details, and since #175
+    // their legal name and face — and they must never drift apart, so the
+    // question is asked once and named rather than repeated at each use.
+    const isSettledParty = isEscrowPartyRow(escrow, viewerId)
 
     const [userRows, evidence, offerReviews] = await Promise.all([
       fastify.db.select(USER_COLS).from(users).where(inArray(users.id, userIds)),
@@ -85,16 +122,18 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     if (creator === undefined) {
       throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'escrow creator row missing')
     }
+    // The counterparty keeps its FULL `UserRef`: `scopeEscrowPrivateFields`
+    // below already withholds it from everyone but the parties, so narrowing it
+    // would take identity from the people entitled to it rather than from a
+    // stranger. #175's surface is the CREATOR, whom everyone can see.
     const counterparty =
       escrow.counterparty_id === null ? null : (userMap.get(escrow.counterparty_id) ?? null)
 
     // Payout account is PII: reveal the full details only to the offer's
-    // SETTLED parties (creator + accepted counterparty), so a matched buyer
-    // knows where to pay. Absent to everyone else, and before an account is
-    // linked. Narrower than `isParty` above on purpose: a pending assignee has
-    // not accepted, so the seller's bank details are not theirs to read yet.
+    // settled parties, so a matched buyer knows where to pay. Absent to
+    // everyone else, and before an account is linked.
     let payout_account: ExchangePayoutAccount | null = null
-    if (isEscrowPartyRow(escrow, request.user.id) && details.payout_account_id !== null) {
+    if (isSettledParty && details.payout_account_id !== null) {
       const [acct] = await fastify.db
         .select({
           kind: bank_accounts.kind,
@@ -124,11 +163,17 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       payment_window_seconds: details.payment_window_seconds,
       accept_deadline: iso(escrow.accept_deadline),
       created_at: escrow.created_at.toISOString(),
-      creator,
+      // The creator's LEGAL NAME and FACE sit behind the same line as the
+      // payout account above, and are handed the same answer (#175) — not the
+      // broader `isParty` used for the private half, because a pending assignee
+      // has not accepted and the other side's identity is not theirs yet.
+      creator: toExchangePartyRef(creator, isSettledParty),
       is_seeker: escrow.is_seeker,
       // The buyer's fiat receipt — evidence, not terms. Scoped with `proofs`
       // below rather than shipped beside the price.
       payment_proof_url: isParty ? details.payment_proof_url : null,
+      // Viewer-relative bound wallet (chain-attested); null for outsiders.
+      my_signer_address: scopeMySignerAddress(escrow, viewerId),
       // A P2P offer normally has no acceptance mode at all, but "normally" is
       // not "always": `assigned_counterparty_id` carries no kind restriction at
       // create, so a direct-invite offer is reachable and only the assignee may
@@ -147,7 +192,10 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       ...scopeEscrowPrivateFields({ counterparty, ...evidence }, isParty),
       // Reviews stay public for the same reason they do on a gig: they are the
       // rows `/v1/users/:id/reviews` already serves on a profile.
-      reviews: offerReviews,
+      reviews: offerReviews.map((review) => ({
+        ...review,
+        created_at: review.created_at.toISOString(),
+      })),
       payout_account,
     })
   })

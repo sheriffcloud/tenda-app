@@ -3,11 +3,11 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
 import { ReviewCard } from './ReviewCard'
 import type { Review } from '@tenda/shared'
+import type { CardParty } from './party-name'
 
-interface ReviewParty {
+/** A gig party's name columns, or an exchange party's decided label (#175). */
+interface ReviewParty extends CardParty {
   id: string
-  first_name: string | null
-  last_name: string | null
   avatar_url: string | null
 }
 

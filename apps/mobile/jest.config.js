@@ -69,6 +69,14 @@ module.exports = {
    * ~100x headroom — raising it would only hide a test that genuinely got slow.
    */
   maxWorkers: '50%',
+  /**
+   * Restart a worker that grows past this between test files. jest-expo
+   * workers leak module registries across suites; without a limit six of
+   * them climbed past the box's free memory and took the machine down
+   * (2026-08-28). The scripts also run under a systemd memory scope so a
+   * runaway run is killed inside the scope instead of by the kernel OOM.
+   */
+  workerIdleMemoryLimit: '768MB',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
@@ -84,106 +92,32 @@ module.exports = {
     `node_modules/(?!(\\.pnpm|${WHITELIST}))`,
   ],
   clearMocks: true,
-  collectCoverageFrom: [
-    'wallet/**/*.{ts,tsx}',
-    'stores/auth.store.ts',
-    'app/(auth)/connect-wallet.tsx',
-    'app/settings/linked-wallets.tsx',
-    '!wallet/**/*.d.ts',
-    // Message-attachment feature (chat + dispute).
-    'lib/attachments.ts',
-    'lib/media-download.ts',
-    'hooks/useAttachmentUpload.ts',
-    'components/shared/AttachSheet.tsx',
-    'components/shared/media/AttachmentPreview.tsx',
-    // Notification permission flow (primer tiers + throttled nudge).
-    'lib/notifications/*.ts',
-    // Pure re-export barrel, nothing to exercise.
-    '!lib/notifications/index.ts',
-    'stores/notification-prompt.store.ts',
-    'stores/notification-permission.store.ts',
-    'hooks/useNotificationPermission.ts',
-    'hooks/usePushToken.ts',
-    'components/notifications/NotificationPrimer.tsx',
-    'components/notifications/NotificationPrimerHost.tsx',
-    'components/notifications/NotificationNudgeBanner.tsx',
-    'components/notifications/primerCopy.ts',
-    // Pagination + chain filter (feed / order book / my gigs / my trades).
-    'lib/pagination/*.ts',
-    '!lib/pagination/index.ts',
-    'hooks/usePaginatedList.ts',
-    'hooks/useDebouncedValue.ts',
-    'hooks/useGigsFeedPolling.ts',
-    'hooks/useHomeFeed.ts',
-    'features/gig-feed/*.ts',
-    '!features/gig-feed/index.ts',
-    'hooks/useMyGigs.ts',
-    'hooks/useMyDisputes.ts',
-    'hooks/useExchangeScreen.ts',
-    'components/ui/PaginatedList.tsx',
-    'components/gig/GigListSkeleton.tsx',
-    'components/filters/*.tsx',
-    'components/navigation/PagerTabBar.tsx',
-    // MB1/MB2: server-backed wallet totals + profile counts.
-    'hooks/useWalletScreen.ts',
-    'hooks/useProfileStats.ts',
-    // Stage 10: gig acceptance modes. The CTA branch resolution is the part
-    // that matters — it is where the mode-blind "Accept Gig" bug lived, and it
-    // is pure, so it is covered directly rather than through eight renders.
-    'components/gig/gig-cta/*.{ts,tsx}',
-    // branches/index.ts is NOT excluded: unlike the barrel above it, it holds
-    // gigCtaBranches — the composition that used to be the bug.
-    'components/gig/gig-cta/branches/*.ts',
-    '!components/gig/gig-cta/index.ts',
-    '!components/gig/gig-cta/types.ts',
-    'components/gig/GigCTABar.tsx',
-    // The whole approval surface, not a hand-picked list of it: naming files
-    // individually is how ApplicantList, ApplicantRow, ApplySheet and
-    // MyApplicationCard sat at 0% while the folder reported healthy numbers.
-    'components/gig/gig-applications/*.{ts,tsx}',
-    '!components/gig/gig-applications/index.ts',
-    'components/gig/gig-form/AcceptanceModePicker.tsx',
-    'components/gig/GigDetailGate.tsx',
-    'components/shared/ReviewScore.tsx',
-    'stores/gigs.store.ts',
-    // CO1 takedown enforcement. The detail loaders are here because the bug was
-    // in their FAILURE path — a 404 that left the previous response on screen —
-    // which no happy-path test would have reached.
-    'lib/detail-load-error.ts',
-    // The refusal predicate and the two hooks that act on it: the live half of
-    // the same problem, where the server is the first to know the listing was
-    // pulled and the screen has to be told by its own failure.
-    'lib/takedown-refusal.ts',
-    'components/gig/gig-applications/useApplications.ts',
-    'hooks/useExchangeDetail.ts',
-    'components/ui/NoticeBanner.tsx',
-    'components/reputation/RestrictionBanner.tsx',
-    'components/escrow/takedown/*.{ts,tsx}',
-    '!components/escrow/takedown/index.ts',
-    'components/exchange/ExchangeCTA.tsx',
-    // Dispute mediation. Named as WHOLE folders, not a hand-picked list: the
-    // thread screen sat at 0% while its neighbours reported healthy numbers,
-    // which is how a mediator seeing both disputants under one name shipped.
-    'app/dispute/*.tsx',
-    'components/dispute/*.{ts,tsx}',
-    'lib/dispute-thread.ts',
-    'lib/dispute-send-error.ts',
-    'hooks/useDisputeThread.ts',
-    // Build identity. Small, but it is the surface that spent months telling
-    // users the app was v1.0.0 when it had never been.
-    'lib/app-version.ts',
-    'components/ui/AppVersion.tsx',
-    // Escrow convergence. Include the orchestration itself so tests cannot
-    // pass by merely asserting mocked callbacks around the former race.
-    'hooks/escrow-sync/*.ts',
-    '!hooks/escrow-sync/index.ts',
-    '!hooks/escrow-sync/types.ts',
-    'hooks/escrow-live/*.ts',
-    '!hooks/escrow-live/index.ts',
-    'lib/escrow-sync.ts',
-    'components/feedback/TransactionMonitor.tsx',
-  ],
+  collectCoverageFrom: require('./test-support/coverage-scope'),
   coverageThreshold: {
+    /**
+     * The harness holds itself to a HIGHER bar than the app, and out of the
+     * app's numbers (#75).
+     *
+     * A path key here is not just a second threshold: jest SUBTRACTS the files
+     * it matches from the global figures before checking them. That is the
+     * whole reason this key exists rather than a plain listing, so it was
+     * MEASURED rather than taken on trust — with `test-support/*.ts` collected
+     * and this key present, the reporter's table totals 93.10% statements while
+     * the global threshold check reads 92.90%, which is the app-only number.
+     * Gating the harness therefore cannot flatter the app: "mobile is 92.9%"
+     * stays a statement about mobile.
+     *
+     * 100, not 90, because this is the code that decides what the app's own
+     * threshold is measured over. It is at 100 today, so the floor costs
+     * nothing now and makes an untested branch in the resolver a build failure
+     * rather than a silently wider blind spot.
+     */
+    './test-support/': {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
     global: {
       branches: 90,
       functions: 90,

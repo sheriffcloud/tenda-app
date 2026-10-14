@@ -92,3 +92,28 @@ test('regression: proofs already stored on the escrow count toward the requireme
   )
   expect(screen.getByText(/All required proof attached/i)).toBeTruthy()
 })
+
+test('param-bearing requirements show the bar they set, via the shared detail line', () => {
+  render(
+    <ProofRequirementsNote
+      required={['geotag', 'structured']}
+      params={{
+        geotag: { radius_m: 500 },
+        structured: {
+          fields: [
+            { name: 'count', kind: 'number', required: true },
+            { name: 'note', kind: 'string', required: false },
+          ],
+        },
+      }}
+    />,
+  )
+  expect(screen.getByText("Check in within 500 m of the gig's location")).toBeTruthy()
+  expect(screen.getByText('Report: count, note (optional)')).toBeTruthy()
+})
+
+test('no params (every pre-#14 gig) means no detail lines — and no crash', () => {
+  render(<ProofRequirementsNote required={['geotag']} params={null} />)
+  expect(screen.getByText(/Required proof/)).toBeTruthy()
+  expect(screen.queryByText(/Check in within/)).toBeNull()
+})

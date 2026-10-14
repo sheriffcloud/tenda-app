@@ -18,12 +18,14 @@ jest.mock('react-native-unistyles', () => ({
 jest.mock('lucide-react-native', () => ({ CheckCircle: () => null, XCircle: () => null, Wallet: () => null }))
 jest.mock('@/components/ui/Text', () => {
   // Jest factories cannot close over an imported native component before mock hoisting.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text } = require('react-native')
   return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
 })
 jest.mock('@/components/ui/Button', () => ({ Button: () => null }))
-jest.mock('@/wallet', () => ({
+// The guarded-request registry moved to @tenda/shared (2026-08-15); the
+// component no longer touches '@/wallet' for it.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   abortPendingWalletRequest: jest.fn(), hasPendingWalletRequest: () => false,
   subscribePendingWalletRequest: () => () => {},
 }))

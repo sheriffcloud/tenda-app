@@ -1,0 +1,1 @@
+ALTER TABLE "gig_details" ADD CONSTRAINT "gig_details_remote_no_location" CHECK ("gig_details"."remote" = false OR ("gig_details"."country" IS NULL AND "gig_details"."city" IS NULL));

@@ -15,7 +15,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { email_otps, users } from '@tenda/shared/db/schema/identity'
 import type { FastifyInstance } from 'fastify'
-import { grantAdminEmail } from '../../src/lib/admin-auth'
+import { grantAdminEmail } from '../../src/features/auth/admin/admin-auth'
 import { issueAdminCode } from '../helpers/admin-auth'
 import { TEST_DB_CONFIGURED, useTestApp, createUser, authHeader } from '../helpers/test-app'
 

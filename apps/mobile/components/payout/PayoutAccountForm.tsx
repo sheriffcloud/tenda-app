@@ -30,10 +30,15 @@ export function PayoutAccountForm({
   const [kind, setKind] = useState<PayoutRailKind>(spec.rails[0].kind)
   const [values, setValues] = useState<PayoutAccountInput>(EMPTY)
 
-  // A new country resets the rail + fields (its rails/fields differ).
+  // A new country resets the rail + fields (its rails/fields differ). The
+  // dependency is the COUNTRY alone on purpose: `spec.rails` is a fresh array
+  // on every render of the parent, so depending on it would reset the form —
+  // discarding what the user has typed — on each keystroke. There is no stale
+  // closure to fix either: the effect reads the current render's `spec`.
   useEffect(() => {
     setKind(spec.rails[0].kind)
     setValues(EMPTY)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above: country only
   }, [spec.country])
 
   const rail = useMemo(() => spec.rails.find((r) => r.kind === kind) ?? spec.rails[0], [spec, kind])

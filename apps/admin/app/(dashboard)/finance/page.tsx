@@ -64,8 +64,8 @@ export default function FinancePage() {
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              Period {formatAdminDate(fees.period.from)} –{' '}
-              {formatAdminDate(fees.period.to)} · grand total fee (raw base units):{' '}
+              Period {fees.period.from === null ? 'all time' : formatAdminDate(fees.period.from)} –{' '}
+              {fees.period.to === null ? 'now' : formatAdminDate(fees.period.to)} · grand total fee (raw base units):{' '}
               <span className="font-mono font-medium text-foreground">{fees.grand_total_fee_raw}</span>
             </p>
             {(['gig', 'exchange'] as const).map((kind) => (

@@ -27,7 +27,7 @@ import type { AppDatabase } from '@server/plugins/db'
  * is unanswerable at runtime, and a kind that reaches nobody is precisely the
  * silence this module exists to prevent.
  */
-export const ALERT_KINDS = ['dispute.raised'] as const
+export const ALERT_KINDS = ['dispute.raised', 'gas-seed.low-balance'] as const
 
 export type AlertKind = (typeof ALERT_KINDS)[number]
 
@@ -64,12 +64,24 @@ type AlertRefFields = PerKind<{
      *
      * Not `dispute_id`: the triage row is written by the POST route while the
      * status flip comes from the chain, so an escrow can legitimately be
-     * `disputed` on-chain with no `disputes` row yet (lib/notify/ documents
+     * `disputed` on-chain with no `disputes` row yet (features/notifications/ documents
      * the same asymmetry for deep links). `escrow_transactions.tx_ref` is
      * UNIQUE and is always present on `EscrowRepublishEvent`, so it identifies
      * the event even when the off-chain row does not exist.
      */
     tx_ref: string
+  }
+  /**
+   * A gas-seed hot wallet is running out (#53b item 4).
+   *
+   * Keyed by CHAIN, not by a reading: the alert is about a wallet, and the
+   * balance at the moment of enqueue is already stale by the time anyone reads
+   * it — the resolver takes a fresh one. Carrying the observed value here as
+   * well would create two numbers for one fact, and the queued one is always
+   * the wronger of the two.
+   */
+  'gas-seed.low-balance': {
+    chain_id: string
   }
 }>
 
@@ -129,6 +141,20 @@ type AlertFields = PerKind<{
      */
     creator_id: string
     counterparty_id: string | null
+  }
+  'gas-seed.low-balance': {
+    /** The wallet that pays this chain's grants. */
+    funder_address: string
+    /** Base units it holds NOW, read by the resolver. */
+    balance_raw: string
+    /** Base units one grant costs — the unit an operator thinks in. */
+    grant_raw: string
+    /**
+     * How many more grants it can pay. Derived rather than left to each
+     * channel: "3 grants left" is the sentence an operator acts on, and two
+     * channels dividing it themselves is two chances to round it differently.
+     */
+    grants_remaining: number
   }
 }>
 

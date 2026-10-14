@@ -3,7 +3,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
 import { AttachmentPreview } from '@/components/shared/media/AttachmentPreview'
 import { useIsDark } from '@/lib/theme'
-import type { AttachmentPress } from '@/lib/attachments'
+import type { AttachmentPress } from '@tenda/shared'
 import type { LocalMessage } from '@/stores/chat.store'
 
 interface MessageBubbleProps {

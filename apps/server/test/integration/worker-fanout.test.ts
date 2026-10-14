@@ -1,8 +1,8 @@
 import { beforeEach, test } from 'node:test'
 import assert from 'node:assert'
 import { gig_subscriptions } from '@tenda/shared/db/schema'
-import { buildProcessors, buildVerifyTxDeps } from '@server/workers/processors'
-import { channelName } from '@server/lib/ws'
+import { buildProcessors, buildVerifyTxDeps } from '@server/queue/workers/processors'
+import { channelName } from '@server/realtime/ws'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import { republishEvent } from '../helpers/republish-event'
 import {

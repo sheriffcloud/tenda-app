@@ -10,21 +10,14 @@ import assert from 'node:assert'
 import { and, eq } from 'drizzle-orm'
 import { user_wallets, user_identities } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
-import { unlinkWallet } from '@server/lib/auth/wallet-unlink'
-import { walletFixture } from '../helpers/fixtures'
+import { unlinkWallet } from '@server/features/auth/wallets/wallet-unlink'
 import {
-  TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, authHeader,
+  TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, authHeader, linkWallet, testEvmAddress,
 } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
 
-let addrSeq = 0
-async function link(app: ReturnType<typeof getApp>, user_id: string, over: Partial<ReturnType<typeof walletFixture>> = {}) {
-  const w = walletFixture({ user_id, address: `SolWallet${addrSeq++}1111111111111111111111111`, ...over })
-  await app.db.insert(user_wallets).values(w)
-  return w
-}
 
 // ---------- unlink-wallet --------------------------------------------------------
 
@@ -51,7 +44,7 @@ test('unlink-wallet: 422 when address is missing', { skip }, async () => {
 test('unlink-wallet: 404 when the wallet is not linked', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
-  await link(app, u.row.id) // some other wallet so it is not the "only wallet" path
+  await linkWallet(app, u.row.id) // some other wallet so it is not the "only wallet" path
   const res = await app.inject({
     method: 'POST', url: '/v1/auth/unlink-wallet', headers: authHeader(u.token),
     payload: { chain_ns: 'solana', address: 'NotLinkedAddr1111111111111111111111111111' },
@@ -62,7 +55,7 @@ test('unlink-wallet: 404 when the wallet is not linked', { skip }, async () => {
 test('unlink-wallet: 409 LAST_WALLET when it is the only linked wallet', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app) // no identities → the wallet is the sole credential
-  const w = await link(app, u.row.id, { is_primary: true })
+  const w = await linkWallet(app, u.row.id, { is_primary: true })
   const res = await app.inject({
     method: 'POST', url: '/v1/auth/unlink-wallet', headers: authHeader(u.token),
     payload: { chain_ns: w.chain_ns, address: w.address },
@@ -74,7 +67,7 @@ test('unlink-wallet: 409 LAST_WALLET when it is the only linked wallet', { skip 
 test('unlink-wallet: 409 LAST_WALLET even when a verified contact remains', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
-  const w = await link(app, u.row.id, { is_primary: true })
+  const w = await linkWallet(app, u.row.id, { is_primary: true })
   // A wallet is required to transact, so the account must keep at least one even
   // though a verified email would satisfy the looser sign-in/last-credential rule.
   await app.db.insert(user_identities).values({
@@ -94,9 +87,9 @@ test('unlink-wallet: 409 LAST_WALLET even when a verified contact remains', { sk
 test('unlink-wallet: matches a checksummed EVM address against the lowercased row', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
-  await link(app, u.row.id, { is_primary: true }) // keep a second wallet so this isn't the sole one
+  await linkWallet(app, u.row.id, { is_primary: true }) // keep a second wallet so this isn't the sole one
   // Stored canonical (lowercase); the client sends the checksummed form back.
-  const lower = `0xdef${(addrSeq++).toString(16).padStart(37, '0')}`
+  const lower = testEvmAddress().replace('0x', '0xdef').slice(0, 42)
   await app.db.insert(user_wallets).values({
     chain_ns: 'eip155', address: lower, user_id: u.row.id, is_primary: false,
   })
@@ -117,8 +110,8 @@ test('unlink-wallet: a legacy MIXED-CASE EVM row unlinks (the row the app echoes
   // address; normalising only the request → no match → confusing 404. Must work.
   const app = getApp()
   const u = await createUser(app)
-  await link(app, u.row.id, { is_primary: true }) // a second wallet so this isn't the sole one
-  const mixed = `0xAbC${(addrSeq++).toString(16).padStart(37, '0')}`
+  await linkWallet(app, u.row.id, { is_primary: true }) // a second wallet so this isn't the sole one
+  const mixed = testEvmAddress().replace('0x', '0xAbC').slice(0, 42)
   await app.db.insert(user_wallets).values({
     chain_ns: 'eip155', address: mixed, user_id: u.row.id, is_primary: false,
   })
@@ -138,7 +131,7 @@ test('unlink-wallet: a SOLE legacy mixed-case EVM wallet → LAST_WALLET (not a 
   // It must now be correctly recognised and blocked as the only wallet.
   const app = getApp()
   const u = await createUser(app)
-  const mixed = `0xAbC${(addrSeq++).toString(16).padStart(37, '0')}`
+  const mixed = testEvmAddress().replace('0x', '0xAbC').slice(0, 42)
   await app.db.insert(user_wallets).values({
     chain_ns: 'eip155', address: mixed, user_id: u.row.id, is_primary: true,
   })
@@ -153,8 +146,8 @@ test('unlink-wallet: a SOLE legacy mixed-case EVM wallet → LAST_WALLET (not a 
 test('unlink-wallet: 409 cannot unlink the primary while another exists', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
-  const primary = await link(app, u.row.id, { is_primary: true })
-  await link(app, u.row.id, { is_primary: false })
+  const primary = await linkWallet(app, u.row.id, { is_primary: true })
+  await linkWallet(app, u.row.id, { is_primary: false })
   const res = await app.inject({
     method: 'POST', url: '/v1/auth/unlink-wallet', headers: authHeader(u.token),
     payload: { chain_ns: primary.chain_ns, address: primary.address },
@@ -167,8 +160,8 @@ test('unlink-wallet: 409 cannot unlink the primary while another exists', { skip
 test('unlink-wallet: 409 when the wallet is party to an active escrow', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
-  await link(app, u.row.id, { is_primary: true })
-  const target = await link(app, u.row.id, { is_primary: false })
+  await linkWallet(app, u.row.id, { is_primary: true })
+  const target = await linkWallet(app, u.row.id, { is_primary: false })
   await createEscrow(app, { creator_id: u.row.id, status: 'open' }) // solana namespace, active
   const res = await app.inject({
     method: 'POST', url: '/v1/auth/unlink-wallet', headers: authHeader(u.token),
@@ -182,8 +175,8 @@ test('unlink-wallet: 409 when the wallet is party to an active escrow', { skip }
 test('unlink-wallet: 200 unlinks a non-primary idle wallet', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
-  await link(app, u.row.id, { is_primary: true })
-  const target = await link(app, u.row.id, { is_primary: false })
+  await linkWallet(app, u.row.id, { is_primary: true })
+  const target = await linkWallet(app, u.row.id, { is_primary: false })
   const res = await app.inject({
     method: 'POST', url: '/v1/auth/unlink-wallet', headers: authHeader(u.token),
     payload: { chain_ns: target.chain_ns, address: target.address },
@@ -195,8 +188,8 @@ test('unlink-wallet: 200 unlinks a non-primary idle wallet', { skip }, async () 
 test('unlink-wallet: concurrent unlinks of two wallets cannot strand the account', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app) // no identities → these wallets are the ONLY credentials
-  const w1 = await link(app, u.row.id, { is_primary: false })
-  const w2 = await link(app, u.row.id, { is_primary: false })
+  const w1 = await linkWallet(app, u.row.id, { is_primary: false })
+  const w2 = await linkWallet(app, u.row.id, { is_primary: false })
 
   // Drive the core directly (the race is at the DB layer, below the route) so
   // the two transactions genuinely run in parallel on the pool — without the
@@ -217,60 +210,4 @@ test('unlink-wallet: concurrent unlinks of two wallets cannot strand the account
   // The account is never stranded — exactly one wallet remains.
   const left = await app.db.select().from(user_wallets).where(eq(user_wallets.user_id, u.row.id))
   assert.strictEqual(left.length, 1)
-})
-
-// ---------- set-primary-wallet ---------------------------------------------------
-
-test('set-primary-wallet: 422 on invalid input', { skip }, async () => {
-  const app = getApp()
-  const u = await createUser(app)
-  const res = await app.inject({
-    method: 'POST', url: '/v1/auth/set-primary-wallet', headers: authHeader(u.token), payload: {},
-  })
-  assert.strictEqual(res.statusCode, 422)
-})
-
-test('set-primary-wallet: 404 when the wallet is not linked', { skip }, async () => {
-  const app = getApp()
-  const u = await createUser(app)
-  const res = await app.inject({
-    method: 'POST', url: '/v1/auth/set-primary-wallet', headers: authHeader(u.token),
-    payload: { chain_ns: 'solana', address: 'Unknown1111111111111111111111111111111111' },
-  })
-  assert.strictEqual(res.statusCode, 404)
-})
-
-test('set-primary-wallet: 200 swaps the primary marker', { skip }, async () => {
-  const app = getApp()
-  const u = await createUser(app)
-  await link(app, u.row.id, { is_primary: true })
-  const next = await link(app, u.row.id, { is_primary: false })
-  const res = await app.inject({
-    method: 'POST', url: '/v1/auth/set-primary-wallet', headers: authHeader(u.token),
-    payload: { chain_ns: next.chain_ns, address: next.address },
-  })
-  assert.strictEqual(res.statusCode, 200)
-  assert.strictEqual(res.json().primary.address, next.address)
-})
-
-test('set-primary-wallet: matches a legacy mixed-case EVM row, returns the stored address', { skip }, async () => {
-  const app = getApp()
-  const u = await createUser(app)
-  await link(app, u.row.id, { is_primary: true })
-  const mixed = `0xAbC${(addrSeq++).toString(16).padStart(37, '0')}`
-  await app.db.insert(user_wallets).values({
-    chain_ns: 'eip155', address: mixed, user_id: u.row.id, is_primary: false,
-  })
-  const res = await app.inject({
-    method: 'POST', url: '/v1/auth/set-primary-wallet', headers: authHeader(u.token),
-    payload: { chain_ns: 'eip155', address: mixed.toLowerCase() }, // different case than stored
-  })
-  assert.strictEqual(res.statusCode, 200)
-  // The response echoes the ACTUAL stored address, and the marker really moved.
-  assert.strictEqual(res.json().primary.address, mixed)
-  const [row] = await app.db
-    .select({ is_primary: user_wallets.is_primary })
-    .from(user_wallets)
-    .where(and(eq(user_wallets.user_id, u.row.id), eq(user_wallets.address, mixed)))
-  assert.strictEqual(row?.is_primary, true)
 })

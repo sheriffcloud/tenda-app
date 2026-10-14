@@ -162,7 +162,7 @@ const s = StyleSheet.create({
     minWidth: 0,
   },
   eyebrow: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 9.5,
     lineHeight: 12,
     fontWeight: '600',

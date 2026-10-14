@@ -27,7 +27,7 @@ import type {
   InitiateResult,
   PaymentInstruction,
   DepositInstruction,
-} from '../types'
+} from '../core/types'
 
 export interface LicensedProviderSpec {
   id: string

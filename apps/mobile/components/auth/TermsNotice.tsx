@@ -1,7 +1,7 @@
 import { Linking, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
-import { APP_INFO } from '@/lib/app-info'
+import { APP_INFO } from '@tenda/shared'
 
 /**
  * Shared "By {verb} you agree to our Terms and Privacy" line for the auth

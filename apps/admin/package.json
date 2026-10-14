@@ -1,15 +1,16 @@
 {
   "name": "admin",
   "version": "0.1.0",
+  "license": "BUSL-1.1",
   "private": true,
   "scripts": {
     "dev": "NODE_ENV=development next dev -p 3100",
     "build": "NODE_ENV=production next build",
     "start": "NODE_ENV=production next start -p 3100",
     "type-check": "tsc --noEmit",
-    "test": "NODE_ENV=test vitest run",
+    "test": "NODE_ENV=test systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 vitest run",
     "test:watch": "NODE_ENV=test vitest",
-    "test:coverage": "NODE_ENV=test vitest run --coverage",
+    "test:coverage": "NODE_ENV=test systemd-run --user --scope -q -p MemoryMax=6G -p MemorySwapMax=0 vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
@@ -58,6 +59,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.19.2",
     "typescript": "^5",
+    "vite": "^7.3.1",
     "vitest": "^3.2.4"
   }
 }

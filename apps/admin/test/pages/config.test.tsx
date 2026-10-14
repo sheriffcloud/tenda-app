@@ -28,7 +28,6 @@ const err = vi.mocked(toast.error)
 const CONFIG: AdminPlatformConfig = {
   id: 1,
   ...PLATFORM_CONFIG_DEFAULTS,
-  approval_window_seconds: 172_800,
   default_sponsored_tx_count: 5,
   moderation_rules_version: 2,
 }
@@ -38,16 +37,20 @@ beforeEach(() => vi.clearAllMocks())
 test('loads config into the editable fields + read-only section', async () => {
   get.mockResolvedValue(CONFIG)
   renderPage(<ConfigPage />)
-  expect(await screen.findByLabelText('Platform fee (bps)')).toHaveValue(250)
-  expect(screen.getByLabelText('Seeker fee (bps)')).toHaveValue(100)
-  expect(screen.getByText('172800')).toBeInTheDocument() // read-only approval window
+  // The fee is READ-ONLY text now (it lives on each contract; fee:set changes it): no field, a note.
+  const fees = await screen.findByTestId('fees-readonly')
+  expect(fees).toHaveTextContent('250 bps standard, 100 bps seeker')
+  expect(fees).toHaveTextContent('fee:set')
+  expect(screen.queryByLabelText('Platform fee (bps)')).toBeNull()
+  expect(screen.queryByLabelText('Seeker fee (bps)')).toBeNull()
+  expect(await screen.findByLabelText('Grace period (seconds)')).toHaveValue(PLATFORM_CONFIG_DEFAULTS.grace_period_seconds)
 })
 
-test('a cleared field blocks the save instead of zeroing the fee', async () => {
+test('a cleared field blocks the save instead of zeroing it', async () => {
   get.mockResolvedValue(CONFIG)
   renderPage(<ConfigPage />)
-  const fee = await screen.findByLabelText('Platform fee (bps)')
-  await userEvent.clear(fee)
+  const grace = await screen.findByLabelText('Grace period (seconds)')
+  await userEvent.clear(grace)
   await userEvent.click(screen.getByRole('button', { name: 'Save' }))
   expect(err).toHaveBeenCalledWith('Every field needs a whole number')
   expect(update).not.toHaveBeenCalled()
@@ -55,17 +58,15 @@ test('a cleared field blocks the save instead of zeroing the fee', async () => {
 
 test('a valid save PATCHes the config and toasts success', async () => {
   get.mockResolvedValue(CONFIG)
-  update.mockResolvedValueOnce({ ...CONFIG, fee_bps: 300 })
+  update.mockResolvedValueOnce({ ...CONFIG, grace_period_seconds: 7_200 })
   renderPage(<ConfigPage />)
-  const fee = await screen.findByLabelText('Platform fee (bps)')
-  await userEvent.clear(fee)
-  await userEvent.type(fee, '300')
+  const grace = await screen.findByLabelText('Grace period (seconds)')
+  await userEvent.clear(grace)
+  await userEvent.type(grace, '7200')
   await userEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() =>
     expect(update).toHaveBeenCalledWith({
-      fee_bps: 300,
-      seeker_fee_bps: PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps,
-      grace_period_seconds: PLATFORM_CONFIG_DEFAULTS.grace_period_seconds,
+      grace_period_seconds: 7_200,
       max_pending_gigs: PLATFORM_CONFIG_DEFAULTS.max_pending_gigs,
       unassign_window_seconds: PLATFORM_CONFIG_DEFAULTS.unassign_window_seconds,
       max_open_applications: PLATFORM_CONFIG_DEFAULTS.max_open_applications,
@@ -103,14 +104,9 @@ test('a cleared capacity field blocks the save', async () => {
 test('input bounds come from the shared constants the server validates against', async () => {
   get.mockResolvedValue(CONFIG)
   renderPage(<ConfigPage />)
-  const fee = await screen.findByLabelText('Platform fee (bps)')
-  // Regression: this was hardcoded to 10000 while the API caps at 1000, so the
-  // form accepted values the server then rejected.
-  expect(fee).toHaveAttribute('max', String(ESCROW_LIMITS.maxPlatformFeeBps))
-  expect(screen.getByLabelText('Seeker fee (bps)')).toHaveAttribute(
-    'max', String(ESCROW_LIMITS.maxPlatformFeeBps),
-  )
-  expect(screen.getByLabelText('Grace period (seconds)')).toHaveAttribute(
+  // (The fee inputs are gone: the fee is read-only here and changed with fee:set.)
+  // Regression: the bounds were once hardcoded, so the form accepted values the server then rejected.
+  expect(await screen.findByLabelText('Grace period (seconds)')).toHaveAttribute(
     'max', String(ESCROW_LIMITS.maxGracePeriodSeconds),
   )
   expect(screen.getByLabelText('Max concurrent gigs / worker')).toHaveAttribute(

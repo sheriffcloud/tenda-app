@@ -54,11 +54,11 @@ export const user_standing = pgTable(
     fraud_confirmed_count: integer('fraud_confirmed_count').notNull().default(0),
 
     // Active restriction — the authoritative gate; middleware reads ONLY this.
-    restriction_until: timestamp('restriction_until'),
+    restriction_until: timestamp('restriction_until', { withTimezone: true }),
     restriction_kind: restrictionKindEnum('restriction_kind'),
     restriction_reason: text('restriction_reason'),
 
-    updated_at: timestamp('updated_at')
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -85,7 +85,7 @@ export const standing_events = pgTable(
     escrow_id: uuid('escrow_id').references(() => escrows.id, { onDelete: 'set null' }),
     kind: standingEventKindEnum('kind').notNull(),
     role: text('role', { enum: ['creator', 'counterparty'] }).notNull(),
-    recorded_at: timestamp('recorded_at').notNull().defaultNow(),
+    recorded_at: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('standing_events_user_idx').on(t.user_id, t.recorded_at)],
 )
@@ -102,5 +102,5 @@ export const standing_overrides = pgTable('standing_overrides', {
   applied_by: uuid('applied_by')
     .notNull()
     .references(() => users.id, { onDelete: 'restrict' }),
-  applied_at: timestamp('applied_at').notNull().defaultNow(),
+  applied_at: timestamp('applied_at', { withTimezone: true }).notNull().defaultNow(),
 })

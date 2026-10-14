@@ -31,7 +31,7 @@ export function AppVersion({ marginTop = 34, style }: AppVersionProps) {
 const s = StyleSheet.create({
   version: {
     textAlign: 'center',
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 11,
     letterSpacing: 0.44,
   },

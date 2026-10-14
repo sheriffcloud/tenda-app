@@ -14,9 +14,10 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { encodeAbiParameters, encodeEventTopics } from 'viem'
+import { encodeApprove } from '@tenda/shared'
 import { ESCROW_EVM_ABI } from '@server/chains/evm/rpc'
-import { decodeEscrowLogs } from '@server/chains/evm/verify'
-import { verifyEvmReceipt } from '@server/chains/evm/verify-receipt'
+import { decodeEscrowLogs } from '@server/chains/evm/verify/verify'
+import { verifyEvmReceipt } from '@server/chains/evm/verify/verify-receipt'
 
 const CHAIN_ID = 'eip155:84532'
 /** Two generations of the same escrow contract on one chain. */
@@ -206,6 +207,8 @@ function adapterFor(current: `0x${string}`) {
       resolveWalletAddress: async () => CREATOR,
       resolveAsset: async () => ({ token_address: TOKEN }),
       rpc: {
+        async readApprovalWindow() { return 172_800n },
+        async readFees() { return { feeBps: 250, seekerFeeBps: 100 } },
         async getTransactionReceipt() {
           return null
         },
@@ -266,6 +269,11 @@ test('create with a permit against a PREVIOUS contract: hint takes over, never n
     token: TOKEN,
     spender: PREVIOUS,
     amount_raw: '25000000',
+    // The approve the client will send, built server-side so it can be tagged
+    // (#103). It must name the SUPERSEDED contract too — the whole point of
+    // this branch is that the allowance has to reach the escrow that will
+    // actually pull, and calldata naming the current one would revert.
+    data: encodeApprove(PREVIOUS, '25000000'),
   })
 })
 
@@ -294,6 +302,8 @@ test('the known set dedupes across casings, not just across duplicates', async (
       resolveWalletAddress: async () => CREATOR,
       resolveAsset: async () => ({ token_address: null }),
       rpc: {
+        async readApprovalWindow() { return 172_800n },
+        async readFees() { return { feeBps: 250, seekerFeeBps: 100 } },
         async getTransactionReceipt() {
           return { block_number: 1n, status: 'success' as const, logs: [createdLog(CURRENT)] }
         },

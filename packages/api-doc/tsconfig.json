@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    // Node16, not CommonJS: `@tenda/shared/db/schema` is an exports-map
+    // subpath, and only node16/nodenext resolution reads one. The package has
+    // no `"type": "module"`, so the emit is still CommonJS — the same shape
+    // the server and every other consumer loads.
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "ts-node": {
+    "transpileOnly": true
+  },
+  "include": ["src/**/*.ts"]
+}

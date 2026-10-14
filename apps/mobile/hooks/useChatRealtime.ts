@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
-import { useRealtimeStore, subscribeChatChannel } from '@/stores/realtime.store'
+import {
+  useRealtimeStore,
+  subscribeChatChannel,
+  setOpenConversation,
+  clearOpenConversation,
+} from '@/stores/realtime.store'
 import { useMessagePolling } from './useMessagePolling'
 
 const READ_SYNC_DEBOUNCE_MS = 1_000
@@ -22,6 +27,9 @@ export function useChatRealtime(conversationId: string | null) {
 
   useEffect(() => {
     if (!conversationId) return
+    // Tells the `user:<id>` inbox mirror to leave this conversation alone while
+    // it is on screen — see subscribeUserChannel (#56).
+    setOpenConversation(conversationId)
     const myId = useAuthStore.getState().user?.id
     const unsubscribe = subscribeChatChannel(conversationId, (message) => {
       if (message.sender_id === myId) return
@@ -33,6 +41,7 @@ export function useChatRealtime(conversationId: string | null) {
       }, READ_SYNC_DEBOUNCE_MS)
     })
     return () => {
+      clearOpenConversation(conversationId)
       unsubscribe()
       if (readSyncTimer.current) clearTimeout(readSyncTimer.current)
     }

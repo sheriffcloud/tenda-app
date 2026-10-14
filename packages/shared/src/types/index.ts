@@ -1,3 +1,4 @@
+export type { LoadStatus } from './load-status'
 export type {
   User,
   NewUser,
@@ -30,7 +31,15 @@ export type {
   UserTransactionsQuery,
   UserTransactionsSummary,
 } from './escrow'
-export type { GigSummary, GigDetail, GigCategory, GigListQuery, CreateGigDetailsBody } from './gig'
+export type {
+  GigSummary,
+  GigDetail,
+  GigCategory,
+  GigListQuery,
+  GigFacets,
+  GigFacetsQuery,
+  CreateGigDetailsBody,
+} from './gig'
 export type {
   GigApplication,
   GigApplicant,
@@ -42,12 +51,18 @@ export type {
   AssignWorkerBody,
   ReleaseAssignmentResponse,
 } from './application'
-export type { ExchangeSummary, ExchangeDetail, ExchangePayoutAccount, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
+export type { ExchangeSummary, ExchangeDetail, ExchangePartyRef, ExchangePayoutAccount, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
 export type { Review, NewReview, ReviewInput, GetUserReviewsQuery } from './review'
 export type { NotificationWire, AnnouncementWire, NotificationFeed, NotificationsQuery } from './notification'
 export type { CloudinarySignature, UploadType, ScopedUploadType } from './upload'
 export { SCOPED_UPLOAD_TYPES, isScopedUploadType } from './upload'
-export type { MessageAttachmentType, AttachmentFields, AttachmentInput } from './attachment'
+export type {
+  MessageAttachmentType,
+  AttachmentFields,
+  AttachmentInput,
+  UploadedAttachment,
+  AttachmentPress,
+} from './attachment'
 export type { PaginatedResponse, ApiError, QueryParams, QueryValue } from './api'
 export { assertQueryShape } from './api'
 export type {
@@ -60,6 +75,7 @@ export type {
   UpsertSubscriptionInput,
   RegisterDeviceTokenInput,
   MessagesQuery,
+  ConversationsQuery,
 } from './chat'
 export { ATTACHMENT_PREVIEW } from './chat'
 export type { CreateReportInput } from './moderation'
@@ -67,6 +83,18 @@ export { REPORT_STATUSES, REPORT_CONTENT_TYPES } from '../constants/moderation'
 export type {
   AdminEscrowRow,
   AdminEscrowListQuery,
+  Wire,
+  AdminUserListRow,
+  AdminUserDetail,
+  AdminUserStatusResult,
+  AdminUserRoleResult,
+  AdminSessionUser,
+  AdminSendEmailOtpResponse,
+  AdminVerifyEmailOtpResponse,
+  ModerationVerdictRow,
+  AdminFiatIntentRow,
+  AdminFiatProviderRow,
+  AdminMetrics,
   AdminPlatformConfig,
   AdminAuditEntry,
   Report,

@@ -35,6 +35,14 @@ export function isEscrowTxType(v: unknown): v is EscrowTxType {
 export const DEFAULT_ACCEPT_WINDOW_SECONDS = 7 * 24 * 60 * 60
 
 /**
+ * Seconds in an hour — the unit `ACCEPT_DEADLINE_OPTIONS` is authored in and
+ * the wire is measured in. Named because #41 converts between the two in three
+ * places (the bound, and each composer), and three loose `3600`s is how the
+ * pickers and the API drift apart.
+ */
+export const SECONDS_PER_HOUR = 3_600
+
+/**
  * Selectable accept-window options (in hours) for the create flows — how long
  * an escrow stays open for a counterparty to accept. Shared by the gig form and
  * the exchange offer form (both are escrows); the server only requires a future
@@ -60,13 +68,22 @@ export const ACCEPT_DEADLINE_OPTIONS: readonly { label: string; hours: number }[
 export const AMOUNT_RAW_PRECISION = 78
 
 /**
- * Canonical escrow lifecycle status order. The INDEX is the on-chain `uint8`
- * wire value on every chain — the EVM `Status` enum and the Anchor
- * `EscrowStatus` enum both number their variants in exactly this order. This
- * is the single app-side source the server decodes EVM receipts against; the
+ * Canonical escrow status WIRE ORDER. The INDEX is the on-chain `uint8`
+ * value on every chain — the EVM `Status` enum and the Anchor `EscrowStatus`
+ * enum both number their variants in exactly this order. This is the single
+ * app-side source the server decodes EVM receipts against; the
  * `check-contract-parity` guard asserts it equals both contracts' enums, so a
  * contract reorder (invisible to the ABI, which renders enums as bare `uint8`)
  * fails CI instead of silently mis-decoding.
+ *
+ * NOT a lifecycle sequence, and not a UI timeline. The array interleaves one
+ * progressive path (open → accepted → submitted → completed) with four
+ * TERMINAL states (cancelled, refunded, disputed, resolved) that branch off
+ * wherever the escrow happens to be. Rendering this array in order implies
+ * disputes follow completion, which is wrong. A timeline should draw the
+ * progressive path as its spine and terminals as a branch from the current
+ * node — the same reason there is no `expired`: expiry resolves to `refunded`,
+ * which only makes sense as a branch.
  */
 export const ESCROW_STATUS_ORDER = [
   'open',
@@ -98,6 +115,13 @@ export type EscrowStatusName = (typeof ESCROW_STATUS_ORDER)[number]
  * half-finished create inflated the number the user reads as "gigs I posted".
  */
 export const POSTED_ESCROW_STATUSES = ESCROW_STATUS_ORDER
+
+/**
+ * Posted gigs that still need the poster's attention — funded, not yet
+ * settled. Behind the profile's "N active" affordance and the overview
+ * endpoint's `active` count; web and mobile each hand-listed it before.
+ */
+export const ACTIVE_ESCROW_STATUSES = ['open', 'accepted', 'submitted'] as const satisfies readonly EscrowStatusName[]
 
 /**
  * Whether an escrow still has value held by the contract.

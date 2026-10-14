@@ -10,7 +10,8 @@ jest.mock('@/lib/secure-store', () => ({
   getJwtToken: jest.fn(),
 }))
 
-import { request, ApiClientError } from '@/api/request'
+import { ApiClientError } from '@tenda/shared'
+import { request } from '@/api/request'
 import { getJwtToken } from '@/lib/secure-store'
 
 const getJwt = getJwtToken as jest.Mock
@@ -151,6 +152,41 @@ describe('request, error envelope', () => {
       code: 'UNAUTHORIZED',
       message: 'Invalid or missing token',
     })
+  })
+
+  it('forwards the envelope details, the half a wrong-wallet retry needs', async () => {
+    // `requiredWalletOf` reads details.required_address to re-target the
+    // signer. Dropped, an ESCROW_WRONG_WALLET refusal is a dead end.
+    getJwt.mockResolvedValue(null)
+    mockFetch(422, {
+      statusCode: 422,
+      error: 'Unprocessable Entity',
+      message: 'This escrow is signed by another wallet',
+      code: 'ESCROW_WRONG_WALLET',
+      details: { required_address: '0xabc' },
+    })
+
+    const pending = request('POST', '/v1/escrows/:id/submit', { params: { id: 'e1' } })
+    await expect(pending).rejects.toMatchObject({
+      code: 'ESCROW_WRONG_WALLET',
+      details: { required_address: '0xabc' },
+    })
+  })
+
+  it('leaves details undefined when the envelope carries none', async () => {
+    // The negative half: most refusals have no payload, and inventing an
+    // empty object there would make `err.details?.x` reads look answered.
+    getJwt.mockResolvedValue(null)
+    mockFetch(404, {
+      statusCode: 404,
+      error: 'Not Found',
+      message: 'Escrow not found',
+      code: 'ESCROW_NOT_FOUND',
+    })
+
+    const pending = request('GET', '/v1/escrows/:id', { params: { id: 'e1' } })
+    await expect(pending).rejects.toMatchObject({ code: 'ESCROW_NOT_FOUND' })
+    await expect(pending).rejects.toHaveProperty('details', undefined)
   })
 })
 

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
-import type { AssetBalance } from '@/wallet/balances'
-import { readSpendableBalance } from '@/wallet/balances'
+import type { AssetBalance } from '@tenda/shared'
+import { readSpendableBalance } from '@tenda/shared'
 import { resolveSignersForChain } from '@/wallet/dispatch'
 import { selectChainById, useChainRegistryStore } from '@/stores/chain-registry.store'
 

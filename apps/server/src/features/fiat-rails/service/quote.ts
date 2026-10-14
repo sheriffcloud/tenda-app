@@ -12,9 +12,9 @@
 import { randomUUID } from 'node:crypto'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode, EXCHANGE_MAX_FIAT_AMOUNT } from '@tenda/shared'
-import { QUOTE_TTL_MS } from '../config'
-import { pickCandidates } from '../routing'
-import type { QuoteRequest } from '../types'
+import { QUOTE_TTL_MS } from '../core/config'
+import { pickCandidates } from '../core/routing'
+import type { QuoteRequest } from '../core/types'
 import type { FiatDeps } from './deps'
 
 export interface QuoteInput extends Omit<QuoteRequest, 'user_id'> {

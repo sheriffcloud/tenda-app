@@ -14,7 +14,12 @@ const mockShowToast = jest.fn()
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockShowToast(...a) }))
 
 const mockSignSendAndReport = jest.fn()
+const mockSettleSignerFor: jest.Mock<Promise<void>, [string]> = jest.fn()
+const mockDeclaredSignerFor: jest.Mock<string | undefined, [string]> = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({
+  // The signer declaration: settled (a no-op off EVM) then read.
+  settleSignerFor: (chainId: string) => mockSettleSignerFor(chainId),
+  declaredSignerFor: (chainId: string) => mockDeclaredSignerFor(chainId),
   signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a),
   resolveSignersForChain: (...a: unknown[]) => mockResolveSigners(...a),
 }))
@@ -43,7 +48,7 @@ jest.mock('@/stores/escrow.store', () => ({
 
 jest.mock('@/api/client', () => ({
   api: {},
-  ApiClientError: class ApiClientError extends Error {},
+  ApiClientError: jest.requireActual('@tenda/shared').ApiClientError,
 }))
 
 import { useEscrowActions } from '@/hooks/useEscrowActions'
@@ -70,6 +75,8 @@ beforeEach(() => {
   mockRequestDispute.mockReset().mockResolvedValue(UNSIGNED)
   mockRequestAccept.mockReset().mockResolvedValue(UNSIGNED)
   mockRequestApprove.mockReset().mockResolvedValue(UNSIGNED)
+  mockSettleSignerFor.mockReset().mockResolvedValue(undefined)
+  mockDeclaredSignerFor.mockReset().mockReturnValue('DECLARED')
 })
 
 // --- publish (funds the escrow) --------------------------------------------
@@ -107,8 +114,41 @@ test('publish proceeds when the balance covers it', async () => {
 
   await act(async () => { await result.current.publish() })
 
-  expect(mockRequestBuildCreate).toHaveBeenCalledWith('e1')
+  // The publish build carries the SIGNER DECLARATION — omit it and the server
+  // bakes the primary while the user signs with the connected wallet.
+  expect(mockRequestBuildCreate).toHaveBeenCalledWith('e1', 'DECLARED')
   expect(mockSignSendAndReport).toHaveBeenCalled()
+})
+
+test('accept declares its signer too — a public accept has a FREE one', async () => {
+  const { result } = renderHook(() => useEscrowActions(ARGS))
+
+  await act(async () => { await result.current.accept() })
+
+  expect(mockRequestAccept).toHaveBeenCalledWith('e1', 'DECLARED')
+})
+
+test('the signer is settled BEFORE it is declared on every free build', async () => {
+  // Reading the slot first would name the primary and then sign with whatever
+  // wallet the user connects a moment later — the mismatch this exists to stop.
+  const order: string[] = []
+  mockSettleSignerFor.mockImplementation(() => { order.push('settle'); return Promise.resolve() })
+  mockDeclaredSignerFor.mockImplementation(() => { order.push('declare'); return 'DECLARED' })
+  mockRequestAccept.mockImplementation(() => { order.push('build'); return Promise.resolve(UNSIGNED) })
+
+  const { result } = renderHook(() => useEscrowActions(ARGS))
+  await act(async () => { await result.current.accept() })
+
+  expect(order).toEqual(['settle', 'declare', 'build'])
+})
+
+test('a chain with no resolvable signer declares nothing rather than guessing', async () => {
+  mockDeclaredSignerFor.mockReturnValue(undefined)
+  const { result } = renderHook(() => useEscrowActions(ARGS))
+
+  await act(async () => { await result.current.accept() })
+
+  expect(mockRequestAccept).toHaveBeenCalledWith('e1', undefined)
 })
 
 // --- dispute (posts the bond) ----------------------------------------------

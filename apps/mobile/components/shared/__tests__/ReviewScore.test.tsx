@@ -10,7 +10,7 @@ import { ReviewScore } from '../ReviewScore'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
-    theme: { colors: { accent: { primary: '#fa0' }, content: { tertiary: '#999' } } },
+    theme: { colors: { feedback: { warning: { base: '#fa0' } }, content: { tertiary: '#999' } } },
   }),
 }))
 jest.mock('@/components/ui/Text', () => {

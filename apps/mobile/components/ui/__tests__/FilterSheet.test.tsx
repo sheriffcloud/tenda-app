@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { CATEGORY_LABELS } from '@tenda/shared'
 import { colors } from '@/theme/tokens'
 import { FilterSheet } from '../FilterSheet'
 
@@ -14,7 +15,6 @@ jest.mock('lucide-react-native', () => ({ Search: () => null, X: () => null }))
 jest.mock('@/components/form/LocationPicker', () => ({ LocationPicker: () => null }))
 jest.mock('@/components/ui/Chip', () => {
   // Jest mock factories cannot close over the module's top-level React Native import.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Pressable, Text } = require('react-native')
   return {
     Chip: ({ label, onPress }: { label: string; onPress: () => void }) => (
@@ -69,7 +69,7 @@ it('toggles the selected category off and selects a different category', () => {
   expect(baseProps.onCategoryChange).toHaveBeenCalledWith(null)
 
   rerender(<FilterSheet {...baseProps} selectedCategory={null} />)
-  fireEvent.press(screen.getByText('Photo'))
+  fireEvent.press(screen.getByText(CATEGORY_LABELS.photo))
   expect(baseProps.onCategoryChange).toHaveBeenLastCalledWith('photo')
 })
 

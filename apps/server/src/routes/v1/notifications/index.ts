@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { loadViewer, loadFeed, countUnread } from '@server/lib/notifications-read'
+import { loadViewer, loadFeed, countUnread } from '@server/features/notifications/store/read'
 import type { NotificationsContract, NotificationFeed, ApiError } from '@tenda/shared'
 
 type ListRoute = NotificationsContract['list']

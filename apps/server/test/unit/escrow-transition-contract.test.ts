@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { ESCROW_TRANSITION_SYNC } from '@tenda/shared'
-import { EVENT_APPLICATIONS } from '@server/lib/escrow-events'
+import { EVENT_APPLICATIONS } from '@server/features/escrows/events'
 
 test('every server event uses the shared guard and destination for its tx type', () => {
   for (const application of Object.values(EVENT_APPLICATIONS)) {

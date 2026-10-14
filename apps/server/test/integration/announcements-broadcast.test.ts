@@ -18,8 +18,9 @@ import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { notifications, device_tokens } from '@tenda/shared/db/schema'
-import { handleNotificationRetention } from '@server/workers/notification-retention'
+import { handleNotificationRetention } from '@server/queue/workers/notification-retention'
 import {
+  MS_PER_DAY,
   NOTIFICATION_RETENTION_READ_DAYS,
   NOTIFICATION_RETENTION_MAX_DAYS,
 } from '@tenda/shared'
@@ -60,8 +61,6 @@ async function feedAnnouncementIds(app: FastifyInstance, token: string): Promise
   const res = await app.inject({ method: 'GET', url: FEED_URL, headers: authHeader(token) })
   return new Set(res.json().announcements.map((a: { id: string }) => a.id))
 }
-
-const DAY_MS = 24 * 3_600_000
 
 async function insertNotif(app: FastifyInstance, userId: string, created_at: Date, read_at: Date | null): Promise<string> {
   const id = randomUUID()
@@ -173,7 +172,7 @@ test('retention prunes read>60d and any>180d, keeps recent unread + recent read'
   const app = getApp()
   const user = await createUser(app, { role: 'user' })
   const now = new Date()
-  const daysAgo = (d: number) => new Date(now.getTime() - d * DAY_MS)
+  const daysAgo = (d: number) => new Date(now.getTime() - d * MS_PER_DAY)
 
   const recentUnread = await insertNotif(app, user.row.id, daysAgo(1), null)
   const recentRead = await insertNotif(app, user.row.id, daysAgo(10), daysAgo(5))

@@ -9,9 +9,9 @@ Autoloaded Fastify routes (`@fastify/autoload` in `app.ts`). Conventions:
 - Cross-route functionality (db, auth decorators, queue, guards) comes from
   `plugins/` + `lib/`, routes stay thin: parse → guard → service call → reply.
 - Error envelope: throw `AppError` with an `ErrorCode` from `@tenda/shared`
-  (`lib/http-errors.ts` renders it); never hand-roll error JSON.
+  (`lib/errors/http.ts` renders it); never hand-roll error JSON.
 - Auth: `fastify.authenticate` preHandler + `requireRole` / `requirePermission`
-  guards (`lib/guards.ts`); admin surfaces additionally pass the `ADMIN_ORIGIN`
+  guards (`lib/http/guards.ts`); admin surfaces additionally pass the `ADMIN_ORIGIN`
   CORS scope.
 
 Route matrix integration tests: `test/integration/` (real app via

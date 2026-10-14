@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert'
 import type { FastifyInstance } from 'fastify'
-import { sendAdminLoginOtp, type AdminOtpDeps } from '../../src/lib/admin-otp'
+import { sendAdminLoginOtp, type AdminOtpDeps } from '../../src/features/auth/admin/admin-otp'
 
 /** Issue a code via the lib with a capturing sender; returns the code. */
 export async function issueAdminCode(

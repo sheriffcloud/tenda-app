@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { dedupKey, parseDedupKey } from '@server/core/queue/idempotency'
+import { dedupKey, parseDedupKey } from '@server/queue/idempotency'
 
 test('dedupKey: well-formed inputs round-trip', () => {
   const key = dedupKey({ chain_ns: 'solana', tx_ref: '5xj_nQ4', event: 'EscrowAccepted' })

@@ -5,8 +5,8 @@ import { useUnistyles } from 'react-native-unistyles'
 import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
 import { OtpCodeField } from '@/components/auth/OtpCodeField'
 import { useAuthStore } from '@/stores/auth.store'
-import { api, ApiClientError } from '@/api/client'
-import { verifyErrorMessage } from '@/lib/auth-flow'
+import { api } from '@/api/client'
+import { ApiClientError, verifyErrorMessage } from '@tenda/shared'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
 
 const CODE_LENGTH = 6

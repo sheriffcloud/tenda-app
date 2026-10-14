@@ -6,8 +6,7 @@ import { spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Spacer } from '@/components/ui/Spacer'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
-import { chainLabel } from '@/lib/chains'
-import { formatAssetAmount } from '@tenda/shared'
+import { chainLabel, formatAssetAmount } from '@tenda/shared'
 import type { EscrowListRow } from '@tenda/shared'
 
 /**
@@ -18,7 +17,7 @@ import type { EscrowListRow } from '@tenda/shared'
 export function MyOfferRow({ offer, side }: { offer: EscrowListRow; side: 'selling' | 'buying' }) {
   const router = useRouter()
   const { theme } = useUnistyles()
-  const sideColor = side === 'selling' ? theme.colors.brand.primary : theme.colors.accent.primary
+  const sideColor = side === 'selling' ? theme.colors.brand.primary : theme.colors.feedback.warning.base
   return (
     <Pressable
       onPress={() => router.push(`/exchange/${offer.id}` as never)}

@@ -1,7 +1,7 @@
 import { test, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { Report } from '@tenda/shared'
+import { reportRow } from '../fixtures'
 import { ReportActionDialog } from '@/components/reports/action-dialog'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
@@ -14,7 +14,7 @@ const action = vi.mocked(adminApi.reports.action)
 const ok = vi.mocked(toast.success)
 const err = vi.mocked(toast.error)
 
-const REPORT = { id: 'r1', reason: 'spam' } as Report
+const REPORT = reportRow({ id: 'r1', reason: 'spam' })
 
 beforeEach(() => {
   vi.clearAllMocks()

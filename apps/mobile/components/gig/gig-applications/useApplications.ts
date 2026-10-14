@@ -9,11 +9,17 @@
  */
 
 import { useCallback, useState } from 'react'
-import { APPLICATION_STATUSES, type GigApplicant } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
-import { isTakedownRefusal } from '@/lib/takedown-refusal'
+import {
+  APPLICATION_STATUSES,
+  type GigApplicant,
+  ApiClientError,
+  isTakedownRefusal,
+  APPLY_SUCCESS,
+  RELEASE_SUCCESS,
+  WITHDRAW_SUCCESS,
+} from '@tenda/shared'
+import { api } from '@/api/client'
 import { showToast } from '@/components/ui'
-import { APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from './copy'
 
 /** Which shortlist rows the poster is looking at. */
 export type ApplicantFilter = 'open' | 'all'
@@ -71,9 +77,15 @@ export function useApplications({ onChanged }: UseApplicationsArgs = {}) {
 
   return {
     busy,
-    apply: (escrowId: string, message: string | null) =>
+    /** `walletAddress` = the wallet to work under (the assign bakes it); the
+     *  server validates it as one of the caller's verified wallets. */
+    apply: (escrowId: string, message: string | null, walletAddress: string) =>
       run(
-        () => api.gigs.apply({ id: escrowId }, message === null ? undefined : { message }),
+        () =>
+          api.gigs.apply(
+            { id: escrowId },
+            { wallet_address: walletAddress, ...(message === null ? {} : { message }) },
+          ),
         APPLY_SUCCESS,
         'Could not send your application, please try again.',
       ),

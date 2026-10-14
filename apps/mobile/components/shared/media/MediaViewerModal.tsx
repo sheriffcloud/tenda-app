@@ -130,7 +130,7 @@ export function MediaViewerModal({ item, onClose }: Props) {
               Opens in your browser
             </Text>
             <Pressable
-              style={[s.openBtn, { backgroundColor: theme.colors.brand.primary }]}
+              style={[s.openBtn, { backgroundColor: theme.colors.brand.solid }]}
               onPress={() => Linking.openURL(item.url)}
             >
               <Text variant="body" weight="semibold" color={theme.colors.brand.onPrimary}>

@@ -10,7 +10,8 @@
 import type { GigApplicant, GigApplication } from '@tenda/shared'
 import type { ApplicantRow, ApplicationRow } from '@server/features/applications/store'
 
-export function toApplicationWire(row: ApplicationRow): GigApplication {
+/** The fields BOTH wires share — everything except the wallet choice. */
+function toApplicationBase(row: ApplicationRow): Omit<GigApplication, 'wallet_address'> {
   return {
     id: row.id,
     escrow_id: row.escrow_id,
@@ -22,10 +23,20 @@ export function toApplicationWire(row: ApplicationRow): GigApplication {
   }
 }
 
-/** The poster's shortlist adds who sent it. */
+/** The applicant's own view carries their wallet choice. */
+export function toApplicationWire(row: ApplicationRow): GigApplication {
+  return { ...toApplicationBase(row), wallet_address: row.wallet_address }
+}
+
+/**
+ * The poster's shortlist adds who sent it — and structurally CANNOT carry the
+ * wallet choice (built from the base, not the applicant wire): only the
+ * assigned worker's wallet ever needs to surface, and the chain publishes it
+ * then; rival applicants' wallets are not the poster's to browse.
+ */
 export function toApplicantWire(row: ApplicantRow): GigApplicant {
   return {
-    ...toApplicationWire(row),
+    ...toApplicationBase(row),
     first_name: row.first_name,
     last_name: row.last_name,
     avatar_url: row.avatar_url,

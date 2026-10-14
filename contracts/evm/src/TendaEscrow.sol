@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.24;
 
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -6,6 +6,7 @@ import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensi
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import {IERC3009} from "./IERC3009.sol";
 
 /// @title TendaEscrow — chain-agnostic escrow primitive (EVM mirror)
 /// @notice Mirrors the Solana Anchor program 1:1 (stage-3-base.md):
@@ -20,6 +21,12 @@ import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/Reentrancy
 ///         - otherwise ERC-20 via SafeERC20: caller approves first, OR uses
 ///           the *WithPermit entry points (EIP-2612 — allowance rides the
 ///           same tx; USDC supports it, cUSD does not).
+///         - RELAYED create (createEscrowFor / createEscrowForWithPermit):
+///           a third party pays the gas, the funds are pulled from the
+///           signer of an EIP-3009 authorization (or an EIP-2612 permit),
+///           and THAT SIGNER is the creator — msg.sender is never a party.
+///           The 3009 nonce is the hash of the whole CreateParams, so one
+///           signature funds exactly one draft on exactly its terms.
 ///         The dispute bond is denominated in the SAME asset as the escrow
 ///         (exactly like the Anchor vaults).
 ///
@@ -82,10 +89,26 @@ contract TendaEscrow is ReentrancyGuard {
         bytes32 s;
     }
 
-    /// @dev Create-time inputs, grouped so the three entry points
-    ///      (createEscrow / createEscrowWithPermit / _create) declare the
-    ///      parameter list ONCE. Mirrors the Anchor `CreateEscrowArgs` struct
-    ///      field-for-field, so the two chains stay readable side by side.
+    /// @dev EIP-3009 `ReceiveWithAuthorization` signature bundle for
+    ///      createEscrowFor. `value` and `nonce` are NOT fields: the contract
+    ///      derives them (value = params.amount, nonce = a hash of the WHOLE
+    ///      params, see `authorizationNonce`), so a relayer — or a stranger who
+    ///      lifted the signature — cannot pull a different amount, aim it at a
+    ///      different draft, or alter a single term: the token's signature
+    ///      check fails on any change.
+    struct Authorization {
+        uint256 validAfter;
+        uint256 validBefore;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
+
+    /// @dev Create-time inputs, grouped so the four entry points (createEscrow,
+    ///      createEscrowWithPermit, createEscrowFor, createEscrowForWithPermit)
+    ///      and the shared _validate/_store declare the parameter list ONCE.
+    ///      Mirrors the Anchor `CreateEscrowArgs` struct field-for-field, so
+    ///      the two chains stay readable side by side.
     struct CreateParams {
         bytes16 escrowId;
         uint8 kind;
@@ -172,6 +195,14 @@ contract TendaEscrow is ReentrancyGuard {
 
     mapping(bytes16 => Escrow) public escrows;
 
+    /// @notice Who may spend an EIP-2612 permit on a signer's behalf
+    ///         (createEscrowForWithPermit). A permit binds an allowance and
+    ///         nothing else — not the draft's terms — so only an operator the
+    ///         admin vouches for (Tenda's relayer, which relays exactly the
+    ///         draft its signer created) may turn one into an escrow. The
+    ///         EIP-3009 path needs no such list: its nonce binds every term.
+    mapping(address => bool) public relayers;
+
     // ---------------------------------------------------------------------
     // Events (stage-3 spec vocabulary — the listener's standing signals)
     // ---------------------------------------------------------------------
@@ -183,6 +214,10 @@ contract TendaEscrow is ReentrancyGuard {
     // amounts — payouts are NET of the platform fee, refunds are the exact
     // amount returned — so off-chain history never reconstructs them.
     event EscrowCreated(bytes16 indexed escrowId, address indexed creator, uint8 kind, address asset, uint256 amount);
+    /// @dev Provenance of a RELAYED create, emitted beside EscrowCreated: the
+    ///      creator is the authorization/permit signer, the relayer the gas
+    ///      payer. Off-chain readers that do not know this event skip it.
+    event EscrowCreatedFor(bytes16 indexed escrowId, address indexed creator, address indexed relayer);
     event EscrowAccepted(bytes16 indexed escrowId, address indexed counterparty, uint64 completion_deadline);
     event EscrowDeclined(bytes16 indexed escrowId, address indexed declined_by);
     /// @dev Approval-mode counterpart of EscrowAccepted: the creator, not the
@@ -220,6 +255,7 @@ contract TendaEscrow is ReentrancyGuard {
         uint256 bond_amount
     );
     event PlatformConfigChanged(string parameter, address indexed changedBy);
+    event RelayerSet(address indexed relayer, bool allowed, address indexed changedBy);
 
     // ---------------------------------------------------------------------
     // Errors (typed — mirror the Anchor TendaError vocabulary)
@@ -248,6 +284,8 @@ contract TendaEscrow is ReentrancyGuard {
     error InvalidWinner();
     error BadNativeValue();
     error NativeAssetPermit();
+    error NativeAssetAuthorization();
+    error NotRelayer();
     error FeeBpsOutOfRange();
     error SeekerFeeAboveFee();
     error ApprovalWindowOutOfRange();
@@ -331,6 +369,13 @@ contract TendaEscrow is ReentrancyGuard {
         emit PlatformConfigChanged("grace_period_seconds", msg.sender);
     }
 
+    /// @notice Allow or revoke a permit relayer (see `relayers`).
+    function setRelayer(address relayer, bool allowed) external onlyAdmin {
+        if (relayer == address(0)) revert ZeroAddress();
+        relayers[relayer] = allowed;
+        emit RelayerSet(relayer, allowed, msg.sender);
+    }
+
     // ---------------------------------------------------------------------
     // Lifecycle
     // ---------------------------------------------------------------------
@@ -341,7 +386,9 @@ contract TendaEscrow is ReentrancyGuard {
     ///         program (the stage-doc's "amount + disputeBond" at create is
     ///         stale; the payable disputeEscrow below is the live design).
     function createEscrow(CreateParams calldata params) external payable nonReentrant {
-        _create(params);
+        _validate(params);
+        _collect(params.asset, params.amount);
+        _store(params, msg.sender);
     }
 
     /// @notice createEscrow with an EIP-2612 permit riding the same tx — no
@@ -349,11 +396,82 @@ contract TendaEscrow is ReentrancyGuard {
     ///         msg.value and needs no allowance).
     function createEscrowWithPermit(CreateParams calldata params, Permit calldata permit_) external nonReentrant {
         if (params.asset == address(0)) revert NativeAssetPermit();
-        _applyPermit(params.asset, permit_);
-        _create(params);
+        _applyPermit(msg.sender, params.asset, permit_);
+        _validate(params);
+        _collect(params.asset, params.amount);
+        _store(params, msg.sender);
     }
 
-    function _create(CreateParams calldata p) private {
+    /// @notice Relayed create, funded by an EIP-3009 authorization that
+    ///         `creator` signed: the caller pays gas, the token pulls
+    ///         `params.amount` from `creator` via receiveWithAuthorization,
+    ///         and `creator` — never msg.sender — becomes the escrow's
+    ///         creator. ERC-20 assets only.
+    /// @dev    The token verifies the signature against `creator`, so a relayer
+    ///         cannot substitute a signer; `to` is this contract, so a lifted
+    ///         authorization cannot be redeemed elsewhere; `value` and `nonce`
+    ///         are derived from `params`, so the signed amount and EVERY term
+    ///         are exactly what gets created — a front-runner can at most pay
+    ///         the gas for the escrow the signer asked for. Parameters are
+    ///         validated BEFORE the pull so a rejected draft leaves the
+    ///         authorization unused.
+    function createEscrowFor(address creator, CreateParams calldata params, Authorization calldata auth)
+        external
+        nonReentrant
+    {
+        if (creator == address(0)) revert ZeroAddress();
+        if (params.asset == address(0)) revert NativeAssetAuthorization();
+        _validate(params);
+        IERC3009(params.asset)
+            .receiveWithAuthorization(
+                creator,
+                address(this),
+                params.amount,
+                auth.validAfter,
+                auth.validBefore,
+                authorizationNonce(params),
+                auth.v,
+                auth.r,
+                auth.s
+            );
+        _store(params, creator);
+        emit EscrowCreatedFor(params.escrowId, creator, msg.sender);
+    }
+
+    /// @notice Relayed create for stables without EIP-3009: `creator` signed
+    ///         an EIP-2612 permit for this contract, the caller pays gas and
+    ///         the funds are pulled from `creator`, who becomes the creator.
+    /// @dev    Same best-effort permit as createEscrowWithPermit (a front-run
+    ///         permit still leaves the allowance in place). Unlike the 3009
+    ///         path a permit binds NOTHING about the draft — a stranger who
+    ///         lifted it, or who merely found a standing allowance, could
+    ///         otherwise lock the signer's funds behind terms of their own —
+    ///         so only an allow-listed relayer may call this, and it relays
+    ///         only the draft its signer created.
+    function createEscrowForWithPermit(address creator, CreateParams calldata params, Permit calldata permit_)
+        external
+        nonReentrant
+    {
+        if (!relayers[msg.sender]) revert NotRelayer();
+        if (creator == address(0)) revert ZeroAddress();
+        if (params.asset == address(0)) revert NativeAssetPermit();
+        _applyPermit(creator, params.asset, permit_);
+        _validate(params);
+        IERC20(params.asset).safeTransferFrom(creator, address(this), params.amount);
+        _store(params, creator);
+        emit EscrowCreatedFor(params.escrowId, creator, msg.sender);
+    }
+
+    /// @notice The EIP-3009 nonce an authorization for `params` must carry:
+    ///         the keccak256 of the ABI-encoded CreateParams. It carries the
+    ///         draft id AND every other term, which is what makes the signature
+    ///         un-alterable by whoever relays it. One place the rule is
+    ///         spelled, callable by whoever builds the signature.
+    function authorizationNonce(CreateParams calldata params) public pure returns (bytes32) {
+        return keccak256(abi.encode(params));
+    }
+
+    function _validate(CreateParams calldata p) private view {
         if (p.kind > KIND_EXCHANGE) revert InvalidKind();
         if (p.amount == 0) revert AmountTooLow();
         if (p.acceptDeadline <= block.timestamp) revert AcceptDeadlineInPast();
@@ -371,15 +489,16 @@ contract TendaEscrow is ReentrancyGuard {
         // dead, misleading state) — reject rather than pick a winner.
         if (p.requiresApproval && p.assignedCounterparty != address(0)) revert ApprovalModeCannotPreassign();
         if (escrows[p.escrowId].creator != address(0)) revert EscrowAlreadyExists();
+    }
 
-        _collect(p.asset, p.amount);
-
+    /// @dev Persist + announce a validated, FUNDED escrow for `creator`.
+    function _store(CreateParams calldata p, address creator) private {
         escrows[p.escrowId] = Escrow({
             escrowId: p.escrowId,
             kind: p.kind,
             asset: p.asset,
             amount: p.amount,
-            creator: msg.sender,
+            creator: creator,
             counterparty: address(0),
             assignedCounterparty: p.assignedCounterparty,
             status: Status.Open,
@@ -394,7 +513,7 @@ contract TendaEscrow is ReentrancyGuard {
             unassignWindowSeconds: p.unassignWindowSeconds
         });
 
-        emit EscrowCreated(p.escrowId, msg.sender, p.kind, p.asset, p.amount);
+        emit EscrowCreated(p.escrowId, creator, p.kind, p.asset, p.amount);
     }
 
     /// @notice The whole escrow record as a named struct.
@@ -538,10 +657,23 @@ contract TendaEscrow is ReentrancyGuard {
     }
 
     /// @notice "Nobody wanted the work" — Open past acceptDeadline.
+    ///
+    /// @dev PERMISSIONLESS by design (#43). Anyone may trigger it; nobody can
+    ///      redirect it, because the payout address is `e.creator` and never
+    ///      `msg.sender`. Two facts make opening the caller safe rather than
+    ///      merely convenient:
+    ///        * the condition is objective — a timestamp, not a judgement;
+    ///        * the escrow is already dead at that timestamp, since
+    ///          acceptEscrow reverts once acceptDeadline passes. Sweeping it
+    ///          removes no option any party still had.
+    ///      Left creator-only, the creator's own funds sit locked until they
+    ///      come back and pay gas to release them to themselves — and an agent
+    ///      that crashed never comes back. cancelEscrow is deliberately NOT
+    ///      opened the same way: it withdraws a LIVE listing and has no time
+    ///      condition, so a stranger calling it would be destroying a gig.
     function refundExpired(bytes16 escrowId) external nonReentrant {
         Escrow storage e = _mustExist(escrowId);
         if (e.status != Status.Open) revert InvalidEscrowStatus();
-        if (msg.sender != e.creator) revert NotCreator();
         if (block.timestamp < e.acceptDeadline) revert AcceptDeadlineNotPassed();
 
         e.status = Status.Refunded;
@@ -552,10 +684,15 @@ contract TendaEscrow is ReentrancyGuard {
 
     /// @notice "Worker took the job and ghosted" — Accepted past
     ///         completionDeadline + grace. Submitted is explicitly excluded.
+    ///
+    /// @dev PERMISSIONLESS on the same terms as refundExpired (#43): pays
+    ///      `e.creator`, never `msg.sender`. The window it opens on is the very
+    ///      boundary at which submitProof stops accepting work, so by the time
+    ///      anyone may call this the counterparty can no longer deliver — the
+    ///      refund takes nothing from them that they had not already lost.
     function reclaimAbandoned(bytes16 escrowId) external nonReentrant {
         Escrow storage e = _mustExist(escrowId);
         if (e.status != Status.Accepted) revert InvalidEscrowStatus();
-        if (msg.sender != e.creator) revert NotCreator();
         if (block.timestamp < e.completionDeadline + gracePeriodSeconds) revert ReclaimWindowNotOpen();
 
         e.status = Status.Refunded;
@@ -586,7 +723,7 @@ contract TendaEscrow is ReentrancyGuard {
         Escrow storage e = _disputable(escrowId);
         if (e.asset == address(0)) revert NativeAssetPermit();
 
-        _applyPermit(e.asset, permit_);
+        _applyPermit(msg.sender, e.asset, permit_);
         _collectBond(e);
 
         _raiseDispute(e, escrowId);
@@ -675,9 +812,9 @@ contract TendaEscrow is ReentrancyGuard {
     ///      set, so the subsequent transferFrom decides. A failed permit
     ///      with no allowance still reverts there. (Standard griefing
     ///      mitigation — do NOT let the permit call bubble.)
-    function _applyPermit(address asset, Permit calldata permit_) private {
+    function _applyPermit(address owner, address asset, Permit calldata permit_) private {
         try IERC20Permit(asset)
-            .permit(msg.sender, address(this), permit_.value, permit_.deadline, permit_.v, permit_.r, permit_.s) {}
+            .permit(owner, address(this), permit_.value, permit_.deadline, permit_.v, permit_.r, permit_.s) {}
             catch {}
     }
 

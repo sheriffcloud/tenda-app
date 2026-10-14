@@ -100,7 +100,7 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   numText: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 13,
     fontWeight: '600',
     includeFontPadding: false,
@@ -133,7 +133,7 @@ const s = StyleSheet.create({
     marginBottom: 3,
   },
   variantLabel: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.9,

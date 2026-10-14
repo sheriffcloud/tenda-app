@@ -7,7 +7,7 @@
  * viewer's actions, e.g. "Withdraw application" on a gig this user never
  * applied to. The error slot has the same problem in reverse.
  */
-/* eslint-disable @typescript-eslint/no-require-imports, react-hooks/exhaustive-deps --
+/* eslint-disable react-hooks/exhaustive-deps --
  * Jest hoists these factories; requiring dependencies inside them avoids
  * pre-initialization access, and the focus-effect stub intentionally runs once. */
 import { render, screen, fireEvent } from '@testing-library/react-native'

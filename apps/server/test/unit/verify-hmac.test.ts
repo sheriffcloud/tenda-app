@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { createHmac } from 'node:crypto'
-import { verifyHmac, MAX_PAYLOAD_BYTES } from '@server/core/webhooks/verify-hmac'
+import { verifyHmac, MAX_PAYLOAD_BYTES } from '@server/lib/http/verify-hmac'
 
 const SECRET = 'test-shared-secret'
 const PAYLOAD = '{"event":"EscrowAccepted","tx":"abc"}'

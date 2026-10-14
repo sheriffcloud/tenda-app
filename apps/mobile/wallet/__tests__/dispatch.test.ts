@@ -26,7 +26,10 @@ jest.mock('@/stores/auth.store', () => ({
 jest.mock('@/stores/escrow.store', () => ({
   useEscrowStore: { getState: jest.fn() },
 }))
-jest.mock('@/wallet/allowance', () => ({
+// ensureAllowance moved to @tenda/shared (2026-08-15). Partial mock: real
+// module for everything else, a spy ONLY for the allowance leg under test.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   ensureAllowance: jest.fn(),
 }))
 jest.mock('@/wallet/ensure-session', () => ({
@@ -40,7 +43,7 @@ import {
 } from '@/wallet/dispatch'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
-import { ensureAllowance } from '@/wallet/allowance'
+import { ensureAllowance } from '@tenda/shared'
 import { ensureEvmSession } from '@/wallet/ensure-session'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
@@ -216,6 +219,9 @@ describe('signAndSendUnsignedTx, evm-tx approval hint', () => {
       spender: '0xEscrow',
       amountRaw: '1000000',
       owner: '0xLive',
+      // The transport seam: dispatch binds ITS wallet sender into the shared
+      // allowance module — the tx must ride the connected session, not RPC.
+      sendTx: sendEvmTransaction,
     })
     expect(order).toEqual(['allowance', 'send'])
   })
@@ -225,6 +231,37 @@ describe('signAndSendUnsignedTx, evm-tx approval hint', () => {
     sendEvmMock.mockResolvedValue('evm-ref')
     await signAndSendUnsignedTx(EVM_TX, 'eip155:84532')
     expect(ensureAllowanceMock).not.toHaveBeenCalled()
+  })
+
+  it('passes the server-built approve calldata through — the tag survives to the wallet', async () => {
+    // #103. The server encodes this approve so it can carry the ERC-8021
+    // suffix; dispatch's only job is not to drop it on the way to
+    // ensureAllowance, which is the one place it could silently be lost.
+    const TAGGED: UnsignedTx = {
+      ...EVM_TX,
+      approval: { token: '0xToken', spender: '0xEscrow', amount_raw: '1000000', data: '0xapproveWithTag' },
+    }
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [evmWallet({ address: '0xLive', is_primary: true })] })
+    ensureAllowanceMock.mockResolvedValue('approved')
+    await signAndSendUnsignedTx(TAGGED, 'eip155:42220')
+    expect(ensureAllowanceMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: '0xapproveWithTag' }),
+    )
+  })
+
+  it('omits data entirely against a server that sends none, so the client encodes its own', async () => {
+    // The skew case the optional field exists for: an app newer than the
+    // server. Passing `data: undefined` would be just as wrong as passing a
+    // value — ensureAllowance branches on the key being absent.
+    const HINTED: UnsignedTx = {
+      ...EVM_TX,
+      approval: { token: '0xToken', spender: '0xEscrow', amount_raw: '1000000' },
+    }
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [evmWallet({ address: '0xLive', is_primary: true })] })
+    ensureAllowanceMock.mockResolvedValue('approved')
+    await signAndSendUnsignedTx(HINTED, 'eip155:42220')
+    expect(ensureAllowanceMock).toHaveBeenCalledTimes(1)
+    expect('data' in ensureAllowanceMock.mock.calls[0][0]).toBe(false)
   })
 
   it('a failed approval aborts the flow, the escrow tx is never broadcast', async () => {

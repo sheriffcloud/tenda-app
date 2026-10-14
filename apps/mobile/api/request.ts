@@ -8,22 +8,18 @@
 // assertQueryShape), and a second local copy could drift from the one the
 // server's types actually satisfy — which is how the `as Record<string,
 // unknown>` casts got in.
-import { apiConfig, type ApiError, type QueryParams } from '@tenda/shared'
+import {
+  apiConfig,
+  ApiClientError,
+  SESSION_CLIENT_HEADER,
+  type ApiError,
+  type QueryParams,
+} from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
 
-export class ApiClientError extends Error {
-  constructor(
-    public statusCode: number,
-    public error: string,
-    message: string,
-    /** Machine-readable ErrorCode from the API envelope. */
-    public code?: string,
-  ) {
-    super(message)
-    this.name = 'ApiClientError'
-  }
-}
+/** This app's session stamp (#53c-1). Web sends 'web'; older builds send none. */
+const MOBILE_CLIENT = 'mobile'
 
 const REQUEST_TIMEOUT_MESSAGE =
   'The server is taking longer than expected. Please check whether the action completed before retrying.'
@@ -95,6 +91,13 @@ export async function request<TResponse>(
     headers['Content-Type'] = 'application/json'
   }
 
+  // WHICH client is talking (#53c-1). Sent on every request rather than only at
+  // sign-in: the server reads it where a session is MINTED, and there is more
+  // than one such route (/auth/verify, /agent/register) — a per-route opt-in is
+  // how one of them silently stops stamping. It is a claim, not a proof, and
+  // nothing security-bearing rests on it alone.
+  headers[SESSION_CLIENT_HEADER] = MOBILE_CLIENT
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
@@ -116,7 +119,20 @@ export async function request<TResponse>(
 
     if (!response.ok) {
       const error: ApiError = await response.json()
-      throw new ApiClientError(error.statusCode, error.error, error.message, error.code)
+      // `details` rides through. The server sends it (http-errors serializes
+      // it whenever an AppError carries one) and the SHARED `ApiClientError`
+      // declares it, so dropping it here was this transport quietly discarding
+      // contract data that web's transport keeps. What reads it today is
+      // `requiredWalletOf` — the ESCROW_WRONG_WALLET `required_address` that
+      // names the wallet an escrow is bound to; a refusal without it is a
+      // message the reader cannot act on.
+      throw new ApiClientError(
+        error.statusCode,
+        error.error,
+        error.message,
+        error.code,
+        error.details,
+      )
     }
 
     return (await response.json()) as TResponse

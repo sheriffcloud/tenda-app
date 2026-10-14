@@ -1,7 +1,7 @@
 /**
  * Recording `fetch` double, for the outbound HTTP this server does.
  *
- * Two suites had grown their own copy — lib/slack's transport tests and the
+ * Two suites had grown their own copy — features/alerts/slack's transport tests and the
  * Slack alert channel's — and the second was written by copying the first, so
  * they also shared its one flaw.
  *

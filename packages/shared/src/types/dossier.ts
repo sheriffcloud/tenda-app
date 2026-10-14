@@ -8,6 +8,8 @@
 import type { EscrowKind, EscrowStatus } from './escrow'
 import type { PartyRole } from '../utils/parties'
 import type { ProofType } from '../constants/proofs'
+import type { ProofParams } from '../constants/proof-params'
+import type { ProofPayload } from '../constants/proof-payloads'
 
 /** A party to the escrow. `role` is the structural, kind-agnostic identity. */
 export interface DossierParty {
@@ -21,7 +23,10 @@ export interface DossierParty {
 
 export interface DossierProof {
   id: string
-  url: string
+  /** File proofs (image/video/document) — null on data proofs. */
+  url: string | null
+  /** Data proofs (geotag/text/structured) — null on file proofs. */
+  payload: ProofPayload | null
   type: ProofType
   uploaded_at: string
 }
@@ -57,6 +62,13 @@ export interface DossierGigDetails {
    * need the bar that was set, and it is immutable once the gig leaves draft.
    */
   proof_requirements: ProofType[]
+  /**
+   * The params those requirements carried (geotag radius, structured fields)
+   * — the same "bar that was set" reasoning as `proof_requirements`: a
+   * mediator judging a geotag or structured proof needs the declared radius
+   * or fields it was checked against.
+   */
+  proof_params: ProofParams | null
   /**
    * Approval mode: the poster assigned this worker rather than the worker
    * accepting. Sourced from the ESCROW, not gig_details — it is carried here

@@ -11,7 +11,7 @@ import {
   planWalletDedupe,
   walletDedupeKey,
   type WalletRow,
-} from '@server/lib/auth/wallet-dedupe'
+} from '@server/features/auth/wallets/wallet-dedupe'
 
 const U = '11111111-1111-1111-1111-111111111111'
 function row(over: Partial<WalletRow> = {}): WalletRow {

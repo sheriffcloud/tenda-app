@@ -13,7 +13,7 @@ import {
   APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL,
   applicationStatusLine,
   openApplicationLine,
-} from '../copy'
+} from '@tenda/shared'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -63,6 +63,7 @@ function row(
       escrow_id: 'escrow-1',
       applicant_id: 'user-worker',
       message: null,
+      wallet_address: null,
       status: applicationStatus,
       expires_at: new Date(Date.now() + 86_400_000).toISOString(),
       created_at: '2026-07-01T00:00:00.000Z',
@@ -84,6 +85,7 @@ function row(
       remote: false,
       cross_border: false,
       proof_requirements: [],
+      proof_params: null,
       // Every row on this list is an approval-mode gig by construction: the
       // apply route refuses an instant one.
       requires_approval: true,
@@ -97,6 +99,7 @@ function row(
         review_score: null,
         country: 'NG',
         is_seeker: false,
+        is_agent: false,
       },
     },
   }

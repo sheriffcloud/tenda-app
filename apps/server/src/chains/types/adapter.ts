@@ -8,8 +8,16 @@ import type { PermitPayloadResponse } from '@tenda/shared'
 import type { AmountRaw, AssetId, ChainId } from './values'
 import type { BuildTxArgs, UnsignedTx } from './build-tx'
 import type { EscrowState, VerifiedTx, VerifyAuthSigArgs, VerifyTxArgs } from './verify'
+import type { EscrowRelay } from './relay'
+import type { EscrowSweep } from './sweep'
 
 // ---------- adapter -------------------------------------------------------
+
+/** What a chain's contract/program CHARGES, in basis points: the platform fee and the seeker fee. */
+export interface ChainFees {
+  fee_bps: number
+  seeker_fee_bps: number
+}
 
 export interface ChainAdapter {
   readonly namespace: ChainNamespace
@@ -36,6 +44,34 @@ export interface ChainAdapter {
    * because the server never read it.
    */
   readonly escrowAddress: string
+
+  /**
+   * The poster's review window on this chain, in seconds — the CONTRACT's
+   * value (`approvalWindowSeconds()` on EVM, `platform_state` on Solana), not
+   * a config row (#148). Read ON DEMAND and cached briefly (`chains/approval-
+   * window.ts`): the number changes only through the multisig
+   * `setApprovalWindow`, so a short TTL follows it without a redeploy, and a
+   * read that fails after a first success answers the last value rather than
+   * failing the registry. NOT read at boot: a boot-time RPC read made server
+   * start depend on every chain's node being up (measured — the whole-app
+   * test timed the plugin out), so the first registry request pays the read
+   * and a chain whose contract never answers is OMITTED from the registry
+   * with an error log, the same treatment as a chain with no adapter.
+   *
+   * Served as `approval_window_seconds` on `/v1/platform/chains`. The escrow's
+   * own `approval_deadline` (stamped by the contract when proof lands) is what
+   * decides a claim; this is what a surface with no escrow in hand may state.
+   */
+  approvalWindowSeconds(): Promise<number>
+
+  /**
+   * The fees the CONTRACT charges, read live (`feeBps()` / `seekerFeeBps()` on EVM,
+   * `platform_state` on Solana). Not cached and never written anywhere: the
+   * contract always charges its own stored value, and `platform_config` only
+   * DISPLAYS a copy of it, so the one thing worth asking is whether the two agree
+   * (`features/platform-fees`: the boot check, `fee:check` and `fee:set`).
+   */
+  getFees(): Promise<ChainFees>
 
   /** Build an unsigned transaction the client will sign. */
   buildTx(args: BuildTxArgs): Promise<UnsignedTx>
@@ -70,6 +106,22 @@ export interface ChainAdapter {
     asset: AssetId
     value_raw: AmountRaw
   }): Promise<PermitPayloadResponse>
+
+  /**
+   * Relayed funding (x402, #18): present only when this chain has a relayer
+   * hot wallet configured (`CHAIN_<ID>_RELAYER_KEY`). Absent = the fund route
+   * answers RELAY_UNAVAILABLE and the caller signs its own create.
+   */
+  readonly relay?: EscrowRelay
+
+  /**
+   * Abandoned-escrow recovery (#43): present only when this chain's deployed
+   * contract lets a third party trigger the creator's own refund. Absent =
+   * nothing sweeps there and the job skips the chain, which is the correct
+   * behaviour for Solana until #42 and for any EVM chain still on a
+   * pre-#43 contract generation.
+   */
+  readonly sweep?: EscrowSweep
 
   /**
    * Platform fee in raw units. Same surface as `lib/escrow.ts:computePlatformFee`

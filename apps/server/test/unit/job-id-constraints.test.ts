@@ -2,8 +2,8 @@
  * Every BullMQ jobId this app produces must be one BullMQ will accept.
  *
  * Three modules mint keyed job ids, none of them aware of the others:
- * `dedupKey` (core/queue/idempotency), `verifyTxDedupKey` (jobs/verify-tx) and
- * `alertJobId` (features/alerts/identity). Each documents the constraint in
+ * `dedupKey` (queue/idempotency), `verifyTxDedupKey` (queue/jobs/verify-tx) and
+ * `alertJobId` (features/alerts/identity/identity). Each documents the constraint in
  * prose, and prose drifts — src/jobs/verify-tx.ts stated it flatly wrong
  * ("BullMQ rejects a jobId containing ':'") in two places until #33. This file
  * states the rule ONCE, executably, and runs every producer through it.
@@ -17,8 +17,8 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { dedupKey } from '@server/core/queue/idempotency'
-import { verifyTxDedupKey } from '@server/jobs/verify-tx'
+import { dedupKey } from '@server/queue/idempotency'
+import { verifyTxDedupKey } from '@server/queue/jobs/verify-tx'
 import { ALERT_CHANNEL_NAMES, ALERT_KINDS, alertJobId } from '@server/features/alerts'
 import type { AlertKind, AlertRefOf } from '@server/features/alerts'
 import { ESCROW_EVENTS } from '@server/chains/types'
@@ -90,6 +90,15 @@ const REF_BY_KIND: { [K in AlertKind]: AlertRefOf<K> } = {
     // A base58 signature, the real high-entropy shape — and colon-free, which
     // is what keeps the three-part id at three parts.
     tx_ref: '5xj4nQ4abcDEF',
+  },
+  'gas-seed.low-balance': {
+    kind: 'gas-seed.low-balance',
+    // A CAIP-2 id, which CARRIES A COLON of its own — the case that makes this
+    // kind's REF_KEY strip them. Spelled here as the real thing rather than a
+    // colon-free stand-in: a fixture like 'galileo' would pass this test while
+    // production ids were rejected at enqueue, inside a guarded catch, as a
+    // generic warn.
+    chain_id: 'eip155:16602',
   },
 }
 

@@ -6,52 +6,36 @@
  * with the failure swallowed and nothing retrying it, so a single cold-start
  * blip stuck for the whole session and only a force-close recovered it.
  *
- * These tests pin the recovery path (`ensureLoaded`), the status lifecycle the
- * screen branches on, and the rule that a failed refresh never downgrades a
- * registry that is already serving good data.
+ * These tests pin the recovery paths (`ensureLoaded` for an UNUSABLE registry,
+ * `fetch` for a stale-but-usable one — pull-to-refresh), the status lifecycle
+ * the screen branches on, and the rule that a failed refresh never downgrades
+ * a registry that is already serving good data. Persistence and the
+ * SecureStore→AsyncStorage migration live in
+ * chain-registry.store.persistence.test.ts.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SecureStore from 'expo-secure-store'
-import type { ChainRegistryEntry } from '@tenda/shared'
 
 const mockChainsRequest = jest.fn()
 jest.mock('@/api/client', () => ({
   api: { platform: { chains: () => mockChainsRequest() } },
 }))
 
-import {
-  isRegistryUsable,
-  selectChainById,
-  useChainRegistryStore,
-} from '@/stores/chain-registry.store'
+import { isRegistryUsable } from '@tenda/shared'
+import { selectChainById, useChainRegistryStore } from '@/stores/chain-registry.store'
+import { GALILEO, SOLANA } from '../__fixtures__/chain-registry'
 
-const STORAGE_KEY = 'chain_registry_v2'
-const getItem = SecureStore.getItemAsync as jest.Mock
-const setItem = SecureStore.setItemAsync as jest.Mock
-
-const SOLANA: ChainRegistryEntry = {
-  id: 'solana:devnet',
-  namespace: 'solana',
-  display_name: 'Solana',
-  escrow_address: 'Esc111',
-  assets: [
-    {
-      id: 'USDC_SOL',
-      symbol: 'USDC',
-      decimals: 6,
-      is_stable: true,
-      token_address: 'Usdc111',
-      supports_permit: false,
-    },
-  ],
-}
+const STORAGE_KEY = 'chain_registry_v5'
+const setItem = AsyncStorage.setItem as jest.Mock
 
 const state = () => useChainRegistryStore.getState()
 
 beforeEach(async () => {
   useChainRegistryStore.setState({ chains: null, status: 'idle' })
   mockChainsRequest.mockReset().mockResolvedValue({ data: [SOLANA] })
-  getItem.mockClear()
   setItem.mockClear()
+  ;(SecureStore.setItemAsync as jest.Mock).mockClear()
+  await AsyncStorage.clear()
   await SecureStore.deleteItemAsync(STORAGE_KEY)
 })
 
@@ -70,12 +54,16 @@ describe('isRegistryUsable', () => {
 // ─── fetch ────────────────────────────────────────────────────────────────────
 
 describe('fetch', () => {
-  it('stores, persists and marks ready on success', async () => {
+  it('stores, persists (AsyncStorage, never SecureStore) and marks ready', async () => {
     await state().fetch()
 
     expect(state().chains).toEqual([SOLANA])
     expect(state().status).toBe('ready')
     expect(setItem).toHaveBeenCalledWith(STORAGE_KEY, JSON.stringify([SOLANA]))
+    // The registry left SecureStore for its Android 2048-byte value cap — a
+    // write landing there again would put the snapshot one chain from
+    // silently failing every persist.
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled()
   })
 
   it('reports error (not a silent empty) when the request fails', async () => {
@@ -126,6 +114,20 @@ describe('fetch', () => {
     expect(state().status).toBe('ready')
   })
 
+  it('REPLACES a stale-but-usable registry — the pull-to-refresh recovery path', async () => {
+    // The reported bug's shape: a pre-0G snapshot is "usable", so ensureLoaded
+    // rightly no-ops on it — recovering the missing chain in-app needs a
+    // caller that fetches unconditionally, and this is that caller.
+    await state().fetch()
+    expect(state().chains).toEqual([SOLANA])
+    mockChainsRequest.mockResolvedValue({ data: [SOLANA, GALILEO] })
+
+    await state().fetch()
+
+    expect(state().chains).toEqual([SOLANA, GALILEO])
+    expect(setItem).toHaveBeenLastCalledWith(STORAGE_KEY, JSON.stringify([SOLANA, GALILEO]))
+  })
+
   it('does not flash `loading` over a registry already ready', async () => {
     await state().fetch()
     let statusDuringRefetch: string | undefined
@@ -155,7 +157,7 @@ describe('fetch', () => {
   })
 })
 
-// ─── ensureLoaded (the recovery path) ─────────────────────────────────────────
+// ─── ensureLoaded (recovery for consumers that mount later) ───────────────────
 
 describe('ensureLoaded', () => {
   it('fetches when the registry has never loaded', async () => {
@@ -205,63 +207,6 @@ describe('ensureLoaded', () => {
   })
 })
 
-// ─── loadPersisted ────────────────────────────────────────────────────────────
-
-describe('loadPersisted', () => {
-  it('hydrates a cached snapshot as ready (fast first paint)', async () => {
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify([SOLANA]))
-
-    await state().loadPersisted()
-
-    expect(state().chains).toEqual([SOLANA])
-    expect(state().status).toBe('ready')
-  })
-
-  it('leaves an EMPTY cached snapshot idle so ensureLoaded still recovers it', async () => {
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify([]))
-
-    await state().loadPersisted()
-
-    expect(state().status).toBe('idle')
-    await state().ensureLoaded()
-    expect(state().chains).toEqual([SOLANA])
-  })
-
-  it('does not clobber a fresher network result that already landed', async () => {
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify([]))
-    await state().fetch()
-
-    await state().loadPersisted()
-
-    expect(state().chains).toEqual([SOLANA])
-  })
-
-  it('ignores a corrupt cache rather than crashing the bootstrap', async () => {
-    await SecureStore.setItemAsync(STORAGE_KEY, '{not json')
-
-    await expect(state().loadPersisted()).resolves.toBeUndefined()
-    expect(state().chains).toBeNull()
-  })
-
-  it('ignores valid JSON that is not our shape, rather than seating a non-array', async () => {
-    // An older write or a truncated value parses fine but cannot be iterated;
-    // `chains` must stay null so the network answer is what lands.
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify({ chains: [SOLANA] }))
-
-    await state().loadPersisted()
-
-    expect(state().chains).toBeNull()
-    expect(state().status).toBe('idle')
-  })
-
-  it('is a no-op with no cache at all (fresh install)', async () => {
-    await state().loadPersisted()
-
-    expect(state().chains).toBeNull()
-    expect(state().status).toBe('idle')
-  })
-})
-
 // ─── selectChainById ──────────────────────────────────────────────────────────
 
 describe('selectChainById', () => {
@@ -269,20 +214,5 @@ describe('selectChainById', () => {
     expect(selectChainById([SOLANA], 'solana:devnet')).toEqual(SOLANA)
     expect(selectChainById([SOLANA], 'eip155:8453')).toBeNull()
     expect(selectChainById(null, 'solana:devnet')).toBeNull()
-  })
-})
-
-// ─── persistence failure ──────────────────────────────────────────────────────
-
-describe('a failing cache write', () => {
-  it('does not discard data already in memory', async () => {
-    // The persist rejection lands in the same catch as a request failure; the
-    // fresh registry is already applied, so it must stay `ready`.
-    setItem.mockRejectedValueOnce(new Error('keystore full'))
-
-    await state().fetch()
-
-    expect(state().chains).toEqual([SOLANA])
-    expect(state().status).toBe('ready')
   })
 })

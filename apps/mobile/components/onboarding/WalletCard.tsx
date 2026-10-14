@@ -1,14 +1,14 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Wallet as WalletIcon, MoreVertical } from 'lucide-react-native'
-import { truncateWallet, type LinkedWallet } from '@tenda/shared'
+import { CHAIN_NAMESPACE_LABEL, truncateWallet, type LinkedWallet } from '@tenda/shared'
 import { Text } from '@/components/ui/Text'
 import { Badge } from '@/components/ui/Badge'
 
-const CHAIN_LABEL: Record<LinkedWallet['chain_ns'], string> = {
-  solana: 'Solana',
-  eip155: 'EVM',
-}
+// The label lives in shared (#42): mobile had this table privately and web had
+// none, so the same chain family was named two different things on the two
+// screens that let a user choose a main wallet for it.
+const CHAIN_LABEL = CHAIN_NAMESPACE_LABEL
 
 interface WalletCardProps {
   wallet: LinkedWallet

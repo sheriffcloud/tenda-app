@@ -16,6 +16,7 @@ export const apiRoutes: {
   escrows: {
     create: '/v1/escrows',
     buildCreate: '/v1/escrows/:id/build-create',
+    fund: '/v1/escrows/:id/fund',
     accept: '/v1/escrows/:id/accept',
     decline: '/v1/escrows/:id/decline',
     submit: '/v1/escrows/:id/submit',
@@ -40,6 +41,7 @@ export const apiRoutes: {
   },
   gigs: {
     list: '/v1/gigs',
+    facets: '/v1/gigs/facets',
     featured: '/v1/gigs/featured',
     create: '/v1/gigs',
     get: '/v1/gigs/:id',
@@ -56,11 +58,35 @@ export const apiRoutes: {
   applications: {
     mine: '/v1/applications',
   },
+  /**
+   * The Agent API's write surface (#19): the one-shot task post and the
+   * wallet-born registration behind it. Agents READ through the public gig
+   * routes above (documented at /v1/openapi.json).
+   */
+  agent: {
+    register: '/v1/agent/register',
+    /**
+     * A bearer for the shared DEMO agent, minted without a wallet proof (#108).
+     * It exists because a reviewer with no key otherwise meets a 401 and never
+     * sees the x402 loop the document describes — which is exactly what the ten
+     * round-one reviewers reported.
+     */
+    demoSession: '/v1/agent/demo-session',
+    tasks: '/v1/agent/tasks',
+    /**
+     * Check a task body against the rules `tasks` applies, with no draft, no
+     * payment and no moderation. Answers `{ ok: true, moderation: 'not_run' }`
+     * or the first refusal, in the ApiError envelope.
+     */
+    tasksValidate: '/v1/agent/tasks/validate',
+  },
   users: {
     me: '/v1/users/me',
     updateMe: '/v1/users/me',
     myStanding: '/v1/users/me/standing',
+    myOverview: '/v1/users/me/overview',
     standing: '/v1/users/:id/standing',
+    completedWork: '/v1/users/:id/completed-work',
     get: '/v1/users/:id',
     update: '/v1/users/:id',
     escrows: '/v1/users/:id/escrows',
@@ -119,5 +145,12 @@ export const apiRoutes: {
     list: '/v1/exchange',
     create: '/v1/exchange',
     get: '/v1/exchange/:id',
+  },
+  wallet: {
+    // One path, two methods: GET asks what is on offer, POST takes it. Not
+    // `/claim` — `/v1/escrows/:id/claim` already means claiming a stalled
+    // payment, and the two must not read alike where money moves.
+    gasSeedAvailability: '/v1/wallet/gas-seed',
+    claimGasSeed: '/v1/wallet/gas-seed',
   },
 }

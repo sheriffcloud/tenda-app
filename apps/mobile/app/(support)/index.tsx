@@ -1,3 +1,4 @@
+import { SUPPORT_TOPICS, type SupportTopic } from '@tenda/shared'
 import { useState } from 'react'
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
@@ -22,14 +23,20 @@ interface Topic {
   route: string
 }
 
-const TOPICS: Topic[] = [
-  { Icon: ShieldCheck, title: 'Payments & Escrow', description: 'How we hold funds and pay workers.',           route: '/(support)/escrow' },
-  { Icon: PlusCircle,  title: 'Posting a Gig',     description: 'Create a task, review work, handle disputes.', route: '/(support)/posting' },
-  { Icon: Hammer,      title: 'Working on a Gig',  description: 'Accept, submit proofs, get paid out.',         route: '/(support)/working' },
-  { Icon: Wallet,      title: 'Wallet Setup',      description: 'Connect Phantom or Solflare.',                 route: '/(support)/wallet' },
-  { Icon: BookOpen,    title: 'Glossary',          description: 'Plain-English definitions.',                   route: '/(support)/glossary' },
-  { Icon: HelpCircle,  title: 'FAQ & Support',     description: 'Answers and contact channels.',                route: '/(support)/faq' },
-]
+const TOPIC_VISUALS: Record<SupportTopic['slug'], { Icon: Topic['Icon']; route: string }> = {
+  escrow:   { Icon: ShieldCheck, route: '/(support)/escrow' },
+  posting:  { Icon: PlusCircle,  route: '/(support)/posting' },
+  working:  { Icon: Hammer,      route: '/(support)/working' },
+  wallet:   { Icon: Wallet,      route: '/(support)/wallet' },
+  glossary: { Icon: BookOpen,    route: '/(support)/glossary' },
+  faq:      { Icon: HelpCircle,  route: '/(support)/faq' },
+}
+
+const TOPICS: Topic[] = SUPPORT_TOPICS.map((t) => ({
+  title: t.title,
+  description: t.description,
+  ...TOPIC_VISUALS[t.slug],
+}))
 
 export default function SupportIndexScreen() {
   const { theme } = useUnistyles()

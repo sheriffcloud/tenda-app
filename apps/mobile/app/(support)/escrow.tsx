@@ -5,15 +5,9 @@ import { ScreenContainer, Header, Text, AccordionItem } from '@/components/ui'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { InfoCard } from '@/components/support'
 import { typography } from '@/theme/tokens'
-import { formatFiat } from '@/lib/currency'
+import { formatFiat, APP_INFO, SUPPORT_ESCROW_FLOW, SUPPORT_ESCROW_INTRO, SUPPORT_FEE_NOTE } from '@tenda/shared'
 import { useSettingsStore } from '@/stores/settings.store'
-import { APP_INFO } from '@/lib/app-info'
 
-const FLOW = [
-  { num: 1, title: 'You fund the escrow',     desc: 'SOL is locked on Solana when you publish your gig.' },
-  { num: 2, title: 'Worker submits proof',     desc: 'You review photos, files, or a delivery confirmation.' },
-  { num: 3, title: 'You approve → they’re paid', desc: 'Funds release on-chain in seconds.' },
-] as const
 
 export default function EscrowGuideScreen() {
   const { theme } = useUnistyles()
@@ -31,15 +25,12 @@ export default function EscrowGuideScreen() {
         <Header title="Payments & Escrow" showBack />
 
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-          <InfoCard
-            label="What is escrow?"
-            body="When you post a gig, your SOL is held safely on-chain. Workers can see the funds are locked before they accept. It’s released to them only when you approve the work."
-          />
+          <InfoCard label={SUPPORT_ESCROW_INTRO.label} body={SUPPORT_ESCROW_INTRO.body} />
 
           {/* Money flow */}
           <InfoCard label="How the money moves">
             <View style={s.flowCol}>
-              {FLOW.map((step, i) => (
+              {SUPPORT_ESCROW_FLOW.map((step, i) => (
                 <View key={step.num}>
                   <View style={s.flowStep}>
                     <View style={[s.flowNum, { backgroundColor: theme.colors.brand.primarySurface }]}>
@@ -50,7 +41,7 @@ export default function EscrowGuideScreen() {
                       <Text style={[s.flowDesc, { color: theme.colors.content.secondary }]}>{step.desc}</Text>
                     </View>
                   </View>
-                  {i < FLOW.length - 1 && (
+                  {i < SUPPORT_ESCROW_FLOW.length - 1 && (
                     <View style={[s.flowConnector, { backgroundColor: theme.colors.border.default }]} />
                   )}
                 </View>
@@ -108,7 +99,7 @@ export default function EscrowGuideScreen() {
             )}
 
             <Text style={[s.feeNote, { color: theme.colors.content.tertiary }]}>
-              Rate subject to change. A small Solana network fee (~$0.01) also applies when funds move on-chain.
+              {SUPPORT_FEE_NOTE}
             </Text>
           </InfoCard>
 
@@ -171,7 +162,7 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   flowNumText: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 14,
     fontWeight: '600',
     includeFontPadding: false,
@@ -203,7 +194,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   feeInputValue: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: -0.18,
@@ -226,7 +217,7 @@ const s = StyleSheet.create({
     fontSize: 13.5,
   },
   feeValue: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: -0.065,
@@ -244,7 +235,7 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
   feeValueTotal: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.16,

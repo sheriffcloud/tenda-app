@@ -3,7 +3,7 @@
  * RAW amounts from completed gig escrows per (category, country, asset).
  * Grounds the price-sanity prompts; minSampleSize keeps thin groups from
  * gating anyone. Scheduled as the nightly 'update-price-stats' repeatable
- * (plugins/workers.ts REPEATABLES; processor wired in workers/processors.ts).
+ * (plugins/workers.ts REPEATABLES; processor wired in queue/workers/processors.ts).
  */
 
 import { and, eq, sql } from 'drizzle-orm'

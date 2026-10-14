@@ -9,7 +9,7 @@ import fp from 'fastify-plugin'
 import websocket from '@fastify/websocket'
 import type { FastifyPluginAsync } from 'fastify'
 import { randomUUID } from 'node:crypto'
-import { WS_AUTH_SUBPROTOCOL, createWsBroadcaster } from '@server/lib/ws'
+import { WS_AUTH_SUBPROTOCOL, createWsBroadcaster } from '@server/realtime/ws'
 import { getConfig } from '@server/config'
 import { createRealtimePublisher, createRedisRealtimeTransport } from '@server/realtime'
 

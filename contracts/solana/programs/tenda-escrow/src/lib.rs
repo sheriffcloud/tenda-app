@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Tenda single-escrow primitive — Solana program.
 //!
 //! Rewritten in Stage 0 (foundation.md § Solana contract rewrite) to mirror
@@ -92,11 +93,7 @@ pub mod tenda_escrow {
         set_treasury_handler(ctx, new_treasury)
     }
 
-    pub fn set_fee_bps(
-        ctx: Context<AdminUpdate>,
-        fee_bps: u16,
-        seeker_fee_bps: u16,
-    ) -> Result<()> {
+    pub fn set_fee_bps(ctx: Context<AdminUpdate>, fee_bps: u16, seeker_fee_bps: u16) -> Result<()> {
         set_fee_bps_handler(ctx, fee_bps, seeker_fee_bps)
     }
 
@@ -110,17 +107,11 @@ pub mod tenda_escrow {
 
     // ---- escrow_create ---------------------------------------------------
 
-    pub fn create_escrow_sol(
-        ctx: Context<CreateEscrowSol>,
-        args: CreateEscrowArgs,
-    ) -> Result<()> {
+    pub fn create_escrow_sol(ctx: Context<CreateEscrowSol>, args: CreateEscrowArgs) -> Result<()> {
         instructions::escrow_create::create_sol::handler(ctx, args)
     }
 
-    pub fn create_escrow_spl(
-        ctx: Context<CreateEscrowSpl>,
-        args: CreateEscrowArgs,
-    ) -> Result<()> {
+    pub fn create_escrow_spl(ctx: Context<CreateEscrowSpl>, args: CreateEscrowArgs) -> Result<()> {
         instructions::escrow_create::create_spl::handler(ctx, args)
     }
 

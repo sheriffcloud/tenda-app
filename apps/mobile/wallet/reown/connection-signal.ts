@@ -11,9 +11,9 @@
  * Keeping it React-free makes it fully unit-testable without rendering AppKit,
  * and keeps the native-heavy `bridge.tsx` a thin glue shell.
  */
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { WALLET_CHAINS } from '../config'
-import type { SpikeAccount } from '../types'
+import type { WalletAccount } from '@tenda/shared'
 
 /**
  * Minimal structural view of the AppKit EVM provider, only the `request`
@@ -55,7 +55,7 @@ function caipChainId(namespace: string | undefined, chainId: string | undefined)
   return `${namespace ?? 'eip155'}:${chainId}`
 }
 
-function toAccount(state: ReownLiveState): SpikeAccount {
+function toAccount(state: ReownLiveState): WalletAccount {
   return {
     namespace: 'eip155',
     chainId: caipChainId(state.namespace, state.chainId),
@@ -72,7 +72,7 @@ function toAccount(state: ReownLiveState): SpikeAccount {
 export class ConnectionSignal {
   private live: ReownLiveState | null = null
   private pendingConnect: {
-    resolve: (account: SpikeAccount) => void
+    resolve: (account: WalletAccount) => void
     reject: (err: Error) => void
   } | null = null
 
@@ -115,7 +115,7 @@ export class ConnectionSignal {
    * their JWT. Without it, a just-disconnected-but-not-yet-re-synced session
    * would short-circuit back to the same account.
    */
-  connect(opts?: { fresh?: boolean }): Promise<SpikeAccount> {
+  connect(opts?: { fresh?: boolean }): Promise<WalletAccount> {
     const live = this.live
     if (live === null) {
       return Promise.reject(new WalletError('network', 'Wallet bridge is not ready yet'))
@@ -124,7 +124,7 @@ export class ConnectionSignal {
     if (this.pendingConnect !== null) {
       return Promise.reject(new WalletError('unknown', 'A wallet connection is already in progress'))
     }
-    return new Promise<SpikeAccount>((resolve, reject) => {
+    return new Promise<WalletAccount>((resolve, reject) => {
       this.pendingConnect = { resolve, reject }
       live.open()
     })
@@ -152,7 +152,7 @@ export class ConnectionSignal {
   }
 
   /** The connected account, or `null` when not connected. */
-  getAccount(): SpikeAccount | null {
+  getAccount(): WalletAccount | null {
     const live = this.live
     return live !== null && live.isConnected && live.address ? toAccount(live) : null
   }

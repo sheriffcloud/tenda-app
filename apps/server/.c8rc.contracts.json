@@ -4,9 +4,9 @@
   "src": ["src"],
   "include": [
     "src/chains/contracts/**/*.ts",
-    "src/chains/evm/verify.ts",
-    "src/chains/evm/verify-receipt.ts",
-    "src/chains/evm/listener-polling.ts",
+    "src/chains/evm/verify/verify.ts",
+    "src/chains/evm/verify/verify-receipt.ts",
+    "src/chains/evm/listener-polling/**/*.ts",
     "src/lib/escrow/build-tx.ts"
   ],
   "exclude": [

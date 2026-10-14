@@ -23,6 +23,7 @@ import { escrows } from '@tenda/shared/db/schema'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
+  createTransactableUser,
   createUser,
   makeTransactable,
   authHeader,
@@ -40,7 +41,7 @@ function contractBody(over: Partial<CreateEscrowApiBody> = {}): CreateEscrowApiB
     chain_id: TEST_CHAIN_ID,
     asset: TEST_ASSET,
     amount_raw: '1000000',
-    accept_deadline_unix: Math.floor(Date.now() / 1000) + 86_400,
+    accept_window_seconds: 24 * 3600,
     completion_duration_seconds: 7_200,
     dispute_bond_raw: '0',
     ...over,
@@ -49,8 +50,7 @@ function contractBody(over: Partial<CreateEscrowApiBody> = {}): CreateEscrowApiB
 
 test('a contract body with requires_approval is accepted and persisted', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
 
   const res = await app.inject({
     method: 'POST',
@@ -75,8 +75,7 @@ test('a contract body with requires_approval is accepted and persisted', { skip 
 
 test('repeating one creation operation returns the same draft', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
   const body = contractBody()
   const first = await app.inject({
     method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token), payload: body,
@@ -91,8 +90,7 @@ test('repeating one creation operation returns the same draft', { skip }, async 
 
 test('reusing a creation operation for different terms is rejected', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
   const body = contractBody()
   const first = await app.inject({
     method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token), payload: body,
@@ -109,8 +107,7 @@ test('reusing a creation operation for different terms is rejected', { skip }, a
 
 test('concurrent creation retries converge on one draft', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
   const body = contractBody()
   const send = () => app.inject({
     method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token), payload: body,
@@ -143,8 +140,7 @@ test('a creation operation is scoped to its creator', { skip }, async () => {
 
 test('replaying a creation operation after publication is rejected', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
   const body = contractBody()
   const first = await app.inject({
     method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token), payload: body,
@@ -161,8 +157,7 @@ test('replaying a creation operation after publication is rejected', { skip }, a
 
 test('omitting requires_approval keeps the pre-existing instant behaviour', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
 
   const res = await app.inject({
     method: 'POST',
@@ -201,8 +196,7 @@ test('the contract cannot express approval mode AND a direct assignee together',
 
 test('approval mode is refused on an exchange, through the real route', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
 
   const res = await app.inject({
     method: 'POST',

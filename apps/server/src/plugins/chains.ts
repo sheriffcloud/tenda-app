@@ -11,13 +11,16 @@
 
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { assets, user_wallets } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { buildAdapters, buildChainRegistry, type AdapterDepsFactory } from '@server/chains'
 import type { EvmAdapterDeps } from '@server/chains/evm'
-import { fetchPaymasterHttp } from '@server/chains/evm/paymaster'
-import { assertChainRegistryInSync } from '@server/chains/registry-sync'
+import { fetchPaymasterHttp } from '@server/chains/evm/sender/paymaster'
+import { viemEvmRelayer } from '@server/chains/evm/relay/relayer'
+import { web3SolanaRelayer } from '@server/chains/solana/relay/relayer'
+import { solanaSecret } from '@server/chains/secrets'
+import { assertChainRegistryInSync } from '@server/chains/registry/registry-sync'
 import {
   assertEscrowContractsKnown,
   contractSourcesFromSecrets,
@@ -25,7 +28,9 @@ import {
 } from '@server/chains/contracts'
 import { getChainSecrets } from '@server/chains/secrets'
 import { AppError } from '@server/lib/errors'
-import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/sponsor'
+import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/chain/sponsor'
+import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
+import { assertAttributionCodes } from '@server/features/attribution'
 
 type ChainNs = 'solana' | 'eip155'
 
@@ -34,18 +39,14 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
   /**
    * One linked wallet per (user, namespace) serves every chain in that
    * namespace. Primary first so a user with several linked wallets gets
-   * deterministic resolution.
+   * deterministic resolution — the QUERY lives in
+   * `resolvePrimaryWalletAddress` (lib/auth/resolver), shared with the routes
+   * that record what a build will bake; this wrapper only owns the 404.
    */
   function dbWalletResolver(chain_ns: ChainNs): (user_id: string) => Promise<string> {
     return async (user_id) => {
-      const rows = await fastify.db
-        .select({ address: user_wallets.address })
-        .from(user_wallets)
-        .where(and(eq(user_wallets.user_id, user_id), eq(user_wallets.chain_ns, chain_ns)))
-        .orderBy(desc(user_wallets.is_primary))
-        .limit(1)
-      const wallet = rows[0]?.address
-      if (wallet === undefined) {
+      const wallet = await resolvePrimaryWalletAddress(fastify.db, user_id, chain_ns)
+      if (wallet === null) {
         throw new AppError(
           404,
           ErrorCode.USER_NOT_FOUND,
@@ -76,6 +77,8 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
     }
   }
 
+  const secrets = getChainSecrets()
+
   /**
    * Per-chain deps, selected by `gasPolicy` (not bespoke per-chain keys):
    *   - solana: wallet + asset resolvers.
@@ -89,10 +92,29 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
    * with no edit here.
    */
   const depsFactory: AdapterDepsFactory = {
-    solana: (chainId) => ({
-      resolveWalletAddress: dbWalletResolver('solana'),
-      resolveAsset: dbAssetResolver(chainId),
-    }),
+    solana: (chainId) => {
+      // The relayer key rides the chain's own secret record (#18); the loader
+      // guarantees one active Solana chain, so this IS that chain's secret.
+      const secret = solanaSecret(secrets)
+      return {
+        resolveWalletAddress: dbWalletResolver('solana'),
+        resolveAsset: dbAssetResolver(chainId),
+        ...(secret?.relayerKey !== undefined
+          ? {
+              relayer: web3SolanaRelayer({
+                rpc_url: secret.rpcUrl,
+                // The chain's OWN fallback, same as the adapter above gets. Its
+                // absence here is what made the relayer's failover dead code, so
+                // the parameter is a REQUIRED key: this line cannot go missing
+                // again without failing the build.
+                rpc_url_fallback: secret.rpcUrlFallback,
+                chain_id: chainId,
+                secret_key_base58: secret.relayerKey,
+              }),
+            }
+          : {}),
+      }
+    },
     evm: (chainId, secret, entry) => {
       const base: EvmAdapterDeps = {
         resolveWalletAddress: dbWalletResolver('eip155'),
@@ -115,6 +137,21 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
             .limit(1)
           return rows.length > 0
         },
+        // Relayer hot wallet (#18), when this chain's secret carries a key.
+        ...(secret.relayerKey !== undefined
+          ? {
+              relayer: viemEvmRelayer({
+                rpc_url: secret.rpcUrl,
+                // Same fallback the adapter and the Solana relayer get.
+                rpc_url_fallback: secret.rpcUrlFallback,
+                chain_id: chainId,
+                private_key: secret.relayerKey as `0x${string}`,
+              }),
+              // Sweeping spends that same wallet, but only where the operator
+              // asked for it (#43) — CHAIN_<ID>_SWEEP_ENABLED, default off.
+              sweepEnabled: secret.sweepEnabled === true,
+            }
+          : {}),
       }
       if (entry.gasPolicy !== 'paymaster') return base
       return {
@@ -136,8 +173,6 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
     },
   }
 
-  const secrets = getChainSecrets()
-
   // Which contracts each chain may transact with, current AND superseded.
   //
   // Built BEFORE the adapters, and from the secrets rather than from the
@@ -158,10 +193,16 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
       'no chains configured, set CHAIN_<ID>_* env for at least one manifest chain (e.g. CHAIN_SOLANA_DEVNET_RPC_URL)',
     )
   }
+  // A malformed attribution code is a deployment error whose only other symptom
+  // is a 500 on whoever first funds an escrow on Celo — so it is asserted here,
+  // as a boot failure naming the env var (#83). Scoped to the chains this
+  // deployment actually runs: a code for a chain we do not transact on is not
+  // this process's problem to refuse.
+  assertAttributionCodes(adapters.map((a) => a.chain_id))
 
   // Refuse to serve a registry that disagrees with the chains we actually
   // transact on. The stored copy is what a stale `db:seed` leaves behind, and
-  // it used to be handed to mobile as fact — see chains/registry-sync.ts.
+  // it used to be handed to mobile as fact — see chains/registry/registry-sync.ts.
   await assertChainRegistryInSync(fastify.db, secrets, {
     warn: (msg) => fastify.log.warn(msg),
   })

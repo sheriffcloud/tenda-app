@@ -6,9 +6,11 @@
  */
 
 import type { Endpoint } from '../endpoint'
+import type { FundEscrowResponse } from './relay.contract'
 import type { AssignWorkerBody, ReleaseAssignmentResponse } from '../../types/application'
 import type { EscrowTxType } from '../../constants/escrow'
-import type { ProofType } from '../../constants/proofs'
+import type { DataProofType, FileProofType } from '../../constants/proofs'
+import type { ProofPayload } from '../../constants/proof-payloads'
 import type { EscrowProof } from '../../types/escrow'
 import type { Review, ReviewInput } from '../../types/review'
 import type { DisputeMessage, DisputeThreadResponse, SendDisputeMessageBody } from '../../types/dispute'
@@ -41,6 +43,13 @@ export type UnsignedTx =
       tx_base64: string
       recent_blockhash: string
       last_valid_block_height: number
+      /**
+       * The wallet this tx must be signed by — it is baked in as fee-payer +
+       * signer account. For transitions on an existing escrow it is the
+       * chain-bound party address; for create/public-accept it is the
+       * client-requested (validated) wallet, defaulting to the primary.
+       */
+      signer_address?: string
     }
   | {
       kind: 'evm-tx'
@@ -53,14 +62,29 @@ export type UnsignedTx =
       /** ERC-20 prerequisite the wallet must satisfy BEFORE broadcasting:
        *  allowance(owner → spender) ≥ amount_raw, topped up via approve()
        *  if short. Absent for native assets and for permit-built calls
-       *  (there the allowance rides the tx itself). */
-      approval?: { token: string; spender: string; amount_raw: string }
+       *  (there the allowance rides the tx itself).
+       *
+       *  `data` is the server-built approve calldata carrying the ERC-8021
+       *  attribution suffix (#103); broadcast it as-is. Optional so an older
+       *  client (which encodes its own) and an older server (which sends none)
+       *  both still work, untagged. */
+      approval?: { token: string; spender: string; amount_raw: string; data?: string }
+      /**
+       * The account this call must be sent FROM (`msg.sender`): the
+       * chain-bound party address for transitions on an existing escrow, the
+       * requested/primary wallet for create. Absent when the server could not
+       * read the binding (RPC failure falls open) — the client then behaves
+       * as before this field existed.
+       */
+      signer_address?: string
     }
   | {
       kind: 'evm-userop'
       user_op: WireUserOperation
       entry_point: string
       paymaster_url?: string
+      /** The userop sender — same meaning as on evm-tx. */
+      signer_address?: string
     }
 
 /**
@@ -86,7 +110,9 @@ export interface CreateEscrowApiBody {
   /** Asset registry id, e.g. 'SOL', 'USDC_SOL'. */
   asset: string
   amount_raw: string
-  accept_deadline_unix: number
+  /** How long the listing stays open for a counterparty to accept. The server
+   *  derives the absolute deadline from this when it BUILDS the create tx (#41). */
+  accept_window_seconds: number
   completion_duration_seconds: number
   dispute_bond_raw?: string
   assigned_counterparty_id?: string
@@ -100,6 +126,25 @@ export interface CreateEscrowApiBody {
   /** EIP-2612 path: sign first, then create — the server returns the
    *  createEscrowWithPermit call instead of createEscrow + approval hint. */
   permit?: PermitSignatureBody
+  /**
+   * The wallet the client intends to sign with — must be one of the caller's
+   * verified linked wallets on the escrow's chain (422 otherwise). Absent →
+   * the primary linked wallet, the pre-existing behaviour. When a permit
+   * rides the body its owner must be this same account.
+   */
+  signer_address?: string
+}
+
+/**
+ * Optional body for transitions whose signer is not yet chain-bound (accept
+ * of a public escrow, publish of a draft): the wallet the client intends to
+ * sign with. Same validation and default as CreateEscrowApiBody's field. On
+ * a BOUND transition the server compares it against the chain-bound address
+ * and refuses a mismatch with ESCROW_WRONG_WALLET + details.required_address
+ * — which is what lets a client re-target BEFORE building a permit.
+ */
+export interface SignerPreferenceBody {
+  signer_address?: string
 }
 
 export interface CreateEscrowApiResponse {
@@ -117,9 +162,19 @@ export interface SubmitEscrowProofBody {
   proof_hash: string
 }
 
-/** Off-chain evidence files (Cloudinary URLs under the uploader's folder). */
+/**
+ * One proof in an upload batch, by class: a FILE proof is a Cloudinary url
+ * under the uploader's folder, a DATA proof (geotag/text/structured) is a
+ * payload the server shape-checks and — where the gig declared params —
+ * verifies. Exactly one of the two per proof; the server refuses a mix.
+ */
+export type EscrowProofUpload =
+  | { type: FileProofType; url: string }
+  | { type: DataProofType; payload: ProofPayload }
+
+/** Off-chain evidence batch — see EscrowProofUpload for the per-class shape. */
 export interface AddEscrowProofsBody {
-  proofs: Array<{ url: string; type: ProofType }>
+  proofs: EscrowProofUpload[]
 }
 
 export interface DisputeEscrowApiBody {
@@ -128,6 +183,10 @@ export interface DisputeEscrowApiBody {
   reason: string
   /** EIP-2612 path for the ERC-20 bond (disputeEscrowWithPermit). */
   permit?: PermitSignatureBody
+  /** See SignerPreferenceBody — dispute is bound, so a mismatch with the
+   *  raiser's chain-bound address is refused with the required address named
+   *  (the permit's owner must match the eventual sender). */
+  signer_address?: string
 }
 
 export interface ResolveEscrowApiBody {
@@ -155,8 +214,20 @@ export interface EscrowsContract {
   create: Endpoint<'POST', undefined, CreateEscrowApiBody, undefined, CreateEscrowApiResponse>
   /** Rebuild the unsigned create tx for an owned draft (publish path for
    *  server-opened offramp drafts + signing-declined retries). */
-  buildCreate: Endpoint<'POST', IdParam, undefined, undefined, CreateEscrowApiResponse>
-  accept: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
+  buildCreate: Endpoint<'POST', IdParam, SignerPreferenceBody | undefined, undefined, CreateEscrowApiResponse>
+  /**
+   * Relayed funding of an owned draft (x402): without an X-PAYMENT header the
+   * answer is 402 + RelayPaymentRequired; with one the server relays the
+   * signed artifact, pays the gas, and answers 202 (relay.contract.ts).
+   *
+   * The escrow PRIMITIVE, not the agent surface: web/mobile do not call it and
+   * agents use the one-shot `/v1/agent/…` route (#19), which composes the same
+   * relay in-process. Declared here so the route table stays honest; kept for
+   * a possible gasless human flow (decision 2026-08-28, see
+   * docs/agent_escrow_funding_relayer.md).
+   */
+  fund: Endpoint<'POST', IdParam, SignerPreferenceBody | undefined, undefined, FundEscrowResponse>
+  accept: Endpoint<'POST', IdParam, SignerPreferenceBody | undefined, undefined, EscrowActionResponse>
   decline: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
   submit: Endpoint<'POST', IdParam, SubmitEscrowProofBody, undefined, EscrowActionResponse>
   approve: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>

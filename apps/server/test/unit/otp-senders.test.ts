@@ -1,5 +1,5 @@
 /**
- * lib/otp — the OtpSender transports the main otp suite leaves uncovered
+ * features/auth/otp — the OtpSender transports the main otp suite leaves uncovered
  * (it injects a fake sender): termiiSender (fetch-stubbed POST + non-2xx
  * 502) and consoleSender (dev fallback that logs, never throws).
  */
@@ -17,8 +17,10 @@ import {
   TERMII_SMS_URL,
   TWILIO_API_BASE,
   type OtpSender,
-} from '@server/lib/otp'
-import { sendViaResend, RESEND_API_URL } from '@server/lib/email'
+} from '@server/features/auth/otp'
+import { sendViaResend, RESEND_API_URL } from '@server/features/notifications/email'
+import { resendSender } from '@server/features/auth/admin/admin-otp'
+import { restoreFetch, stubFetch } from '../helpers/fetch-stub'
 import { AppError } from '@server/lib/errors'
 
 const realFetch = globalThis.fetch
@@ -208,4 +210,47 @@ test('sendViaResend: non-2xx → 502 AppError carrying the status', async () => 
     () => sendViaResend({ api_key: 'K', from: 'f@x.io' }, { to: 't@x.io', subject: 's', text: 'b' }),
     (e: unknown) => e instanceof AppError && e.statusCode === 502 && /status 422/.test(e.message),
   )
+})
+
+// ---------- admin login mail (features/auth/admin/admin-otp) ---------------------------------
+
+test('admin resendSender: POSTs the login code to Resend with bearer auth', async () => {
+  // The branch that actually sends admin login mail (#110). T5a covered which
+  // sender gets SELECTED — including the 503 when nothing is configured — but
+  // never the sending, so the request this puts on the wire was unasserted.
+  //
+  // The shared `stubFetch` rather than this file's older local literal: it
+  // returns a real Response, so `ok` cannot disagree with `status`. See
+  // helpers/fetch-stub's header for the fixtures that flaw produced.
+  const calls = stubFetch({ status: 200 })
+
+  await resendSender({ api_key: 'K', from: 'admin@tenda.test' }).send('boss@tenda.test', '424242')
+
+  assert.strictEqual(calls.length, 1)
+  assert.strictEqual(calls[0].url, RESEND_API_URL)
+  const headers = calls[0].init.headers as Record<string, string>
+  assert.strictEqual(headers.Authorization, 'Bearer K')
+  const body = JSON.parse(String(calls[0].init.body)) as {
+    from: string
+    to: string[]
+    subject: string
+    text: string
+  }
+  assert.strictEqual(body.from, 'admin@tenda.test')
+  assert.deepStrictEqual(body.to, ['boss@tenda.test'])
+  assert.match(body.subject, /admin login code/i)
+  assert.match(body.text, /424242/, 'the code the admin has to type must be in the mail')
+  assert.match(body.text, /10 minutes/, 'and how long it lasts')
+  restoreFetch()
+})
+
+test('admin resendSender: a non-2xx from Resend surfaces as 502, not a silent no-send', async () => {
+  // The admin cannot log in either way; the difference is whether the operator
+  // is told. A swallowed failure looks exactly like an email that never arrived.
+  stubFetch({ status: 500 })
+  await assert.rejects(
+    () => resendSender({ api_key: 'K', from: 'a@b.c' }).send('boss@tenda.test', '000000'),
+    (e: unknown) => e instanceof AppError && e.statusCode === 502 && /status 500/.test(e.message),
+  )
+  restoreFetch()
 })

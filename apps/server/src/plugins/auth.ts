@@ -6,6 +6,7 @@ import { users } from '@tenda/shared/db/schema'
 import type { UserRole } from '@tenda/shared'
 import { ErrorCode } from '@tenda/shared'
 import { getConfig } from '@server/config'
+import { DEMO_SCOPE_REFUSAL, scopeAllows } from '@server/features/auth/session/scope'
 
 // Augmentations live in `src/types/fastify.d.ts`.
 
@@ -38,6 +39,20 @@ export default fp(async (fastify) => {
         error: 'Unauthorized',
         message: 'Invalid or missing token',
         code: ErrorCode.UNAUTHORIZED,
+      })
+    }
+
+    // SCOPE, before anything that costs a round trip. A demo bearer is minted
+    // for anyone who asks, so a request it may not make should be refused for
+    // the price of reading a claim — not after a DB read. Deny by default:
+    // `scopeAllows` answers true only for an UNSCOPED token (every ordinary
+    // session, a real agent's included) or a listed route.
+    if (!scopeAllows(request.user.scope, request.routeOptions.url)) {
+      return reply.code(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: DEMO_SCOPE_REFUSAL,
+        code: ErrorCode.FORBIDDEN,
       })
     }
 

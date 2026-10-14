@@ -7,12 +7,22 @@
  * fail fast with typed errors, not to be the security boundary).
  */
 
-import { ErrorCode, AMOUNT_RAW_PRECISION, type PermitSignatureBody } from '@tenda/shared'
+import {
+  AMOUNT_RAW_PRECISION,
+  ErrorCode,
+  isValidAcceptWindow,
+  isValidCompletionDuration,
+  MAX_ACCEPT_WINDOW_SECONDS,
+  MAX_COMPLETION_DURATION_SECONDS,
+  MIN_ACCEPT_WINDOW_SECONDS,
+  MIN_COMPLETION_DURATION_SECONDS,
+  type PermitSignatureBody,
+} from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { assertGigAsset, assertExchangeAsset } from '@server/lib/escrow'
-import { validateWirePermit } from '@server/chains/evm/permit'
+import { assertChainNotPaused, assertGigAsset, assertExchangeAsset } from '@server/lib/escrow'
+import { validateWirePermit } from '@server/chains/evm/build/permit'
 import { isAmountRaw, type AmountRaw, type AssetId, type ChainId } from '@server/chains/types'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 export interface CreateEscrowBody {
   creation_operation_id?: unknown
@@ -20,7 +30,7 @@ export interface CreateEscrowBody {
   chain_id?: unknown
   asset?: unknown
   amount_raw?: unknown
-  accept_deadline_unix?: unknown
+  accept_window_seconds?: unknown
   completion_duration_seconds?: unknown
   dispute_bond_raw?: unknown
   assigned_counterparty_id?: unknown
@@ -38,7 +48,7 @@ export interface ValidatedCreateEscrow {
   chain_id: ChainId
   asset: AssetId
   amount_raw: AmountRaw
-  accept_deadline_unix: number
+  accept_window_seconds: number
   completion_duration_seconds: number
   dispute_bond_raw: AmountRaw
   assigned_counterparty_id: string | null
@@ -87,6 +97,8 @@ export function validateCreateEscrow(
   if (!deps.hasChain(chain_id)) {
     throw new AppError(422, ErrorCode.VALIDATION_ERROR, `unsupported chain_id '${chain_id}'`)
   }
+  // A KNOWN chain that is paused: no new escrow, human or agent (see lib/escrow/chain-pause).
+  assertChainNotPaused(chain_id, 'create')
 
   if (typeof body.asset !== 'string' || body.asset === '') fail('asset is required')
   const asset = body.asset
@@ -108,23 +120,50 @@ export function validateCreateEscrow(
     fail(`dispute_bond_raw exceeds the maximum precision of ${AMOUNT_RAW_PRECISION} digits`)
   }
 
-  if (
-    typeof body.accept_deadline_unix !== 'number' ||
-    !Number.isInteger(body.accept_deadline_unix)
-  ) {
-    fail('accept_deadline_unix must be an integer unix timestamp')
+  // A DURATION, not an instant (#41). The caller cannot author a moment that
+  // is still in the future by the time the transaction is built — a draft may
+  // sit for days — so the server derives the deadline at build and the caller
+  // owns only how long the window should be.
+  //
+  // Bounded through the SAME predicate the pickers offer, so the clients and
+  // the API cannot disagree. The old absolute field had no ceiling at all:
+  // `Date.now()` in milliseconds passed as a unix second, and a year-58,633
+  // deadline was minted as a draft (#40, dissolved by this shape).
+  // Split the way `completion_duration_seconds` below splits it: the first
+  // message names the CONDITION that failed (not a number), the second owns the
+  // RANGE and says so precisely. Collapsing them tells a caller who sent
+  // "tomorrow" about a range, which is not their problem.
+  if (typeof body.accept_window_seconds !== 'number') {
+    fail('accept_window_seconds must be a number')
   }
-  const accept_deadline_unix = body.accept_deadline_unix
-  if (accept_deadline_unix <= Math.floor(deps.now().getTime() / 1000)) {
-    fail('accept_deadline_unix must be in the future')
+  if (!isValidAcceptWindow(body.accept_window_seconds)) {
+    fail(
+      `accept_window_seconds must be an integer between ${MIN_ACCEPT_WINDOW_SECONDS} and ${MAX_ACCEPT_WINDOW_SECONDS}`,
+    )
   }
+  const accept_window_seconds = body.accept_window_seconds
 
-  if (
-    typeof body.completion_duration_seconds !== 'number' ||
-    !Number.isInteger(body.completion_duration_seconds) ||
-    body.completion_duration_seconds <= 0
-  ) {
-    fail('completion_duration_seconds must be a positive integer')
+  // BOUNDED, not merely positive. The bound is the PRODUCT rail — the same
+  // 90 days both composers offer, through the same shared predicate, so the
+  // clients and the API can never disagree about it (#52).
+  //
+  // What makes bounding it mandatory is the CHAIN: both contracts carry
+  // ESCROW_LIMITS.maxCompletionDurationSeconds (180 days), and ESCROW_LIMITS
+  // exists so off-chain validation "can never be looser than what the chain
+  // accepts". Unbounded here, a caller posting ~3.2 years got a draft row and
+  // a transaction to sign, and the refusal arrived from the chain AFTER the
+  // signature. 90 < 180, so satisfying the product rail satisfies the
+  // protocol one with room to spare.
+  //
+  // The consequence, accepted deliberately: moving the product rail is now a
+  // SERVER deploy, not a client-only one.
+  if (typeof body.completion_duration_seconds !== 'number') {
+    fail('completion_duration_seconds must be a number')
+  }
+  if (!isValidCompletionDuration(body.completion_duration_seconds)) {
+    fail(
+      `completion_duration_seconds must be an integer between ${MIN_COMPLETION_DURATION_SECONDS} and ${MAX_COMPLETION_DURATION_SECONDS}`,
+    )
   }
   const completion_duration_seconds = body.completion_duration_seconds
 
@@ -173,7 +212,7 @@ export function validateCreateEscrow(
     chain_id,
     asset,
     amount_raw,
-    accept_deadline_unix,
+    accept_window_seconds,
     completion_duration_seconds,
     dispute_bond_raw,
     assigned_counterparty_id,

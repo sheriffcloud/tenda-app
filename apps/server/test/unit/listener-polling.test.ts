@@ -4,6 +4,7 @@
  * advance contract when the queue dies mid-batch.
  */
 
+import { fakeCursorStore } from '../helpers/cursor-store'
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import {
@@ -19,24 +20,19 @@ function makeDeps(opts: {
   enqueueFailsAt?: string
 }): {
   deps: PollTickDeps
-  calls: { enqueued: string[]; cursors: number[] }
+  calls: { enqueued: string[]; cursors: readonly number[] }
 } {
-  const calls = { enqueued: [] as string[], cursors: [] as number[] }
-  let cursor = opts.cursor ?? 0
   const rpc = fakeSolanaRpc()
   rpc.stageSignatures(opts.signatures)
+  // The shared fake IS the cursor store — it already reads back what it wrote
+  // and records every write in order. Re-implementing that half by hand was the
+  // duplication `fakeCursorStore` exists to remove.
+  const cursors = fakeCursorStore({ live: opts.cursor ?? 0 })
+  const calls = { enqueued: [] as string[], cursors: cursors.live }
   const deps: PollTickDeps = {
     rpc,
     chain_id: 'solana:devnet',
-    cursors: {
-      async getCursor() {
-        return cursor
-      },
-      async setCursor(_chain, slot) {
-        cursor = slot
-        calls.cursors.push(slot)
-      },
-    },
+    cursors,
     queue: {
       async enqueue(_name, payload) {
         const p = payload as { tx_ref: string }

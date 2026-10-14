@@ -1,6 +1,6 @@
 /**
  * BullMQ + Redis queue plugin — the typed producer surface. Workers and their
- * concurrency live in plugins/workers.ts, processors in workers/processors.ts;
+ * concurrency live in plugins/workers.ts, processors in queue/workers/processors.ts;
  * both key off `JobName` from here, so this module decides what queues exist.
  *
  * Without `REDIS_URL` the plugin degrades to a stub whose `enqueue` throws
@@ -42,6 +42,7 @@ export type { QueueConnectionOptions } from './connection'
 export {
   DEFAULT_JOB_OPTIONS,
   VERIFY_TX_JOB_OPTIONS,
+  GAS_SEED_CONFIRM_JOB_OPTIONS,
   queueOptions,
   resolveJobId,
   toJobOptions,
@@ -131,7 +132,7 @@ const queuePlugin: FastifyPluginAsync = async (fastify) => {
     },
     async enqueueMany(name, jobs) {
       // Today's only caller returns before it gets here with nothing to send
-      // (lib/notify/), so this is defence rather than a live path — but it is
+      // (features/notifications/), so this is defence rather than a live path — but it is
       // the cheap kind: `addBulk([])` is a Redis round trip whose only possible
       // answer is [], and skipping it also avoids constructing the Queue (and
       // its connection) for a call that enqueues nothing.

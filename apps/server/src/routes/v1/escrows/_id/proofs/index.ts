@@ -1,20 +1,22 @@
 /**
- * Escrow proof files (ported from the legacy gig proofs route at the #34
+ * Escrow proofs (ported from the legacy gig proofs route at the #34
  * cutover). The on-chain submit carries only the 32-byte digest, the
- * actual evidence (Cloudinary URLs) lands here:
+ * actual evidence — Cloudinary URLs for file proofs, payloads for data
+ * proofs (geotag/text/structured) — lands here:
  *   POST, counterparty adds proofs while accepted (pre-submit upload) or
  *          submitted (poster requested more evidence). Off-chain.
  *   GET , either party lists them.
  */
 import { FastifyPluginAsync } from 'fastify'
 import { eq, sql } from 'drizzle-orm'
-import { escrow_proofs, disputes } from '@tenda/shared/db/schema'
-import { ErrorCode, MAX_ESCROW_PROOFS, proofIdentity } from '@tenda/shared'
+import { escrow_proofs, disputes, gig_details } from '@tenda/shared/db/schema'
+import { ErrorCode, MAX_ESCROW_PROOFS, isDataProofType, proofIdentity } from '@tenda/shared'
 import type { ApiError, EscrowProof } from '@tenda/shared'
-import { loadEscrowOr404, deriveCaller } from '@server/lib/escrow-routes'
+import { loadEscrowOr404, deriveCaller } from '@server/features/escrows/routes'
 import { AppError } from '@server/lib/errors'
-import { enqueueNotification, escrowPushData, disputePushData } from '@server/lib/notify'
+import { enqueueNotification, escrowPushData, disputePushData } from '@server/features/notifications'
 import { validateEscrowProofUploads, type EscrowProofUploadInput } from '@server/features/escrows/proofs/validateEscrowProofUploads'
+import { checkDataProofsAgainstGig } from '@server/features/escrows/proofs/checkDataProofsAgainstGig'
 
 const escrowProofs: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
@@ -34,8 +36,10 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
       if (!proofs || proofs.length === 0) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'At least one proof is required')
       }
-      validateEscrowProofUploads(proofs, request.user.id)
-      const uniqueProofs = [...new Map(proofs.map((proof) => [proofIdentity(proof), proof])).values()]
+      // Returns the NORMALISED batch (payload text trimmed, url/payload split
+      // per class) — dedupe and insert work off this, never the raw body.
+      const validated = validateEscrowProofUploads(proofs, request.user.id)
+      const uniqueProofs = [...new Map(validated.map((proof) => [proofIdentity(proof), proof])).values()]
 
       const { escrow, inserted, requested } = await fastify.db.transaction(async (tx) => {
         // Serialises count + insert for one escrow, so concurrent batches cannot
@@ -54,6 +58,24 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
           throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the counterparty can add proofs')
         }
 
+        // Data proofs are checked against what the GIG declared (geotag
+        // radius, structured fields) — loaded only when the batch carries one;
+        // exchange escrows have no gig row and the check treats that as
+        // "nothing declared". Inside the tx so the params read is consistent
+        // with the insert.
+        if (uniqueProofs.some((proof) => isDataProofType(proof.type))) {
+          const [gig] = await tx
+            .select({
+              proof_params: gig_details.proof_params,
+              latitude: gig_details.latitude,
+              longitude: gig_details.longitude,
+            })
+            .from(gig_details)
+            .where(eq(gig_details.escrow_id, id))
+            .limit(1)
+          checkDataProofsAgainstGig(uniqueProofs, gig ?? null)
+        }
+
         const existing = await tx.select().from(escrow_proofs).where(eq(escrow_proofs.escrow_id, id))
         const identities = new Set(existing.map(proofIdentity))
         const missing = uniqueProofs.filter((proof) => !identities.has(proofIdentity(proof)))
@@ -66,10 +88,11 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
         }
         const newRows = missing.length === 0
           ? []
-          : await tx.insert(escrow_proofs).values(missing.map(({ url, type }) => ({
+          : await tx.insert(escrow_proofs).values(missing.map(({ url, type, payload }) => ({
               escrow_id: id,
               url,
-              type: type as EscrowProof['type'],
+              payload,
+              type,
             }))).onConflictDoNothing().returning()
         const allRows = [...existing, ...newRows]
         const wanted = new Set(uniqueProofs.map(proofIdentity))

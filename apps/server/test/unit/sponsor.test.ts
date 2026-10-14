@@ -5,7 +5,7 @@ import {
   commitSponsoredTx,
   releaseSponsoredTx,
   reserveSponsoredTx,
-} from '@server/lib/sponsor'
+} from '@server/lib/chain/sponsor'
 
 // ---------- in-memory store -----------------------------------------------
 

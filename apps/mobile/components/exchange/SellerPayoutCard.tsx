@@ -63,7 +63,7 @@ const s = StyleSheet.create({
   title: { fontSize: 13.5, lineHeight: 18, fontWeight: '600' },
   name: { fontSize: 14.5, lineHeight: 19, fontWeight: '600', marginTop: 8 },
   detail: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12.5,
     lineHeight: 16,
     marginTop: 2,

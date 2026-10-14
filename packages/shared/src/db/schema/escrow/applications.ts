@@ -27,6 +27,15 @@ export const gig_applications = pgTable(
       .references(() => users.id, { onDelete: 'restrict' }),
     /** Optional pitch; length-checked against APPLICATION_MESSAGE_MAX_LENGTH. */
     message: text('message'),
+    /**
+     * The wallet the applicant chose to work under — the address an
+     * `assign_accept` will BAKE into the on-chain escrow, validated at apply
+     * time as one of the applicant's verified wallets on the gig's chain
+     * namespace (an absent client choice records their primary). Null only on
+     * rows that predate the column; the assign route then falls back to the
+     * primary, exactly the pre-column behaviour.
+     */
+    wallet_address: text('wallet_address'),
     status: applicationStatusEnum('status').notNull().default('open'),
     /**
      * When this stops being assignable. Set from
@@ -34,9 +43,9 @@ export const gig_applications = pgTable(
      * short hold when a poster starts an assignment (see
      * APPLICATION_ASSIGN_HOLD_SECONDS).
      */
-    expires_at: timestamp('expires_at').notNull(),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),

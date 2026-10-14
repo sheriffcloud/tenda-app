@@ -1,14 +1,16 @@
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { Input } from '@/components/ui/Input'
 import { AssetChainPicker } from '@/components/exchange/AssetChainPicker'
-import { NoLinkedWalletNotice } from '@/components/wallet/NoLinkedWalletNotice'
+import { useAuthStore } from '@/stores/auth.store'
+import { useChainRegistryStore } from '@/stores/chain-registry.store'
+import { SellWalletNotice } from './SellWalletNotice'
 import type { AssetSelection } from './useAssetSelection'
 
 /**
  * The "You sell" block shared by both sell tabs: asset/chain picker + crypto
- * amount. When the user has no verified wallet for any tradable chain it
- * collapses to NoLinkedWalletNotice (actionable link), replacing the old dead
- * "Connect a wallet" caption.
+ * amount. With nothing tradable it collapses to SellWalletNotice, which says
+ * WHICH of the four causes it is (#60) — it used to claim "link a wallet" for
+ * all of them, including while the wallets and chains were still loading.
  */
 export function SellAssetAmount({
   selection,
@@ -21,10 +23,22 @@ export function SellAssetAmount({
   onAmountChange: (next: string) => void
   noWalletMessage: string
 }) {
-  const { options, option, selectedKey, select } = selection
+  const { options, option, selectedKey, select, section } = selection
+  // `retryWalletSync`, not `refreshMe`: the store names this exact case —
+  // "re-run the wallets[] load after it failed" — and the retry below only
+  // appears in the state it was written for (walletsStatus === 'error').
+  const retryWallets = useAuthStore((st) => st.retryWalletSync)
+  const retryChains = useChainRegistryStore((st) => st.ensureLoaded)
 
   if (options.length === 0) {
-    return <NoLinkedWalletNotice message={noWalletMessage} />
+    return (
+      <SellWalletNotice
+        section={section}
+        noWalletMessage={noWalletMessage}
+        onRetryWallets={() => void retryWallets()}
+        onRetryChains={() => void retryChains()}
+      />
+    )
   }
 
   return (

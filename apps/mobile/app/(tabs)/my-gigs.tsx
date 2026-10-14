@@ -10,12 +10,8 @@ import { ScreenContainer, EmptyState, Header, PaginatedList, ConfirmDialog } fro
 import { PagerTabBar } from '@/components/navigation'
 import { ChainFilterChips } from '@/components/filters'
 import { GigCardCompact, GigListSkeleton, DraftsBanner } from '@/components/gig'
-import {
-  MyApplicationCard,
-  useApplications,
-  MY_APPLICATIONS_EMPTY,
-  WITHDRAW_CONFIRM,
-} from '@/components/gig/gig-applications'
+import { MY_APPLICATIONS_EMPTY, WITHDRAW_CONFIRM } from '@tenda/shared'
+import { MyApplicationCard, useApplications } from '@/components/gig/gig-applications'
 import { useMyGigs } from '@/hooks/useMyGigs'
 import type { PaginatedListState } from '@/hooks/usePaginatedList'
 

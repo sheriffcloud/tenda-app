@@ -5,6 +5,7 @@ import UserDetailPage from '@/app/(dashboard)/users/[id]/page'
 import { adminApi, type AdminUserDetail } from '@/api/client'
 import { ApiError } from '@/lib/api'
 import { setSession } from '@/lib/auth'
+import { userDetail } from '../fixtures'
 
 vi.mock('@/api/client', () => ({
   adminApi: {
@@ -19,14 +20,11 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const get = vi.mocked(adminApi.adminUsers.get)
 
 function user(over: Partial<AdminUserDetail> = {}): AdminUserDetail {
-  return {
-    id: 'p1', first_name: 'Ada', last_name: 'Lovelace', role: 'user', status: 'active',
-    is_seeker: true, country: 'NG', city: 'Lagos', review_score: '4.50',
-    created_at: '2026-01-01T00:00:00.000Z', last_active_at: null, bio: null, avatar_url: null,
-    phone_e164: null, advanced_mode_enabled: false,
+  return userDetail({
+    id: 'p1', is_seeker: true, review_score: '4.50', created_at: '2026-01-01T00:00:00.000Z',
     dispute_metric: { closed_engagements: 8, disputed: 3, dispute_rate_bps: 3750, fraud_flag: true },
     ...over,
-  }
+  })
 }
 
 beforeEach(() => {

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseUnits, formatUnits } from '../../src/utils/units'
+import { parseUnits, formatUnits, sanitizeDecimalText } from '../../src/utils/units'
 
 // parseUnits ---------------------------------------------------------------
 
@@ -65,4 +65,22 @@ test('parseUnits ∘ formatUnits round-trips across decimals', () => {
     // formatUnits trims, so compare via a re-parse for canonical equality.
     assert.equal(parseUnits(formatUnits(raw, decimals), decimals), raw)
   }
+})
+
+test('sanitizeDecimalText: at ZERO decimals there is no fraction to open', () => {
+  // The branch a 0-decimal asset would take. It is not reachable through the
+  // gig field today (nothing in the registry is below 6), but the helper is
+  // exported and the alternative — returning '12.' for an asset that cannot
+  // hold a fraction — invites a decimal point that can never mean anything.
+  assert.equal(sanitizeDecimalText('12.', 0), '12')
+  assert.equal(sanitizeDecimalText('12.99', 0), '12')
+  assert.equal(sanitizeDecimalText('12', 0), '12')
+})
+
+test('sanitizeDecimalText: the precision limit is the argument, not an asset', () => {
+  // It is shared by the gig field (asset decimals) and mobile's fiat entry
+  // (FIAT_ENTRY_DECIMALS), so the same text must land differently per limit.
+  assert.equal(sanitizeDecimalText('1.23456', 2), '1.23')
+  assert.equal(sanitizeDecimalText('1.23456', 6), '1.23456')
+  assert.equal(sanitizeDecimalText('1.23456', 18), '1.23456')
 })

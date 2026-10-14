@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef } from 'react'
 import {
   applyGigFeedEvent,
+  pruneGigFeedRevisions,
   type GigFeedState,
   type GigListQuery,
   type GigSummary,
 } from '@tenda/shared'
 import { subscribeGigFeedChannel, useRealtimeStore } from '@/stores/realtime.store'
+
+/** Identity: this list stores what it renders. */
+const keepSummary = (gig: GigSummary): GigSummary => gig
 
 export interface GigFeedRealtimeTarget {
   items: GigSummary[]
@@ -30,9 +34,14 @@ export function useGigFeedRealtimeSubscription(
   const mountedRef = useRef(true)
   queryRef.current = query
   targetRef.current = target
+  // Revisions accumulate across renders, BOUNDED (#73): the rows on screen
+  // plus the most recently departed, never every gig the session ever saw.
   stateRef.current = {
     items: target.items,
-    revisions: { ...stateRef.current.revisions, ...revisionsFromItems(target.items) },
+    revisions: pruneGigFeedRevisions(
+      { ...stateRef.current.revisions, ...revisionsFromItems(target.items) },
+      target.items.map((gig) => gig.escrow_id),
+    ),
   }
 
   const requestReconciliation = useCallback((): void => {
@@ -60,7 +69,16 @@ export function useGigFeedRealtimeSubscription(
   useEffect(() => {
     mountedRef.current = true
     const unsubscribe = subscribeGigFeedChannel((event) => {
-      const result = applyGigFeedEvent({ state: stateRef.current, event, query: queryRef.current })
+      const result = applyGigFeedEvent({
+        state: stateRef.current,
+        event,
+        query: queryRef.current,
+        // This list stores whole summaries — the row renders the amount. The
+        // reducer is generic because web's ANONYMOUS feed does not: it holds a
+        // trimmed card model, keeping base units out of the payload that page
+        // ships to the browser.
+        project: keepSummary,
+      })
       if (result.outcome === 'reconciliation_required') {
         requestReconciliation()
         return

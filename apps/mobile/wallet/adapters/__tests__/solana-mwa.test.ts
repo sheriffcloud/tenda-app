@@ -13,8 +13,9 @@ jest.mock('../mwa-shared', () => ({
 
 const mockBroadcast = jest.fn(async (_raw: Uint8Array, signature: string) => signature)
 jest.mock('@/wallet/solana-rpc', () => ({
+  // The classifier is NOT mocked since its move to @tenda/shared: the real
+  // one runs, and the test's TypeError is a genuine transport failure to it.
   solanaRpcTransport: { broadcast: (...args: [Uint8Array, string]) => mockBroadcast(...args) },
-  isRetryableSolanaRpcError: (error: unknown) => error instanceof TypeError,
 }))
 
 jest.mock('@solana/web3.js', () => {
@@ -44,10 +45,10 @@ jest.mock('@solana/web3.js', () => {
 })
 
 import { signAndSendStored, authenticate } from '../solana-mwa'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { withMwaRetry, authorizeSession } from '../mwa-shared'
 import { Transaction } from '@solana/web3.js'
-import type { SpikeAccount } from '../../types'
+import type { WalletAccount } from '@tenda/shared'
 
 const STORAGE_KEY = 'wallet.solana-mwa.authToken'
 const withRetryMock = withMwaRetry as jest.Mock
@@ -143,7 +144,7 @@ describe('authenticate (one-shot, always-fresh)', () => {
     // buildMessage changes each call (mirrors buildAuthMessage's fresh Issued At)
     // so a build-once bug would surface as signed-message ≠ returned-message.
     let n = 0
-    const buildMessage = (a: SpikeAccount): string => `MSG:${a.address}:${n++}`
+    const buildMessage = (a: WalletAccount): string => `MSG:${a.address}:${n++}`
 
     const result = await authenticate(buildMessage)
     if (result === null) throw new Error('expected an AuthenticateResult')

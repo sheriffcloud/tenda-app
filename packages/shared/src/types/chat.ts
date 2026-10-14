@@ -17,7 +17,7 @@ export interface Conversation {
   closed_by: string | null
   closed_at: string | null
   last_message_at: string | null
-  created_at: string | null
+  created_at: string
   other_user: ConversationParticipant
   unread_count: number
   last_message: string | null
@@ -38,7 +38,7 @@ export interface Message extends AttachmentFields {
   escrow_kind: 'gig' | 'exchange' | null
   content: string
   read_at: string | null
-  created_at: string | null
+  created_at: string
 }
 
 export interface SendMessageInput extends AttachmentInput {
@@ -52,7 +52,7 @@ export interface GigSubscription {
   user_id: string
   city: string
   category: string
-  created_at: string | null
+  created_at: string
 }
 
 export interface UpsertSubscriptionInput {
@@ -69,3 +69,10 @@ export type MessagesQuery = {
   before_id?: string
   limit?: number
 }
+
+/**
+ * The inbox pages by the same cursor a thread does: `before_id` is the id of the
+ * LAST conversation the client holds, `limit` the page size. Same shape on
+ * purpose, so one client hook drives both lists.
+ */
+export type ConversationsQuery = MessagesQuery

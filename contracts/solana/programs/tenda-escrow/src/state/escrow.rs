@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use anchor_lang::prelude::*;
 
 /// Single chain-agnostic escrow primitive. Mirrors the future Solidity surface
@@ -65,7 +66,11 @@ pub struct Escrow {
     /// Bump for the Escrow data PDA. Stored so settlement instructions can
     /// `signer = [ESCROW_SEED, escrow_id.as_ref(), &[bump]]` without re-deriving.
     pub bump: u8,
-    /// Bump for the per-escrow SOL vault PDA. 0 if `kind != Sol`.
+    /// Bump for the per-escrow vault PDA that holds the funds: the SOL vault
+    /// (`ESCROW_VAULT_SEED`) for native escrows, the token vault
+    /// (`ESCROW_TOKEN_SEED`) for SPL escrows — `create_escrow_spl` stores
+    /// `ctx.bumps.vault_token_account` here. The settlement structs re-derive
+    /// the matching PDA from it.
     pub vault_bump: u8,
 }
 

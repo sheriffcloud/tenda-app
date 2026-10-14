@@ -3,10 +3,13 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
 import { AttachmentPreview } from '@/components/shared/media/AttachmentPreview'
 import { useIsDark } from '@/lib/theme'
-import { formatConvoTime } from '@/lib/date'
-import { partyAccent } from '@/components/dispute/party-visual'
-import type { AttachmentPress } from '@/lib/attachments'
-import type { DisputeMessage, DisputeSender } from '@tenda/shared'
+import {
+  formatConvoTime,
+  partyAccent,
+  type AttachmentPress,
+  type DisputeMessage,
+  type DisputeSender,
+} from '@tenda/shared'
 
 interface Props {
   message: DisputeMessage
@@ -51,7 +54,7 @@ export function DisputeMessageBubble({
   // rather than absent on the mediator's bubbles: a border participates in
   // layout, so dropping it would inset their text 3px against the party
   // bubbles it sits between.
-  const partyEdge = sender.role === null ? 'transparent' : theme.colors[partyAccent(sender.role)].primary
+  const partyEdge = sender.role === null ? 'transparent' : (partyAccent(sender.role) === 'brand' ? theme.colors.brand.primary : theme.colors.feedback.warning.base)
   const attachmentUrl = message.attachment_url
   const attachmentType = message.attachment_type
 

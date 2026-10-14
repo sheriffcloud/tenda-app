@@ -5,7 +5,7 @@
  *        to the mediator (disputes.execute). This is the multisig "reject"
  *        vote later; today it simply reopens the dispute for a new proposal.
  * The per-dispute propose / current-proposal routes live on admin/disputes.ts
- * (dispute-scoped); both share lib/disputes/resolution-store.ts.
+ * (dispute-scoped); both share features/disputes/resolution-store.ts.
  */
 import type { FastifyPluginAsync } from 'fastify'
 import { and, eq, inArray } from 'drizzle-orm'
@@ -20,19 +20,19 @@ import type {
   ResolutionQueueRow,
   ResolutionStatus,
 } from '@tenda/shared'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
+import { requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { buildResolveTx } from '@server/lib/escrow/resolve-tx'
-import { drizzleTxAttemptsStore, recordTxAttempt } from '@server/lib/tx-attempts'
+import { drizzleTxAttemptsStore, recordTxAttempt } from '@server/features/escrows/tx-attempts'
 import {
   ACTIVE_RESOLUTION_STATUSES,
   getResolutionById,
   getResolutionEscrow,
   getResolutionQueue,
   toResolutionWire,
-} from '@server/lib/disputes/resolution-store'
+} from '@server/features/disputes/resolution-store'
 
 const RESOLUTION_STATUSES: readonly ResolutionStatus[] = ['pending', 'executing', 'confirmed', 'rejected']
 

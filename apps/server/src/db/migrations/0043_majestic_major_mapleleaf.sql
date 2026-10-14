@@ -1,0 +1,2 @@
+ALTER TABLE "gig_details" DROP CONSTRAINT "gig_details_remote_no_location";--> statement-breakpoint
+ALTER TABLE "gig_details" ADD CONSTRAINT "gig_details_remote_no_location" CHECK ("gig_details"."remote" = false OR ("gig_details"."country" IS NULL AND "gig_details"."city" IS NULL AND "gig_details"."latitude" IS NULL AND "gig_details"."longitude" IS NULL));

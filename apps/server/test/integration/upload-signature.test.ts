@@ -116,3 +116,40 @@ test('signature: escrow with no dispute yields 404', { skip }, async () => {
   })
   assert.strictEqual(res.statusCode, 404)
 })
+
+test('signature: a non-member is denied a CHAT upload (403) (#105 T3)', { skip }, async () => {
+  // The chat authorizer's own refusal, in features/uploads/scoped.ts. The dispute
+  // authorizer's 403/404 above were covered; the chat one was not, so the two
+  // scoped types were unevenly protected while looking symmetrical from here.
+  //
+  // It matters more than a folder name: the signature this route mints is what
+  // lets a client upload into `<base>/<conversationId>/<userId>`. Minting one
+  // for a stranger hands them write access to another pair's attachment scope.
+  const app = getApp()
+  const a = await createUser(app)
+  const b = await createUser(app)
+  const stranger = await createUser(app)
+
+  const created = await app.inject({
+    method: 'POST', url: '/v1/conversations', headers: authHeader(a.token),
+    payload: { user_id: b.row.id },
+  })
+  assert.strictEqual(created.statusCode, 200, created.body)
+  const conversationId = created.json().id
+
+  const denied = await app.inject({
+    method: 'POST', url: URL, headers: authHeader(stranger.token),
+    payload: { type: 'chat', scope_id: conversationId },
+  })
+  assert.strictEqual(denied.statusCode, 403)
+  assert.match(denied.json().message, /not a member of this conversation/)
+
+  // ...and a member is signed, so the 403 is the membership rule rather than
+  // chat uploads being broken.
+  const allowed = await app.inject({
+    method: 'POST', url: URL, headers: authHeader(b.token),
+    payload: { type: 'chat', scope_id: conversationId },
+  })
+  assert.strictEqual(allowed.statusCode, 200, allowed.body)
+  assert.match(allowed.json().folder, new RegExp(`${conversationId}/${b.row.id}$`))
+})

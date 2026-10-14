@@ -1,20 +1,10 @@
 import type { ImageRequireSource } from 'react-native'
-import type { Namespace, SignMessageResult, SpikeAccount } from '../types'
-
-/**
- * Outcome of a wallet authentication round-trip (connect + prove ownership by
- * signing the server nonce message). `null` is reserved for a user-decline;
- * transport/server failures throw.
- */
-export interface AuthenticateResult {
-  /** The wallet account that connected + signed. */
-  account: SpikeAccount
-  /** Signature over `message`, in the encoding the server expects per chain:
-   *  base64 (Solana) / `0x`-hex (EVM). */
-  signature: string
-  /** The exact literal message string that was signed. */
-  message: string
-}
+import type {
+  AuthenticateResult,
+  ChainNamespace,
+  SignMessageResult,
+  WalletAccount,
+} from '@tenda/shared'
 
 /**
  * Uniform surface every wallet integration implements. The picker, provider,
@@ -23,7 +13,7 @@ export interface AuthenticateResult {
  * universal links) is an implementation detail of each adapter.
  */
 export interface WalletAdapter {
-  /** Stable identifier used by the picker and stored on `SpikeAccount.walletId`. */
+  /** Stable identifier used by the picker and stored on `WalletAccount.walletId`. */
   readonly id: string
   /** Display name in the picker. */
   readonly name: string
@@ -39,7 +29,7 @@ export interface WalletAdapter {
    */
   readonly tagline?: string
   /** Which CAIP-2 namespaces this adapter can talk to. */
-  readonly namespaces: readonly Namespace[]
+  readonly namespaces: readonly ChainNamespace[]
 
   /**
    * Whether this adapter is usable on the current device/platform. Picker
@@ -60,10 +50,10 @@ export interface WalletAdapter {
    * (wallet-linking, where the user must be able to choose a different account);
    * transports without a reusable session ignore it.
    */
-  connect(opts?: { fresh?: boolean }): Promise<SpikeAccount>
+  connect(opts?: { fresh?: boolean }): Promise<WalletAccount>
 
   /** Request the wallet to sign `message` for `account`. */
-  signMessage(account: SpikeAccount, message: string): Promise<SignMessageResult>
+  signMessage(account: WalletAccount, message: string): Promise<SignMessageResult>
 
   /**
    * One auth round-trip for the server-nonce flow: connect (revealing the
@@ -77,7 +67,7 @@ export interface WalletAdapter {
    * the user must be able to pick a different account).
    */
   authenticate(
-    buildMessage: (account: SpikeAccount) => string,
+    buildMessage: (account: WalletAccount) => string,
     opts?: { forceFresh?: boolean },
   ): Promise<AuthenticateResult | null>
 
@@ -88,5 +78,5 @@ export interface WalletAdapter {
    * Best-effort restore on app launch. Returns the previously connected
    * account if the adapter still has a valid session, otherwise `null`.
    */
-  getRestoredAccount(): Promise<SpikeAccount | null>
+  getRestoredAccount(): Promise<WalletAccount | null>
 }

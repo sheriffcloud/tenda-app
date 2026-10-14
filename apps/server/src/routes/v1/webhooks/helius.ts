@@ -1,6 +1,12 @@
 /**
  * POST /v1/webhooks/helius, managed-listener push (stage-2-listeners.md).
  *
+ * That path comes from ./index.ts registering this module with a `/helius`
+ * prefix, NOT from this file's location — a bare route file inherits only its
+ * parent directory's prefix, which is how this handler spent a while answering
+ * at the bare /v1/webhooks while the docs said otherwise (#106). Move or rename
+ * this file and the mount moves with the registration, not with the filename.
+ *
  * Auth: Helius sends a configured shared secret in the Authorization
  * header (their webhook auth model is a static header, not payload HMAC,
  * documented deviation from the stage doc's "HMAC" shorthand). Compared
@@ -18,7 +24,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { solanaSecret } from '@server/chains/secrets'
-import { verifyTxDedupKey } from '@server/jobs/verify-tx'
+import { verifyTxDedupKey } from '@server/queue/jobs/verify-tx'
 
 /** Defensive signature extraction from Helius enhanced-webhook items. */
 export function extractSignatures(payload: unknown): string[] {

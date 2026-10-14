@@ -99,14 +99,19 @@ test('a whitespace-only search sends no q at all', async () => {
 
 test('hasFilters tracks every filter, including the chain', async () => {
   const { result } = renderHook(() => useHomeFeed())
-  await waitFor(() => expect(mockList).toHaveBeenCalled())
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1))
   expect(result.current.hasFilters).toBe(false)
 
   act(() => result.current.setFilter('chainId', 'solana:devnet'))
   expect(result.current.hasFilters).toBe(true)
+  // Every filter change refetches. Waiting for the request means the state it
+  // settles into is committed here, rather than landing after the test has
+  // finished — five un-acted updates came out of this one case (#62).
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2))
 
   act(() => result.current.clearAll())
   expect(result.current.hasFilters).toBe(false)
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(3))
 })
 
 test('clearAll resets every filter back to an unfiltered request', async () => {

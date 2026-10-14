@@ -8,6 +8,10 @@ let mockEscrowFrame: ((frame: { tx_ref: string }) => void) | null = null
 
 jest.mock('@/wallet', () => ({
   getTransactionStatus: (...args: string[]) => mockGetSolanaStatus(...args),
+}))
+// The EVM receipt poll moved to @tenda/shared (2026-08-15); partial mock.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   getEvmTransactionStatus: (...args: string[]) => mockGetEvmStatus(...args),
 }))
 jest.mock('@/stores/realtime.store', () => ({

@@ -20,10 +20,10 @@ import type {
   SendDisputeMessageBody,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { assertDisputeThreadAccess } from '@server/lib/disputes/thread-access'
-import { validateMessageAttachment } from '@server/lib/uploads/validate-attachment'
-import { enqueueNotification, disputePushData } from '@server/lib/notify'
-import { buildDisputeThreadContext } from '@server/lib/disputes/thread-context'
+import { assertDisputeThreadAccess } from '@server/features/disputes/thread-access'
+import { validateMessageAttachment } from '@server/features/uploads/validate-attachment'
+import { enqueueNotification, disputePushData } from '@server/features/notifications'
+import { buildDisputeThreadContext } from '@server/features/disputes/thread-context'
 
 const MESSAGES_PAGE_LIMIT = 100
 

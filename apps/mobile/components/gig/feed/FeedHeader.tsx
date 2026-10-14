@@ -12,7 +12,7 @@ import { ServerStatus } from '@/components/feedback'
 import { FeaturedRail } from '@/components/gig/FeaturedRail'
 import { NotificationNudgeBanner } from '@/components/notifications'
 import { ChainFilterChips } from '@/components/filters'
-import { CATEGORY_META } from '@/lib/categories'
+import { CATEGORY_META } from '@tenda/shared'
 import { spacing } from '@/theme/tokens'
 import type { GigCategory } from '@tenda/shared'
 
@@ -58,7 +58,7 @@ export function FeedHeader({
         >
           <ListFilter size={16} color={theme.colors.content.secondary} />
           {hasFilters && (
-            <View style={[s.filterDot, { backgroundColor: theme.colors.brand.primary }]} />
+            <View style={[s.filterDot, { backgroundColor: theme.colors.brand.solid }]} />
           )}
         </Pressable>
       </View>

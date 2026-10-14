@@ -22,7 +22,7 @@ import { escrows, escrow_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, USDC_ASSET_IDS } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { isEscrowParty } from '@server/lib/escrow-party'
+import { isEscrowParty } from '@server/lib/escrow/party'
 
 type SummaryRoute = UsersContract['transactionsSummary']
 

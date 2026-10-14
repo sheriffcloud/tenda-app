@@ -8,7 +8,8 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import type { Report, ReportStatus } from '@tenda/shared'
+import type { ReportStatus } from '@tenda/shared'
+import type { ReportRow } from '@/api/client'
 import { REPORT_STATUSES } from '@tenda/shared'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -25,7 +26,7 @@ import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
 
 interface ReportActionDialogProps {
-  report: Report | null
+  report: ReportRow | null
   onClose: () => void
   onActioned: () => void
 }

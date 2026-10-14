@@ -1,13 +1,16 @@
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { eq, desc, sql } from 'drizzle-orm'
 import { announcements } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
-import { createAnnouncement, normalizeTarget } from '@server/lib/announcements'
-import type { ApiError } from '@tenda/shared'
+import { createAnnouncement, normalizeTarget } from '@server/features/announcements/announcements'
+import type { AdminContract, ApiError } from '@tenda/shared'
+import { toWire } from '@server/lib/http/wire'
+
+type AnnouncementsContract = AdminContract['announcements']
 
 
 const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
@@ -18,7 +21,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
   // GET /v1/admin/announcements, all announcements (active and inactive)
   fastify.get<{
     Querystring: { limit?: number; offset?: number; active?: string }
-    Reply: { data: unknown[]; total: number; limit: number; offset: number } | ApiError
+    Reply: AnnouncementsContract['list']['response'] | ApiError
   }>('/', {
     preHandler: [requirePermission('announcements.read')],
   }, async (request) => {
@@ -44,13 +47,13 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
         .where(where),
     ])
 
-    return { data, total: countResult[0].count, limit: safeLimit, offset: safeOffset }
+    return { data: data.map(toWire), total: countResult[0].count, limit: safeLimit, offset: safeOffset }
   })
 
   // GET /v1/admin/announcements/:id
   fastify.get<{
     Params: { id: string }
-    Reply: unknown | ApiError
+    Reply: AnnouncementsContract['create']['response'] | ApiError
   }>('/:id', {
     preHandler: [requirePermission('announcements.read')],
   }, async (request) => {
@@ -60,7 +63,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
       .where(eq(announcements.id, request.params.id))
       .limit(1)
     if (!row) throw new AppError(404, ErrorCode.NOT_FOUND, 'Announcement not found')
-    return row
+    return toWire(row)
   })
 
   // POST /v1/admin/announcements, create a persistent in-app banner (optionally
@@ -73,7 +76,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
       title: string; body: string; priority?: number; is_active?: boolean; expires_at?: string
       target?: string; target_value?: string
     }
-    Reply: unknown | ApiError
+    Reply: AnnouncementsContract['create']['response'] | ApiError
   }>('/', {
     preHandler: [requirePermission('announcements.write')],
   }, async (request) => {
@@ -115,14 +118,14 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
       priority:       announcement.priority,
     })
 
-    return announcement
+    return toWire(announcement)
   })
 
   // PATCH /v1/admin/announcements/:id, update
   fastify.patch<{
     Params: { id: string }
     Body:  { title?: string; body?: string; priority?: number; is_active?: boolean; expires_at?: string | null }
-    Reply: unknown | ApiError
+    Reply: AnnouncementsContract['update']['response'] | ApiError
   }>('/:id', {
     preHandler: [requirePermission('announcements.write')],
   }, async (request) => {
@@ -175,13 +178,13 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
       title:          updated!.title,
     })
 
-    return updated
+    return toWire(updated)
   })
 
   // DELETE /v1/admin/announcements/:id
   fastify.delete<{
     Params: { id: string }
-    Reply:  { id: string } | ApiError
+    Reply:  AnnouncementsContract['remove']['response'] | ApiError
   }>('/:id', {
     preHandler: [requirePermission('announcements.write')],
   }, async (request) => {

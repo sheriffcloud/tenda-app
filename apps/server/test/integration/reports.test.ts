@@ -88,3 +88,23 @@ test('POST /v1/reports: a duplicate re-submit is idempotent (200, same id)', { s
   assert.strictEqual(second.statusCode, 200)
   assert.strictEqual(second.json().id, first.json().id)
 })
+
+test('POST /v1/reports: EVERY content type 404s on an id that does not exist (#105 T3)', { skip }, async () => {
+  // The 404 above uses content_type 'escrow' and is the only one that ran. The
+  // handler is a switch with one lookup per type, each with its own `if (!row)`
+  // — so three of the four refusals were unexecuted while their sibling was
+  // covered. Same asymmetry as the amount-window's `max` bound in #103: a case
+  // reaches for one member of a family and the rest go unmeasured.
+  const app = getApp()
+  const reporter = await createUser(app)
+  const ABSENT = '00000000-0000-0000-0000-000000000000'
+
+  for (const content_type of ['message', 'user', 'review']) {
+    const res = await app.inject({
+      method: 'POST', url: '/v1/reports', headers: authHeader(reporter.token),
+      payload: { content_type, content_id: ABSENT, reason: 'spam' },
+    })
+    assert.strictEqual(res.statusCode, 404, content_type)
+    assert.match(res.json().message, /Content not found/)
+  }
+})

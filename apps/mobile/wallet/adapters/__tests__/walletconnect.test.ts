@@ -29,12 +29,10 @@ import {
   walletConnectAdapter,
   sendEvmTransaction,
   signEvmTypedData,
-  getEvmTransactionStatus,
 } from '../walletconnect'
 import { connectionSignal } from '../../reown/connection-signal'
-import { WC_REQUEST_TIMEOUT_MS } from '../../reown/request-guard'
-import { WalletError } from '@/wallet/errors'
-import type { SpikeAccount } from '../../types'
+import { WC_REQUEST_TIMEOUT_MS, WalletError } from '@tenda/shared'
+import type { WalletAccount } from '@tenda/shared'
 
 const mockConnect = connectionSignal.connect as jest.Mock
 const mockDisconnect = connectionSignal.disconnect as jest.Mock
@@ -48,7 +46,7 @@ beforeEach(() => {
   mockGetPeerRedirect.mockReturnValue('trust://')
 })
 
-const account: SpikeAccount = {
+const account: WalletAccount = {
   namespace: 'eip155',
   chainId: 'eip155:8453',
   address: '0xABC',
@@ -348,54 +346,6 @@ describe('signEvmTypedData', () => {
     await expect(
       signEvmTypedData({ from: '0xABC', typedData: {}, chainId: 'eip155:84532' }),
     ).rejects.toThrow('non-string signature')
-  })
-})
-
-describe('getEvmTransactionStatus', () => {
-  const fetchMock = jest.fn()
-  beforeEach(() => {
-    fetchMock.mockReset()
-    global.fetch = fetchMock as unknown as typeof fetch
-  })
-
-  function respondWith(result: unknown): void {
-    fetchMock.mockResolvedValue({ json: async () => ({ jsonrpc: '2.0', id: 1, result }) })
-  }
-
-  it('queries the primary chain RPC with eth_getTransactionReceipt', async () => {
-    respondWith({ status: '0x1' })
-    await getEvmTransactionStatus('0xtx', 'eip155:84532')
-    const [url, init] = fetchMock.mock.calls[0]
-    expect(url).toMatch(/^https?:\/\//)
-    expect(JSON.parse(init.body)).toMatchObject({
-      method: 'eth_getTransactionReceipt',
-      params: ['0xtx'],
-    })
-  })
-
-  it('maps receipt status 0x1 → confirmed', async () => {
-    respondWith({ status: '0x1' })
-    await expect(getEvmTransactionStatus('0xtx', 'eip155:84532')).resolves.toBe('confirmed')
-  })
-
-  it('maps receipt status 0x0 → failed', async () => {
-    respondWith({ status: '0x0' })
-    await expect(getEvmTransactionStatus('0xtx', 'eip155:84532')).resolves.toBe('failed')
-  })
-
-  it('returns not_found when the receipt is null (still pending)', async () => {
-    respondWith(null)
-    await expect(getEvmTransactionStatus('0xtx', 'eip155:84532')).resolves.toBe('not_found')
-  })
-
-  it('returns not_found when the RPC body has no result field', async () => {
-    fetchMock.mockResolvedValue({ json: async () => ({ jsonrpc: '2.0', id: 1 }) })
-    await expect(getEvmTransactionStatus('0xtx', 'eip155:84532')).resolves.toBe('not_found')
-  })
-
-  it('returns not_found for an unknown receipt status', async () => {
-    respondWith({ status: '0x2' })
-    await expect(getEvmTransactionStatus('0xtx', 'eip155:84532')).resolves.toBe('not_found')
   })
 })
 

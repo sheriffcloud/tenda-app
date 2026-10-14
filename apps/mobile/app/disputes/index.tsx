@@ -59,7 +59,7 @@ export default function MyDisputesScreen() {
               >
                 {seg.label}
               </Text>
-              {active && <View style={[s.underline, { backgroundColor: theme.colors.brand.primary }]} />}
+              {active && <View style={[s.underline, { backgroundColor: theme.colors.brand.solid }]} />}
             </Pressable>
           )
         })}

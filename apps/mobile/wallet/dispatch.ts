@@ -16,12 +16,19 @@
 import { VersionedTransaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import type { ChainNamespace, EscrowTxType, UnsignedTx } from '@tenda/shared'
-import { findChain } from '@tenda/shared'
+import {
+  BOUND_WALLET_REFUSAL,
+  ensureAllowance,
+  findChain,
+  orderedSignerAddresses,
+  pickWalletAddress,
+  sameWalletAddress,
+  WalletError,
+} from '@tenda/shared'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
-import { ensureAllowance } from '@/wallet/allowance'
 import { ensureEvmSession } from '@/wallet/ensure-session'
-import { orderedSignerAddresses, pickWalletAddress } from '@/wallet/wallet-address'
+import { signerSessionAddress } from '@/wallet/signer-slot'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 
@@ -34,22 +41,23 @@ export class UnsupportedUnsignedTxError extends Error {
 
 /**
  * The account this device signs from on a namespace. `wallets[]` is the source
- * of trust: the live session address (evmAddress / walletAddress) is honoured
- * only while it's still a verified linked wallet, otherwise the primary (or
- * first) verified linked wallet on that namespace wins.
+ * of trust: the session address is honoured only while it is still a verified
+ * linked wallet, otherwise the primary (or first) verified linked wallet on
+ * that namespace wins.
  *
- * The auth store holds one session slot per namespace; this is the single
- * place that maps namespace → slot, so a new chain family adds one entry
- * rather than another bespoke `resolveXFrom`.
+ * Where that session address COMES from is `signer-slot`'s job — one module,
+ * shared with the signer preview, so a new chain family adds one entry there
+ * rather than another bespoke `resolveXFrom` here.
  */
 export function resolveSignerFor(ns: ChainNamespace): string | null {
   return pickWalletAddress(ns, sessionAddressFor(ns), useAuthStore.getState().wallets)
 }
 
-/** The auth store's session address slot for a namespace. */
+/** The signer-resolution input for a namespace — live session, else the store
+ *  slot. ONE module with the preview (see signer-slot), so the wallet named on
+ *  screen and the wallet declared to the server cannot disagree. */
 function sessionAddressFor(ns: ChainNamespace): string | null {
-  const { evmAddress, walletAddress } = useAuthStore.getState()
-  return ns === 'eip155' ? evmAddress : walletAddress
+  return signerSessionAddress(useAuthStore.getState(), ns)
 }
 
 /**
@@ -74,6 +82,38 @@ export function resolveEvmFrom(): string | null {
   return resolveSignerFor('eip155')
 }
 
+/**
+ * The wallet this client DECLARES it will sign with, on a build whose signer
+ * is not yet chain-bound (create, publish a draft, accept a public escrow,
+ * raise a dispute). The server bakes it — so leaving it out is not neutral,
+ * it hands the choice to the primary-wallet default while the user signs with
+ * whatever wallet is actually connected.
+ *
+ * `undefined` for an unknown chain or with nothing linked: the server then
+ * behaves exactly as it did before the field existed.
+ */
+export function declaredSignerFor(chainId: string): string | undefined {
+  const ns = findChain(chainId)?.namespace
+  if (ns === undefined) return undefined
+  return resolveSignerFor(ns) ?? undefined
+}
+
+/**
+ * Make that declaration TRUE before it is made.
+ *
+ * On EVM the signer slot (`evmAddress`) is session-scoped and empty after a
+ * restart, so declaring first would name the PRIMARY and then sign with
+ * whichever wallet the user connects a moment later — precisely the mismatch
+ * the field exists to prevent. `ensureEvmSession` connects on demand and syncs
+ * the slot, and is idempotent once a session is live (the permit flow already
+ * leans on that).
+ *
+ * Solana needs nothing: its slot is persisted, and MWA owns its own session.
+ */
+export async function settleSignerFor(chainId: string): Promise<void> {
+  if (findChain(chainId)?.namespace === 'eip155') await ensureEvmSession()
+}
+
 /** Sign + broadcast a server-built unsigned tx. Returns the tx_ref. */
 export async function signAndSendUnsignedTx(
   unsigned: UnsignedTx,
@@ -96,6 +136,22 @@ export async function signAndSendUnsignedTx(
       if (from === null) {
         throw new Error('no EVM wallet connected, link one in Settings → Wallets first')
       }
+      // The chain has already BOUND this transition to one wallet, and the
+      // connected one is a different one. Broadcasting anyway sends a tx the
+      // contract's party check reverts — gas spent, and a failure whose
+      // reason the user never sees. Refuse here instead, NAMING the wallet the
+      // escrow needs, which is the same sentence the signer row's Connect
+      // affordance acts on. (No auto-switch: mobile's transports are
+      // per-wallet-app, so changing signer needs the picker, which is UI.)
+      if (
+        unsigned.signer_address !== undefined &&
+        !sameWalletAddress('eip155', from, unsigned.signer_address)
+      ) {
+        throw new WalletError(
+          'no_wallet',
+          BOUND_WALLET_REFUSAL.wrongWallet(unsigned.signer_address),
+        )
+      }
       // The server's approval hint: this ERC-20 call transferFroms, so the
       // allowance must cover it BEFORE broadcast (permit-built calls carry
       // no hint, their allowance rides the tx). Ordering lives HERE so
@@ -114,6 +170,10 @@ export async function signAndSendUnsignedTx(
           spender: unsigned.approval.spender,
           amountRaw: unsigned.approval.amount_raw,
           owner: from,
+          sendTx: sendEvmTransaction,
+          // The server's own approve calldata, carrying the attribution suffix
+          // (#103). Absent against an older server → ensureAllowance encodes it.
+          ...(unsigned.approval.data !== undefined ? { data: unsigned.approval.data } : {}),
         })
       }
       return sendEvmTransaction({

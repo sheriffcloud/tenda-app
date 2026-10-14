@@ -12,7 +12,9 @@ interface EyebrowProps {
 }
 
 /**
- * Mono uppercase eyebrow primitive (9.5 / 600 / +0.95 letterSpacing).
+ * Mono uppercase eyebrow primitive — `typography.styles.eyebrow` (9.5 / 600 /
+ * +0.95 letterSpacing), the uppercase applied here. The numbers are a token
+ * style rather than literals so web and tendahq draw the same label (#59c).
  * Use directly inside cards/rows or wrap with padding via the `style` prop.
  * For form/section headers with default 18/8/20 padding, prefer SectionLabel.
  */
@@ -27,11 +29,7 @@ export function Eyebrow({ children, color, style }: EyebrowProps) {
 
 const s = StyleSheet.create({
   eyebrow: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
+    ...typography.styles.eyebrow,
     includeFontPadding: false,
   },
 })

@@ -1,5 +1,5 @@
 /**
- * lib/otp delivery seam — `deliverOtp` (channel routing) + `otpDispatch`
+ * features/auth/otp delivery seam — `deliverOtp` (channel routing) + `otpDispatch`
  * (queue-vs-inline selection). These back the bigger-hammer fix: the auth
  * challenge persists the code then hands delivery to `dispatch`, so the
  * response never blocks on the email/SMS provider.
@@ -7,9 +7,9 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { deliverOtp, otpDispatch, type OtpMessage } from '@server/lib/otp'
+import { deliverOtp, otpDispatch, type OtpMessage } from '@server/features/auth/otp'
 import type { OtpChannel } from '@tenda/shared/db/schema'
-import type { OtpSender } from '@server/lib/otp'
+import type { OtpSender } from '@server/features/auth/otp'
 
 interface Recorder {
   calls: Array<{ identifier: string; code: string }>

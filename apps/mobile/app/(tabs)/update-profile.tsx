@@ -11,7 +11,12 @@ import { CountryCityPicker } from '@/components/form/CountryCityPicker'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/api/client'
 import { uploadToCloudinary } from '@/lib/upload'
-import { findCountryForCity, coerceCityForCountry, formatFullName } from '@tenda/shared'
+import {
+  coerceCityForCountry,
+  errorMessage,
+  findCountryForCity,
+  formatFullName,
+} from '@tenda/shared'
 import { pickAvatar, type PickedFile } from '@/components/form/FilePicker'
 
 const BIO_MAX = 1200
@@ -66,7 +71,7 @@ export default function UpdateProfileScreen() {
       showToast('success', 'Profile updated!')
       router.back()
     } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to update profile')
+      showToast('error', errorMessage(e) || 'Failed to update profile')
     } finally {
       setIsLoading(false)
     }
@@ -264,7 +269,7 @@ const s = StyleSheet.create({
     fontSize: 11.5,
   },
   charCount: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 11.5,
     letterSpacing: 0.115,
   },

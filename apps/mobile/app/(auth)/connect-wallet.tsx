@@ -13,7 +13,7 @@ import { TermsNotice } from '@/components/auth/TermsNotice'
 import { useAuthStore } from '@/stores/auth.store'
 import { WalletPicker } from '@/wallet/picker'
 import type { WalletAdapter } from '@/wallet/adapters/types'
-import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
+import { classifyVerifyError, TIER0_MESSAGE } from '@tenda/shared'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
 import { classifyConnectError, type ConnectError } from '@/lib/connect-wallet-error'
 
@@ -85,7 +85,7 @@ export default function ConnectWalletScreen() {
 
             {isConnecting && (
               <View style={[s.infoBanner, { backgroundColor: theme.colors.brand.primarySurface }]}>
-                <View style={[s.tipIcon, { backgroundColor: theme.colors.brand.primary }]}>
+                <View style={[s.tipIcon, { backgroundColor: theme.colors.brand.solid }]}>
                   <Text style={s.tipGlyph}>i</Text>
                 </View>
                 <Text style={[s.infoText, { color: theme.colors.brand.primary }]}>

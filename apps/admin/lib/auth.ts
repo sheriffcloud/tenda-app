@@ -11,13 +11,9 @@ const TOKEN_KEY = 'tenda_admin_token'
 /** Exported for lib/use-session.ts — one source for the storage key. */
 export const USER_KEY = 'tenda_admin_user'
 
-/** Profile returned by POST /v1/auth/admin/verify-email-otp. */
-export interface AdminSessionUser {
-  id: string
-  role: string
-  first_name: string
-  last_name: string
-}
+/** Profile returned by POST /v1/auth/admin/verify-email-otp (the contract's type). */
+export type { AdminSessionUser } from '@tenda/shared'
+import type { AdminSessionUser } from '@tenda/shared'
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null

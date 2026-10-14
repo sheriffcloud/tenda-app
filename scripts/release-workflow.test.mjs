@@ -21,6 +21,8 @@ import { resolve, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
+import { resolveEasProfile } from './resolve-eas-profile.mjs'
+
 const SCRIPTS = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(SCRIPTS, '..')
 const WORKFLOW = resolve(ROOT, '.github/workflows/release.yml')
@@ -100,7 +102,7 @@ test('every inputs.* the workflow reads is a declared workflow_dispatch input', 
  *
  * Covering only the block form is a blind spot rather than a simplification —
  * this workflow has 14 `run:` keys and only 9 are blocks, so a one-line
- * `run: node scripts/x.mjs ${{ inputs.suffix }}` would sail past a
+ * `run: node scripts/x.mjs ${{ inputs.target }}` would sail past a
  * block-only check. Line-walked rather than regexed as a whole so the count is
  * verifiable against the file.
  */
@@ -131,9 +133,10 @@ function runBodies(text) {
 }
 
 /**
- * Turns a one-off audit into a standing guard. `suffix` is free-form operator
- * input; interpolated into a script body it is a shell-injection vector, which
- * is why every value reaches the shell through `env:` instead.
+ * Turns a one-off audit into a standing guard. `target` is operator input (a
+ * dropdown today, but untrusted on principle); interpolated into a script body
+ * it is a shell-injection vector, which is why every value reaches the shell
+ * through `env:` instead.
  */
 test('no ${{ }} interpolation appears inside any run: body, block or single-line', () => {
   const bodies = runBodies(yaml)
@@ -177,15 +180,92 @@ test('every eas-cli step runs in the directory that owns eas.json', () => {
   }
 })
 
-test('the profile the workflow builds is declared in eas.json', () => {
+/**
+ * The profile is no longer a literal: it is RESOLVED from the release suffix,
+ * because a hardcoded `--profile testnet` meant a `--suffix ''` mainnet release
+ * would tag v1.0.0 while building the staging-configured testnet app. So the
+ * contract to guard changed shape — assert the wiring, not a spelling.
+ */
+test('the workflow builds a resolved profile, never a hardcoded one', () => {
   const profile = yaml.match(/--profile (\S+)/)
   assert.ok(profile, 'expected the build step to name a profile')
-  const eas = JSON.parse(readFileSync(resolve(ROOT, 'apps/mobile/eas.json'), 'utf8'))
-  assert.ok(
-    Object.keys(eas.build ?? {}).includes(profile[1]),
-    `workflow builds --profile ${profile[1]}, which eas.json does not declare ` +
-      `(declared: ${Object.keys(eas.build ?? {}).join(', ')})`,
+  assert.match(
+    profile[1],
+    /^"\$[A-Z_]+"$/,
+    `workflow builds --profile ${profile[1]} as a literal; it must come from ` +
+      `resolve-eas-profile.mjs via env so the profile follows the release suffix`,
   )
+  // The env key it reads must actually be fed by the resolver step's output.
+  const key = profile[1].replace(/["$]/g, '')
+  assert.ok(
+    yaml.includes(`${key}: \${{ steps.eas.outputs.profile }}`),
+    `${key} is used by --profile but is not wired to steps.eas.outputs.profile`,
+  )
+})
+
+/**
+ * ONE SUFFIX, TWO READERS. `bump-version.mjs` decides the tag and asset name
+ * from the suffix; `resolve-eas-profile.mjs` decides which app gets built from
+ * it. They must be handed the same value or the release ships an app that does
+ * not match its own tag — the exact failure the hardcoded `--profile testnet`
+ * used to guarantee.
+ *
+ * Today they agree because the workflow feeds both from the derive step's
+ * `steps.suffix.outputs.suffix`, and bump-version's `suffix ?? current.suffix`
+ * fallback is therefore never taken.
+ * That is a property of how the workflow is written, not of either script, so
+ * it is asserted here rather than assumed: dropping `--suffix` from the bump
+ * step would silently reintroduce two sources for one fact.
+ */
+test('bump-version and the profile resolver read the same suffix', () => {
+  const bumpCall = yaml.match(/bump-version\.mjs[^\n]*--suffix "\$(\w+)"/)
+  assert.ok(bumpCall, 'expected the bump step to pass --suffix from an env var')
+  const resolveCall = yaml.match(/resolve-eas-profile\.mjs "\$(\w+)"/)
+  assert.ok(resolveCall, 'expected the resolve step to pass the suffix from an env var')
+
+  // Both env vars must be fed from the same workflow expression.
+  const sourceOf = (name) => {
+    const m = yaml.match(new RegExp(`^\\s*${name}: (\\$\\{\\{[^}]+\\}\\})`, 'm'))
+    assert.ok(m, `${name} is used in a run body but never set in an env: block`)
+    return m[1].replace(/\s+/g, '')
+  }
+  assert.equal(
+    sourceOf(bumpCall[1]),
+    sourceOf(resolveCall[1]),
+    'the bump step and the profile resolver are reading DIFFERENT suffix sources; ' +
+      'the built app could then not match the tag it is published under',
+  )
+})
+
+/**
+ * And the resolver must agree with eas.json for every target the dropdown
+ * offers, mapped through the same derivation the workflow's suffix step does
+ * (`mainnet` → empty suffix, anything else → itself). That agreement is what
+ * the old literal-spelling check was really protecting; resolveEasProfile also
+ * throws here if any option's profile does not build an apk.
+ */
+test('every target the workflow can dispatch resolves to a declared apk profile', () => {
+  const eas = JSON.parse(readFileSync(resolve(ROOT, 'apps/mobile/eas.json'), 'utf8'))
+  const input = yaml.match(
+    /^ {6}target:\n(?: {8}.*\n)*? {8}default: (\S+)\n(?: {8}.*\n)*? {8}options: \[([^\]]+)\]$/m,
+  )
+  assert.ok(input, 'expected the target input to declare a default and an options list')
+  const [, declaredDefault, optionsList] = input
+  const options = optionsList.split(',').map((o) => o.trim())
+  assert.ok(
+    options.includes(declaredDefault),
+    `target default "${declaredDefault}" is not one of its options (${options.join(', ')})`,
+  )
+
+  for (const target of options) {
+    const suffix = target === 'mainnet' ? '' : target
+    const profile = resolveEasProfile(suffix, eas)
+    assert.ok(
+      Object.keys(eas.build ?? {}).includes(profile),
+      `target "${target}" resolves to profile "${profile}", which eas.json does not declare ` +
+        `(declared: ${Object.keys(eas.build ?? {}).join(', ')})`,
+    )
+  }
 })
 
 test('the workflow is dispatch-only — releases are never triggered by a push', () => {

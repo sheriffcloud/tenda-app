@@ -17,14 +17,14 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
-import { applyEscrowEvent, drizzleEscrowEventStore } from '@server/lib/escrow-events'
+import { applyEscrowEvent, drizzleEscrowEventStore } from '@server/features/escrows/events'
 import {
   TEST_DB_CONFIGURED,
   FAKE_SOLANA_PROGRAM,
   useTestApp,
+  createTransactableUser,
   createUser,
   createEscrow,
-  makeTransactable,
   authHeader,
   TEST_CHAIN_ID,
   TEST_CHAIN_ID_ALT,
@@ -48,8 +48,7 @@ async function stampOf(app: ReturnType<typeof getApp>, id: string): Promise<stri
 
 test('POST /v1/escrows stamps the contract the create tx was built against', { skip }, async () => {
   const app = getApp()
-  const user = await createUser(app)
-  await makeTransactable(app, user.row.id)
+  const user = await createTransactableUser(app)
 
   const res = await app.inject({
     method: 'POST',
@@ -71,8 +70,7 @@ test('build-create RE-stamps a draft left on a superseded contract', { skip }, a
   // whatever contract is current when it is actually created. Preserving the
   // old stamp would encode a create for a contract we are not building against.
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
   const escrow = await createEscrow(app, {
     creator_id: creator.row.id,
     status: 'draft',
@@ -91,8 +89,7 @@ test('build-create RE-stamps a draft left on a superseded contract', { skip }, a
 
 test('build-create leaves a draft already on the current contract untouched', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
   const escrow = await createEscrow(app, {
     creator_id: creator.row.id,
     status: 'draft',
@@ -276,7 +273,7 @@ test('an UNSTAMPED escrow still builds — no backfill was required', { skip }, 
 
 test('the public gig detail does NOT expose the escrow contract', { skip }, async () => {
   // Adding a column to `escrows` is one `select()` away from appearing on a
-  // public payload — `lib/escrow/dossier.ts` selects the whole row on purpose.
+  // public payload — `features/escrows/detail/dossier.ts` selects the whole row on purpose.
   // The public detail surfaces are narrowed selects and must stay that way.
   const app = getApp()
   const creator = await createUser(app)

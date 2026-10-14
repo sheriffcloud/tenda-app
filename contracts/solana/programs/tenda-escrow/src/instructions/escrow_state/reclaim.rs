@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! `reclaim_abandoned_{sol,spl}` — creator pulls refund when counterparty
 //! accepted but never submitted within `completion_deadline + grace`. Full
 //! refund (no fee). Emits standing-signal event the listener uses to apply
@@ -16,11 +17,15 @@ use super::settlement_accounts::{ReclaimSpl, SettleSol};
 
 pub fn handler_sol(ctx: Context<SettleSol>) -> Result<()> {
     let escrow = &ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Accepted, TendaError::InvalidEscrowStatus);
-    require!(ctx.accounts.signer.key() == escrow.creator, TendaError::NotCreator);
-    let counterparty = escrow
-        .counterparty
-        .ok_or(TendaError::NotCounterparty)?;
+    require!(
+        escrow.status == EscrowStatus::Accepted,
+        TendaError::InvalidEscrowStatus
+    );
+    require!(
+        ctx.accounts.signer.key() == escrow.creator,
+        TendaError::NotCreator
+    );
+    let counterparty = escrow.counterparty.ok_or(TendaError::NotCounterparty)?;
 
     let now = Clock::get()?.unix_timestamp;
     let grace = ctx.accounts.platform_state.grace_period_seconds;
@@ -57,11 +62,15 @@ pub fn handler_sol(ctx: Context<SettleSol>) -> Result<()> {
 
 pub fn handler_spl(ctx: Context<ReclaimSpl>) -> Result<()> {
     let escrow = &ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Accepted, TendaError::InvalidEscrowStatus);
-    require!(ctx.accounts.signer.key() == escrow.creator, TendaError::NotCreator);
-    let counterparty = escrow
-        .counterparty
-        .ok_or(TendaError::NotCounterparty)?;
+    require!(
+        escrow.status == EscrowStatus::Accepted,
+        TendaError::InvalidEscrowStatus
+    );
+    require!(
+        ctx.accounts.signer.key() == escrow.creator,
+        TendaError::NotCreator
+    );
+    let counterparty = escrow.counterparty.ok_or(TendaError::NotCounterparty)?;
 
     let now = Clock::get()?.unix_timestamp;
     let grace = ctx.accounts.platform_state.grace_period_seconds;

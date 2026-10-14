@@ -2,6 +2,7 @@ import { View, StyleSheet, ActivityIndicator } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text, Button } from '@/components/ui'
 import { spacing } from '@/theme/tokens'
+import { formatFiatPrecise, formatRate } from '@tenda/shared'
 
 /** Shared ScrollView content padding for both sell tabs. */
 export const tabBodyStyle = { padding: spacing.md, gap: 12 } as const
@@ -21,7 +22,7 @@ export function QuoteSummary({
   rate,
   fee,
   fiatAmount,
-  currencySymbol,
+  currency,
   assetSymbol,
   expiresIn,
   onRefresh,
@@ -29,7 +30,13 @@ export function QuoteSummary({
   rate: number
   fee: number
   fiatAmount: number
-  currencySymbol: string
+  /**
+   * The payout CURRENCY CODE, not its symbol. The shared formatters own symbol
+   * placement and the locale; a hand-rolled `${symbol}${value}` pinned neither,
+   * and its bare `toLocaleString()` followed the DEVICE locale, so the same
+   * quote grouped differently on two phones.
+   */
+  currency: string
   assetSymbol: string
   expiresIn: number
   /** Re-quote action shown once the quote has expired. */
@@ -39,9 +46,11 @@ export function QuoteSummary({
   const expired = expiresIn <= 0
   return (
     <View style={[s.quoteCard, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default }]}>
-      <Row label="Rate" value={`${currencySymbol}${rate.toLocaleString()} / ${assetSymbol}`} />
-      <Row label="Conversion fee" value={fee > 0 ? `${currencySymbol}${fee.toLocaleString()}` : 'Free'} />
-      <Row label="You receive" value={`${currencySymbol}${fiatAmount.toLocaleString()}`} bold />
+      <Row label="Rate" value={`${formatRate(rate, currency)} / ${assetSymbol}`} />
+      {/* Precise, not `formatFiat`: fee_amount is numeric(20,4), and rounding a
+          GH₵15.40 fee to "GH₵15" understates what the seller is charged. */}
+      <Row label="Conversion fee" value={fee > 0 ? formatFiatPrecise(fee, currency) : 'Free'} />
+      <Row label="You receive" value={formatFiatPrecise(fiatAmount, currency)} bold />
       <Text size={11.5} color={expired ? theme.colors.feedback.danger.base : theme.colors.content.tertiary}>
         {expired
           ? 'This quote has expired'

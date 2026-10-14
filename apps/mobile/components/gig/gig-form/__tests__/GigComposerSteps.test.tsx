@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { emptyProofParamsDraft } from '@tenda/shared'
 import { GigDeliveryStep } from '../steps/GigDeliveryStep'
 import { GigDetailsStep } from '../steps/GigDetailsStep'
 import { GigPaymentStep } from '../steps/GigPaymentStep'
@@ -69,13 +70,13 @@ it('wires editable detail fields and hides location for remote work', () => {
 it('shows the fee breakdown only after a budget exists', () => {
   const props = {
     chainOptions: [], chainId: 'solana:devnet', onChainChange: jest.fn(),
-    asset: 'USDC_SOL', assetSymbol: 'USDC', paymentRaw: 0, onPaymentChange: jest.fn(),
+    asset: 'USDC_SOL', assetSymbol: 'USDC', paymentRaw: '', onPaymentChange: jest.fn(),
     completionDuration: 86_400, onCompletionChange: jest.fn(),
     acceptDeadlineHours: 168, onAcceptDeadlineChange: jest.fn(),
   }
   const { rerender } = render(<GigPaymentStep {...props} />)
   expect(screen.queryByText('Cost breakdown')).toBeNull()
-  rerender(<GigPaymentStep {...props} paymentRaw={1_000_000} />)
+  rerender(<GigPaymentStep {...props} paymentRaw="1000000" />)
   expect(screen.getByText('Cost breakdown')).toBeTruthy()
 })
 
@@ -84,6 +85,9 @@ it('renders a concise final review for remote and local gigs', () => {
     onApprovalChange: jest.fn(),
     proofRequirements: [],
     onProofRequirementsChange: jest.fn(),
+    remote: false,
+    proofDraft: emptyProofParamsDraft(),
+    onProofDraftChange: jest.fn(),
     title: 'Deliver parcel',
     location: 'Lagos, NG',
     budget: '10 USDC',

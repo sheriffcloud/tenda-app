@@ -19,7 +19,11 @@ jest.mock('react-native-unistyles', () => ({
     },
   }),
 }))
-jest.mock('@/lib/date', () => ({ formatRelativeShort: () => '2h ago' }))
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
+  // Echoes its input so a test can prove WHICH field the row formats.
+  formatRelativeShort: (iso: string) => `stamp:${iso}`,
+}))
 jest.mock('@/components/ui', () => {
   const { Text } = require('react-native')
   return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
@@ -44,6 +48,14 @@ test('renders title + body and fires onPress', () => {
   expect(screen.getByText('Your gig was accepted')).toBeTruthy()
   fireEvent.press(screen.getByLabelText('Gig accepted, unread'))
   expect(onPress).toHaveBeenCalledTimes(1)
+})
+
+test('stamps the row with the instant the notice arrived', () => {
+  // Rendered unconditionally since #38 (notifications.created_at is NOT NULL).
+  // The mocked formatter echoes its argument, so this proves the row passes
+  // `created_at` — not merely that some formatter was called.
+  render(<NotificationRow notification={notif()} onPress={jest.fn()} />)
+  expect(screen.getByText('stamp:2026-01-01T00:00:00.000Z')).toBeTruthy()
 })
 
 test('an unread notice is announced as unread', () => {

@@ -1,6 +1,5 @@
 /**
- * Only the component is re-exported: `takedownCopy` / `takedownAudience` are
- * internals its tests reach directly, and re-exporting them here would publish
- * an API surface with no consumer.
+ * Only the component: `takedownCopy` / `takedownAudience` live in
+ * @tenda/shared since 2026-08-15.
  */
 export { TakedownNotice } from './TakedownNotice'

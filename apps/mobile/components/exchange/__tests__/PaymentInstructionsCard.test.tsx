@@ -87,7 +87,7 @@ test('no deadline → no countdown banner', () => {
 // ── visibility gate ──────────────────────────────────────────────────────────
 
 const buyer: UserRef = {
-  id: 'buyer', first_name: 'B', last_name: 'Y', avatar_url: null, review_score: '0', is_seeker: false, country: 'NG',
+  id: 'buyer', first_name: 'B', last_name: 'Y', avatar_url: null, review_score: '0', is_seeker: false, is_agent: false, country: 'NG',
 }
 
 function gateOffer(

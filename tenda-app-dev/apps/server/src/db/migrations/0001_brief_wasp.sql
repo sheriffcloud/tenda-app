@@ -1,1 +1,0 @@
-ALTER TABLE "escrows" ADD COLUMN "hidden" boolean DEFAULT false NOT NULL;

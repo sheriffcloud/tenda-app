@@ -1,5 +1,5 @@
 /**
- * lib/boot-migrate.ts — opt-in boot-time migrations (MIGRATE_ON_BOOT=true):
+ * lib/boot/migrate.ts — opt-in boot-time migrations (MIGRATE_ON_BOOT=true):
  * flag-gated (unset = never connects, proven with a dead-port URL),
  * advisory-locked (concurrent boots serialize instead of racing the journal),
  * and writes the same drizzle.__drizzle_migrations journal as drizzle-kit.
@@ -10,7 +10,7 @@ import assert from 'node:assert'
 import os from 'node:os'
 import postgres from 'postgres'
 import { TEST_DB_CONFIGURED } from '../helpers/test-app'
-import { migrateOnBoot, resolveMigrationsFolder } from '@server/lib/boot-migrate'
+import { migrateOnBoot, resolveMigrationsFolder } from '@server/lib/boot/migrate'
 
 const skip = !TEST_DB_CONFIGURED
 const log = { info: () => {} }

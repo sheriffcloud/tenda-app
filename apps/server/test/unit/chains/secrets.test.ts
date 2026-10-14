@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
+import bs58 from 'bs58'
+import { Keypair } from '@solana/web3.js'
 import {
   loadChainSecrets,
   chainEnvPrefix,
@@ -12,6 +14,7 @@ import {
 // Verified, well-formed sample values per namespace (real-shape, not the live
 // deployment's secrets). base58 = a 44-char Solana pubkey; evmAddr = 0x+40hex.
 const SOL_PUBKEY = '7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes'
+const SOL_SECRET_KEY = bs58.encode(Keypair.generate().secretKey)
 const EVM_ADDR = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 const RPC = 'https://api.devnet.solana.com'
 const EVM_RPC = 'https://base-sepolia.example/v2/key'
@@ -24,12 +27,12 @@ function solanaDevnetEnv(): NodeJS.ProcessEnv {
   }
 }
 
-/** Minimal env that activates exactly Base mainnet. */
-function baseMainnetEnv(): NodeJS.ProcessEnv {
+/** Minimal env that activates exactly Base Sepolia. */
+function baseSepoliaEnv(): NodeJS.ProcessEnv {
   return {
-    CHAIN_EIP155_8453_RPC_URL: EVM_RPC,
-    CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ADDR,
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM_ADDR,
+    CHAIN_EIP155_84532_RPC_URL: EVM_RPC,
+    CHAIN_EIP155_84532_ESCROW_ADDR: EVM_ADDR,
+    CHAIN_EIP155_84532_TREASURY_ADDR: EVM_ADDR,
   }
 }
 
@@ -60,8 +63,8 @@ test('a fully-configured Solana chain resolves with the solana shape', () => {
 })
 
 test('a fully-configured EVM chain resolves with the eip155 shape', () => {
-  const secrets = loadChainSecrets(baseMainnetEnv())
-  const base = secrets.get('eip155:8453')
+  const secrets = loadChainSecrets(baseSepoliaEnv())
+  const base = secrets.get('eip155:84532')
   assert.ok(base && base.namespace === 'eip155')
   assert.equal(base.rpcUrl, EVM_RPC)
   assert.equal(base.escrow, EVM_ADDR)
@@ -73,25 +76,28 @@ test('optional fields are captured when present', () => {
   const env = {
     ...solanaDevnetEnv(),
     CHAIN_SOLANA_DEVNET_USDC_MINT: SOL_PUBKEY,
-    CHAIN_SOLANA_DEVNET_GAS_SEED_KEY: 'someBase58SecretKeyValue',
+    // A REAL base58 64-byte secret: the kind was tightened from `str` to
+    // `base58Key` (#53b), so a placeholder is now a boot error — which is the
+    // whole point of the change.
+    CHAIN_SOLANA_DEVNET_GAS_SEED_KEY: SOL_SECRET_KEY,
     CHAIN_SOLANA_DEVNET_WEBHOOK_SECRET: 'whsec_abc',
   }
   const sol = loadChainSecrets(env).get('solana:devnet')
   assert.ok(sol && sol.namespace === 'solana')
   assert.equal(sol.usdcMint, SOL_PUBKEY)
-  assert.equal(sol.gasSeedKey, 'someBase58SecretKeyValue')
+  assert.equal(sol.gasSeedKey, SOL_SECRET_KEY)
   assert.equal(sol.webhookSecret, 'whsec_abc')
 })
 
 test('escrowDeployBlock: captured as an exact number when present, absent otherwise', () => {
   const withBlock = loadChainSecrets({
-    ...baseMainnetEnv(),
-    CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK: '44318123',
-  }).get('eip155:8453')
+    ...baseSepoliaEnv(),
+    CHAIN_EIP155_84532_ESCROW_DEPLOY_BLOCK: '44318123',
+  }).get('eip155:84532')
   assert.ok(withBlock && withBlock.namespace === 'eip155')
   assert.strictEqual(withBlock.escrowDeployBlock, 44_318_123)
 
-  const without = loadChainSecrets(baseMainnetEnv()).get('eip155:8453')
+  const without = loadChainSecrets(baseSepoliaEnv()).get('eip155:84532')
   assert.ok(without && without.namespace === 'eip155')
   assert.strictEqual(without.escrowDeployBlock, undefined)
 })
@@ -100,18 +106,18 @@ test('escrowDeployBlock: a non-numeric value is a boot error naming the key', ()
   assert.throws(
     () =>
       loadChainSecrets({
-        ...baseMainnetEnv(),
-        CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK: '0x2a43abb',
+        ...baseSepoliaEnv(),
+        CHAIN_EIP155_84532_ESCROW_DEPLOY_BLOCK: '0x2a43abb',
       }),
-    /CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK/,
+    /CHAIN_EIP155_84532_ESCROW_DEPLOY_BLOCK/,
   )
 })
 
 test('two different-family chains can both be active', () => {
-  const secrets = loadChainSecrets({ ...solanaDevnetEnv(), ...baseMainnetEnv() })
+  const secrets = loadChainSecrets({ ...solanaDevnetEnv(), ...baseSepoliaEnv() })
   assert.equal(secrets.size, 2)
   assert.ok(secrets.has('solana:devnet'))
-  assert.ok(secrets.has('eip155:8453'))
+  assert.ok(secrets.has('eip155:84532'))
 })
 
 // ---------- inactive vs absent edge cases -----------------------------------
@@ -142,8 +148,8 @@ test('a present optional with required missing is still a partial-config error',
 
 test('a malformed EVM address throws and names the key', () => {
   assert.throws(
-    () => loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_ESCROW_ADDR: '0xnothex' }),
-    /malformed.*CHAIN_EIP155_8453_ESCROW_ADDR/s,
+    () => loadChainSecrets({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_ESCROW_ADDR: '0xnothex' }),
+    /malformed.*CHAIN_EIP155_84532_ESCROW_ADDR/s,
   )
 })
 
@@ -184,15 +190,15 @@ for (const [why, value] of NOT_ABSOLUTE_HTTP) {
   // applied — the fallback endpoint and the paymaster are reached the same way.
   test(`rpc fallback rejected — ${why}`, () => {
     assert.throws(
-      () => loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_RPC_URL_FALLBACK: value }),
-      /malformed value\(s\) for CHAIN_EIP155_8453_RPC_URL_FALLBACK/,
+      () => loadChainSecrets({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_RPC_URL_FALLBACK: value }),
+      /malformed value\(s\) for CHAIN_EIP155_84532_RPC_URL_FALLBACK/,
     )
   })
 
   test(`paymaster url rejected — ${why}`, () => {
     assert.throws(
-      () => loadChainSecrets({ ...baseMainnetEnv(), CHAIN_EIP155_8453_PAYMASTER_URL: value }),
-      /malformed value\(s\) for CHAIN_EIP155_8453_PAYMASTER_URL/,
+      () => loadChainSecrets({ ...baseSepoliaEnv(), CHAIN_EIP155_84532_PAYMASTER_URL: value }),
+      /malformed value\(s\) for CHAIN_EIP155_84532_PAYMASTER_URL/,
     )
   })
 }
@@ -201,11 +207,11 @@ test('a well-formed http(s) url is still accepted on every url field', () => {
   // The negative table above is only meaningful if the tightening did not also
   // reject the real thing — all five live CHAIN_* url values are `https://`.
   const secrets = loadChainSecrets({
-    ...baseMainnetEnv(),
-    CHAIN_EIP155_8453_RPC_URL_FALLBACK: 'http://localhost:8545',
-    CHAIN_EIP155_8453_PAYMASTER_URL: 'https://paymaster.example/v1/rpc',
+    ...baseSepoliaEnv(),
+    CHAIN_EIP155_84532_RPC_URL_FALLBACK: 'http://localhost:8545',
+    CHAIN_EIP155_84532_PAYMASTER_URL: 'https://paymaster.example/v1/rpc',
   })
-  const base = secrets.get('eip155:8453')
+  const base = secrets.get('eip155:84532')
   assert.ok(base && base.namespace === 'eip155')
   assert.equal(base.rpcUrl, EVM_RPC)
   assert.equal(base.rpcUrlFallback, 'http://localhost:8545')
@@ -233,15 +239,19 @@ test('unrecognised-key detection ignores blank typo vars', () => {
 })
 
 test('two same-family chains both configured throws one-per-family', () => {
+  // Celo mainnet and Celo Sepolia: both `live`, so both get past the status
+  // rule (#145) and only the family rule is left to refuse them. Base could
+  // not play this part any more — its mainnet is `planned`, and the status
+  // refusal would fire first and mask the clash this test exists to pin.
   const env = {
-    CHAIN_EIP155_8453_RPC_URL: EVM_RPC,
-    CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ADDR,
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM_ADDR,
-    CHAIN_EIP155_84532_RPC_URL: EVM_RPC,
-    CHAIN_EIP155_84532_ESCROW_ADDR: EVM_ADDR,
-    CHAIN_EIP155_84532_TREASURY_ADDR: EVM_ADDR,
+    CHAIN_EIP155_42220_RPC_URL: EVM_RPC,
+    CHAIN_EIP155_42220_ESCROW_ADDR: EVM_ADDR,
+    CHAIN_EIP155_42220_TREASURY_ADDR: EVM_ADDR,
+    CHAIN_EIP155_11142220_RPC_URL: EVM_RPC,
+    CHAIN_EIP155_11142220_ESCROW_ADDR: EVM_ADDR,
+    CHAIN_EIP155_11142220_TREASURY_ADDR: EVM_ADDR,
   }
-  assert.throws(() => loadChainSecrets(env), /share family 'base'/)
+  assert.throws(() => loadChainSecrets(env), /share family 'celo'/)
 })
 
 // ---------- typed accessors -------------------------------------------------
@@ -251,12 +261,12 @@ test('solanaSecret returns the active Solana chain or undefined', () => {
   const sol = solanaSecret(solActive)
   assert.ok(sol && sol.namespace === 'solana' && sol.chainId === 'solana:devnet')
   // Only an EVM chain active → no Solana.
-  assert.equal(solanaSecret(loadChainSecrets(baseMainnetEnv())), undefined)
+  assert.equal(solanaSecret(loadChainSecrets(baseSepoliaEnv())), undefined)
 })
 
 test('paymasterChainSecret returns the active paymaster EVM chain or undefined', () => {
-  const base = paymasterChainSecret(loadChainSecrets(baseMainnetEnv()))
-  assert.ok(base && base.namespace === 'eip155' && base.chainId === 'eip155:8453')
+  const base = paymasterChainSecret(loadChainSecrets(baseSepoliaEnv()))
+  assert.ok(base && base.namespace === 'eip155' && base.chainId === 'eip155:84532')
   // Solana-only deployment → no paymaster chain.
   assert.equal(paymasterChainSecret(loadChainSecrets(solanaDevnetEnv())), undefined)
 })
@@ -274,9 +284,9 @@ test('all errors are aggregated into one throw', () => {
   // Partial Solana + malformed Base + unknown key → a single error listing all.
   const env = {
     CHAIN_SOLANA_DEVNET_RPC_URL: RPC, // partial (missing program id + treasury)
-    CHAIN_EIP155_8453_RPC_URL: EVM_RPC,
-    CHAIN_EIP155_8453_ESCROW_ADDR: 'bad',
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM_ADDR,
+    CHAIN_EIP155_84532_RPC_URL: EVM_RPC,
+    CHAIN_EIP155_84532_ESCROW_ADDR: 'bad',
+    CHAIN_EIP155_84532_TREASURY_ADDR: EVM_ADDR,
     CHAIN_BOGUS_KEY: 'x',
   }
   try {

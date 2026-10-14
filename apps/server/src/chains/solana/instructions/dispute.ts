@@ -11,13 +11,13 @@ import type { BuildTxArgs } from '@server/chains/types'
 import {
   ataProvisioningIx,
   counterpartyOrThrow,
-  fetchEscrow,
   fetchPlatformState,
   isNativeSol,
   toBn,
   WINNER_ARG,
+  type FetchedEscrow,
   type SolanaBuilderDeps,
-} from '@server/chains/solana/builder-internals'
+} from '@server/chains/solana/build/builder-internals'
 
 /** The actions this module encodes. */
 export type DisputeAction = Extract<BuildTxArgs, { action: 'disputeEscrow' | 'resolveDispute' }>
@@ -26,10 +26,12 @@ export async function buildDisputeInstruction(
   deps: SolanaBuilderDeps,
   args: DisputeAction,
   wallet: PublicKey,
+  /** The escrow account builders.ts already fetched for this build. */
+  fetched: FetchedEscrow,
 ): Promise<TransactionInstruction[]> {
   switch (args.action) {
 case 'disputeEscrow': {
-  const { escrowAddr, idBytes, escrow } = await fetchEscrow(deps, args.payload.escrow_id)
+  const { escrowAddr, idBytes, escrow } = fetched
   const bond = toBn(args.payload.bond_raw, 'bond_raw')
   if (isNativeSol(escrow)) {
     return [
@@ -59,7 +61,7 @@ case 'disputeEscrow': {
 }
 
 case 'resolveDispute': {
-  const { escrowAddr, idBytes, escrow } = await fetchEscrow(deps, args.payload.escrow_id)
+  const { escrowAddr, idBytes, escrow } = fetched
   const platform = await fetchPlatformState(deps)
   const counterparty = counterpartyOrThrow(escrow)
   const winner = WINNER_ARG[args.payload.winner]

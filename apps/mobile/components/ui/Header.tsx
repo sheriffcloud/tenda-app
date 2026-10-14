@@ -64,7 +64,7 @@ export function Header({
     >
       <RightIcon size={18} color={theme.colors.content.secondary} />
       {rightActive && (
-        <View style={[styles.activeDot, { backgroundColor: theme.colors.brand.primary }]} />
+        <View style={[styles.activeDot, { backgroundColor: theme.colors.brand.solid }]} />
       )}
     </Pressable>
   ) : null;

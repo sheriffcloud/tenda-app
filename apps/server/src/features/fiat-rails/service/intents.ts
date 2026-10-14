@@ -19,7 +19,7 @@ import type {
   FiatDirection,
   FiatIntentRow,
   PaymentInstruction,
-} from '../types'
+} from '../core/types'
 import type { FiatDeps } from './deps'
 
 export interface InitiateOutput {
@@ -72,6 +72,9 @@ export async function initiateIntent(
   if (opts.expected_direction !== undefined && quote.direction !== opts.expected_direction) {
     throw new AppError(422, ErrorCode.VALIDATION_ERROR, `intent is not an ${opts.expected_direction}`)
   }
+  // A country with no payout spec resolves to null, which never equals the
+  // quote's currency — so an unserved country is rejected here rather than
+  // being read as the old NGN default and slipping through.
   if (
     opts.payout_country !== undefined &&
     payoutCurrencyForCountry(opts.payout_country) !== quote.fiat_currency

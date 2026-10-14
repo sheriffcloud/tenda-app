@@ -1,0 +1,15 @@
+{
+  "//": "Coverage gate for @tenda/api-doc. The package left apps/server/src in #157 stage 1 and, with it, the server's c8 measurement of those 1,929 lines; the suites that exercise it import the src here (not dist) so c8 sees it. The two document suites that read server constants (agent-api-document, agent-api-lifecycle) stay in apps/server/test and are NOT counted here.",
+  "all": true,
+  "src": ["src"],
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.d.ts", "src/index.ts"],
+  "reporter": ["text", "html", "lcov"],
+  "report-dir": "coverage",
+  "clean": true,
+  "check-coverage": true,
+  "lines": 90,
+  "branches": 85,
+  "functions": 90,
+  "statements": 90
+}

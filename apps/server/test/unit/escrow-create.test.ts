@@ -6,6 +6,12 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
+import {
+  MAX_ACCEPT_WINDOW_SECONDS,
+  MAX_COMPLETION_DURATION_SECONDS,
+  MIN_ACCEPT_WINDOW_SECONDS,
+  MIN_COMPLETION_DURATION_SECONDS,
+} from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import {
   validateCreateEscrow,
@@ -31,7 +37,7 @@ function body(over: Partial<CreateEscrowBody> = {}): CreateEscrowBody {
     chain_id: 'solana:devnet',
     asset: 'SOL_DEVNET',
     amount_raw: '1000000000',
-    accept_deadline_unix: NOW_UNIX + 3_600,
+    accept_window_seconds: 24 * 3600,
     completion_duration_seconds: 7_200,
     ...over,
   }
@@ -57,7 +63,7 @@ test('valid exchange body normalizes (bond defaults to 0, no assignment)', () =>
     chain_id: 'solana:devnet',
     asset: 'SOL_DEVNET',
     amount_raw: '1000000000',
-    accept_deadline_unix: NOW_UNIX + 3_600,
+    accept_window_seconds: 24 * 3600,
     completion_duration_seconds: 7_200,
     dispute_bond_raw: '0',
     assigned_counterparty_id: null,
@@ -127,15 +133,85 @@ test('dispute bond must be canonical when supplied', () => {
   expectRejects(body({ dispute_bond_raw: '-3' }), 422, /dispute_bond_raw/)
 })
 
-test('deadline must be a future integer', () => {
-  expectRejects(body({ accept_deadline_unix: NOW_UNIX }), 422, /future/)
-  expectRejects(body({ accept_deadline_unix: 1.5 }), 422, /integer/)
-  expectRejects(body({ accept_deadline_unix: 'tomorrow' as unknown as number }), 422, /integer/)
+test('the accept window must be an integer inside the rail the pickers offer', () => {
+  // #41 replaced an absolute deadline with a DURATION, and a duration has a
+  // natural ceiling — which the instant never had. Before, the only checks were
+  // "integer" and "in the future", so `Date.now()` sent in MILLISECONDS was
+  // accepted as a unix SECOND and minted a draft due in the year 58,633 (#40).
+  expectRejects(body({ accept_window_seconds: MIN_ACCEPT_WINDOW_SECONDS - 1 }), 422, /accept_window_seconds/)
+  expectRejects(body({ accept_window_seconds: MAX_ACCEPT_WINDOW_SECONDS + 1 }), 422, /accept_window_seconds/)
+  expectRejects(body({ accept_window_seconds: 0 }), 422, /accept_window_seconds/)
+  expectRejects(body({ accept_window_seconds: -3600 }), 422, /accept_window_seconds/)
+  expectRejects(body({ accept_window_seconds: 1.5 }), 422, /accept_window_seconds/)
+  // The CONDITION, not the range — the same distinction the completion-duration
+  // case below asserts, and the reason the check is two ifs rather than one.
+  expectRejects(body({ accept_window_seconds: 'tomorrow' as unknown as number }), 422, /must be a number$/)
+  // The exact shape #40 named: milliseconds where seconds were meant.
+  expectRejects(body({ accept_window_seconds: Date.now() }), 422, /accept_window_seconds/)
 })
 
-test('completion duration must be a positive integer', () => {
-  expectRejects(body({ completion_duration_seconds: 0 }), 422, /positive/)
-  expectRejects(body({ completion_duration_seconds: -10 }), 422, /positive/)
+test('both ends of the rail are accepted', () => {
+  // The bound is derived from ACCEPT_DEADLINE_OPTIONS, so a value the pickers
+  // can produce must never be refused by the API.
+  const atMin = validateCreateEscrow(deps(), body({ accept_window_seconds: MIN_ACCEPT_WINDOW_SECONDS }))
+  const atMax = validateCreateEscrow(deps(), body({ accept_window_seconds: MAX_ACCEPT_WINDOW_SECONDS }))
+  assert.strictEqual(atMin.accept_window_seconds, MIN_ACCEPT_WINDOW_SECONDS)
+  assert.strictEqual(atMax.accept_window_seconds, MAX_ACCEPT_WINDOW_SECONDS)
+})
+
+test('completion duration must be a number at all', () => {
+  // The message names the CONDITION that failed (not a number), not the wider
+  // requirement — the range check below owns that, and says so precisely.
+  expectRejects(
+    body({ completion_duration_seconds: '7200' as unknown as number }),
+    422,
+    /must be a number$/,
+  )
+})
+
+/**
+ * The window is BOUNDED, not merely positive (#52).
+ *
+ * Until then the API took any positive integer, so ~3.2 years produced a draft
+ * row and a transaction to sign, and the refusal came from the chain AFTER the
+ * signature — both contracts cap it at 180 days. The bound applied is the
+ * tighter PRODUCT rail the composers already offer, through the same shared
+ * predicate, so the two can never disagree.
+ */
+test('completion duration: both boundaries are INSIDE the window', () => {
+  const at = (seconds: number) =>
+    validateCreateEscrow(deps(), body({ completion_duration_seconds: seconds }))
+      .completion_duration_seconds
+  assert.strictEqual(at(MIN_COMPLETION_DURATION_SECONDS), MIN_COMPLETION_DURATION_SECONDS)
+  assert.strictEqual(at(MAX_COMPLETION_DURATION_SECONDS), MAX_COMPLETION_DURATION_SECONDS)
+})
+
+test('completion duration: one second past either boundary is refused', () => {
+  // Exactly one second, not a round number — an off-by-one in the comparison
+  // is the failure this catches, and a coarse probe would miss it.
+  expectRejects(
+    body({ completion_duration_seconds: MIN_COMPLETION_DURATION_SECONDS - 1 }),
+    422,
+    /between/,
+  )
+  expectRejects(
+    body({ completion_duration_seconds: MAX_COMPLETION_DURATION_SECONDS + 1 }),
+    422,
+    /between/,
+  )
+})
+
+test('completion duration: zero, negative and non-integer are all refused', () => {
+  for (const seconds of [0, -10, 7_200.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    expectRejects(body({ completion_duration_seconds: seconds }), 422, /between/)
+  }
+})
+
+test('completion duration: the ~3.2 years the chain would revert on is refused HERE', () => {
+  // The concrete case from #52. 100,000,000s is past the 180-day contract
+  // limit as well as the 90-day product rail, so before this it reached the
+  // chain; now it never leaves the API.
+  expectRejects(body({ completion_duration_seconds: 100_000_000 }), 422, /between/)
 })
 
 test('self-assignment rejected', () => {
@@ -194,3 +270,4 @@ test('requires_approval: a non-boolean is a validation error', () => {
     expectRejects(gigBody({ requires_approval: bad }), 422, /must be a boolean/)
   }
 })
+

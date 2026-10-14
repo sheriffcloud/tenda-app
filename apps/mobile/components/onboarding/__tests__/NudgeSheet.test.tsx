@@ -10,7 +10,6 @@ jest.mock('@/stores/onboarding.store', () => ({
 }))
 jest.mock('@/components/ui', () => {
   // Jest mock factories cannot close over the module's top-level React Native import.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Pressable, Text, View } = require('react-native')
   return {
     BottomSheet: ({ visible, title, children, onClose }: {

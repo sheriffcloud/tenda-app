@@ -8,7 +8,7 @@ import { renderHook, act, waitFor } from '@testing-library/react-native'
 type Chain = { id: string; namespace: string; display_name: string; assets: unknown[] }
 
 let mockUser: { id: string } | null = { id: 'u1' }
-let mockWallets: Array<{ chain_ns: string; address: string }> = []
+let mockWallets: { chain_ns: string; address: string }[] = []
 let mockWalletsStatus = 'ready'
 const mockRetry = jest.fn()
 let mockChains: Chain[] | null = []
@@ -19,6 +19,7 @@ let mockChainsStatus = 'ready'
 // "fires once per focus" assertions would be meaningless.
 const mockRefreshMe = jest.fn(() => Promise.resolve())
 const mockEnsureChains = jest.fn(() => Promise.resolve())
+const mockFetchChains = jest.fn(() => Promise.resolve())
 // Both stores are mocked WITH `getState`, as zustand really exposes it: the
 // refresh path reads the just-settled values that way, and a selector-only
 // stand-in would silently hand it `undefined`.
@@ -41,14 +42,12 @@ jest.mock('@/stores/chain-registry.store', () => {
     chains: mockChains,
     status: mockChainsStatus,
     ensureLoaded: mockEnsureChains,
+    fetch: mockFetchChains,
   })
   return {
     // The REAL predicate, not a re-implementation: "usable" is the rule that
     // decides whether balances can be read at all, and a copy of it here could
     // drift from the store's without any test noticing.
-    isRegistryUsable: jest.requireActual<typeof import('@/stores/chain-registry.store')>(
-      '@/stores/chain-registry.store',
-    ).isRegistryUsable,
     useChainRegistryStore: Object.assign((sel: (s: unknown) => unknown) => sel(registryState()), {
       getState: registryState,
     }),
@@ -56,10 +55,12 @@ jest.mock('@/stores/chain-registry.store', () => {
 })
 
 const mockRead = jest.fn((_wallets?: unknown, _chains?: unknown) => Promise.resolve([] as unknown[]))
-const mockSum = jest.fn((_balances?: unknown) => '0')
-jest.mock('@/wallet/balances', () => ({
+// Partial mock of shared: ONLY the RPC fan-out is faked — sumUsdcRaw,
+// resolveWalletSection and isRegistryUsable stay the REAL implementations so
+// the hook's arithmetic and section resolution are actually under test.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   readWalletBalances: (wallets: unknown, chains: unknown) => mockRead(wallets, chains),
-  sumUsdcRaw: (balances: unknown) => mockSum(balances),
 }))
 /** One page of the transaction feed, as the wire delivers it. */
 type TxPage = { data: unknown[]; total: number; limit: number; offset: number }
@@ -101,9 +102,9 @@ beforeEach(() => {
   mockChains = CHAINS
   mockChainsStatus = 'ready'
   mockRefreshMe.mockClear()
-  mockEnsureChains.mockClear()
+  mockEnsureChains.mockReset().mockResolvedValue(undefined)
+  mockFetchChains.mockReset().mockResolvedValue(undefined)
   mockRead.mockReset().mockResolvedValue([])
-  mockSum.mockReset().mockReturnValue('0')
   mockTxns.mockReset().mockResolvedValue({ data: [], total: 0, limit: 20, offset: 0 })
   mockSummary.mockReset().mockResolvedValue({ earned_raw: '0', spent_raw: '0', asset: 'USDC_SOL' })
 })
@@ -121,14 +122,26 @@ test('with a wallet → reads balances and derives the USDC headline total', asy
   mockChains = [{ id: 'solana:devnet', namespace: 'solana', display_name: 'Solana', assets: [] }]
   mockRead.mockResolvedValue([
     { chainId: 'solana:devnet', namespace: 'solana', displayName: 'Solana', address: 'SoL',
-      usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '50000000', decimals: 6, isStable: true }, native: null },
+      usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '50000000', decimals: 6, isStable: true }, native: null, others: [] },
   ])
-  mockSum.mockReturnValue('50000000') // 50 USDC (6dp)
+  // The REAL sumUsdcRaw runs over the mocked read result → 50 USDC (6dp).
 
   const { result } = renderHook(() => useWalletScreen())
   expect(result.current.section).toBe('ready')
   await waitFor(() => expect(result.current.balances).toHaveLength(1))
   expect(result.current.totalUsdc).toBe(50)
+})
+
+test('exposes the asset id the headline total was scaled by, so the screen can price it in fiat', async () => {
+  mockWallets = [{ chain_ns: 'eip155', address: '0xA' }]
+  mockChains = [{ id: 'eip155:8453', namespace: 'eip155', display_name: 'Base', assets: [] }]
+  mockRead.mockResolvedValue([
+    { chainId: 'eip155:8453', namespace: 'eip155', displayName: 'Base', address: '0xA',
+      usdc: { assetId: 'USDC_BASE', symbol: 'USDC', amountRaw: '50000000', decimals: 6, isStable: true }, native: null, others: [] },
+  ])
+  const { result } = renderHook(() => useWalletScreen())
+  await waitFor(() => expect(result.current.balances).toHaveLength(1))
+  expect(result.current.usdcAssetId).toBe('USDC_BASE')
 })
 
 test('surfaces the failed-load section and its retry, so the screen can distinguish load states', async () => {
@@ -403,6 +416,7 @@ test('a slower EARLIER read cannot overwrite the newer one it was superseded by'
     chainId: 'solana:devnet', namespace: 'solana', displayName: 'Solana', address,
     usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '1', decimals: 6, isStable: true },
     native: null,
+    others: [],
   })
   let releaseFirst: ((v: unknown[]) => void) | undefined
   mockRead.mockImplementationOnce(() => new Promise<unknown[]>((res) => { releaseFirst = res }))
@@ -436,7 +450,7 @@ test('a superseded run cannot write even when it FAILS or answers late', async (
   await waitFor(() => expect(mockRead).toHaveBeenCalledTimes(1))
 
   const fresh = [{ chainId: 'solana:devnet', namespace: 'solana', displayName: 'Solana',
-    address: 'NEW', usdc: null, native: null }]
+    address: 'NEW', usdc: null, native: null, others: [] }]
   mockRead.mockResolvedValue(fresh)
   mockSummary.mockResolvedValue({ earned_raw: '9000000', spent_raw: '0', asset: 'USDC_SOL' })
   mockWallets = [{ chain_ns: 'solana', address: 'NEW' }]
@@ -510,7 +524,7 @@ test('pull-to-refresh recovers a failed registry and re-reads against the new ch
 
   // The gesture the user actually reaches for: it must drive the recovery,
   // not just re-read balances against the same broken inputs.
-  mockEnsureChains.mockImplementation(() => {
+  mockFetchChains.mockImplementation(() => {
     mockChains = CHAINS
     mockChainsStatus = 'ready'
     return Promise.resolve()
@@ -518,10 +532,53 @@ test('pull-to-refresh recovers a failed registry and re-reads against the new ch
   await act(async () => { await result.current.handleRefresh() })
   await act(async () => { rerender({}) })
 
-  expect(mockEnsureChains).toHaveBeenCalled()
+  expect(mockFetchChains).toHaveBeenCalled()
   expect(mockRefreshMe).toHaveBeenCalled()
   await waitFor(() => expect(result.current.section).toBe('ready'))
   expect(mockRead).toHaveBeenLastCalledWith(mockWallets, CHAINS)
+})
+
+test('pull-to-refresh refetches a registry that is STALE but usable (the reinstall bug)', async () => {
+  // The field failure: a pre-0G snapshot listed three chains, so the registry
+  // was "usable" and `ensureLoaded` (rightly) no-oped on it — leaving
+  // uninstall/reinstall as the only way to see the new chain. The gesture must
+  // call the store's REAL fetch, which refetches unconditionally.
+  const STALE: Chain[] = CHAINS
+  const FRESH: Chain[] = [
+    ...CHAINS,
+    { id: 'eip155:16602', namespace: 'eip155', display_name: '0G Galileo', assets: [] },
+  ]
+  mockWallets = [{ chain_ns: 'solana', address: 'SoL' }]
+  mockChains = STALE
+  mockChainsStatus = 'ready'
+
+  const { result, rerender } = renderHook(() => useWalletScreen())
+  await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+  mockFetchChains.mockImplementation(() => {
+    mockChains = FRESH
+    return Promise.resolve()
+  })
+  await act(async () => { await result.current.handleRefresh() })
+  await act(async () => { rerender({}) })
+
+  // The refetch fired despite the usable snapshot, and the balance re-read ran
+  // against the chains it just settled — not the closure's stale copy.
+  expect(mockFetchChains).toHaveBeenCalledTimes(1)
+  expect(mockRead).toHaveBeenLastCalledWith(mockWallets, FRESH)
+})
+
+test('focus keeps the cheap ensureLoaded — it must NOT hard-refetch per visit', async () => {
+  // The split this pins: `fetch` belongs to the deliberate gesture only.
+  // Attached to focus it would hit the API on every tab visit for data that
+  // rarely changes.
+  renderHook(() => useWalletScreen())
+  await waitFor(() => expect(mockEnsureChains).toHaveBeenCalledTimes(1))
+
+  await act(async () => { refocus() })
+
+  expect(mockEnsureChains).toHaveBeenCalledTimes(2)
+  expect(mockFetchChains).not.toHaveBeenCalled()
 })
 
 test('exposes the registry retry so the error card can recover in place', async () => {

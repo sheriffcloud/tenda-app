@@ -2,14 +2,17 @@
  * useOfferSell — posting a P2P sell offer. Verifies the caller-chosen windows
  * thread through (accept → deadline unix, payment window → BOTH the escrow
  * completion duration and the offer payment_window), plus the negative paths:
- * draft cleanup on terms failure, the 9D gate, and signing-declined → draft.
+ * draft cleanup on terms failure, and signing-declined → draft.
+ *
+ * The 9D transaction gate lives in the .gate. sibling since #60: its two
+ * halves answer differently now (the wallet gate stays put, the contact gate
+ * routes), and that needs the auth store this file does not mock.
  */
 import { renderHook, act } from '@testing-library/react-native'
 import type { BankAccountSummary } from '@tenda/shared'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
 
 const NOW_MS = 1_700_000_000_000
-const NOW_S = Math.floor(NOW_MS / 1000)
 
 const mockCreate = jest.fn()
 const mockDelete = jest.fn().mockResolvedValue(undefined)
@@ -18,7 +21,6 @@ const mockSign = jest.fn().mockResolvedValue('tx-ref')
 const mockReplace = jest.fn()
 const mockPush = jest.fn()
 const mockToast = jest.fn()
-let mockGate: string | null = null
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace, push: mockPush }) }))
 jest.mock('@/api/client', () => ({
@@ -31,7 +33,12 @@ jest.mock('@/api/client', () => ({
   },
 }))
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockToast(...a) }))
+const mockSettleSignerFor: jest.Mock<Promise<void>, [string]> = jest.fn()
+const mockDeclaredSignerFor: jest.Mock<string | undefined, [string]> = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({
+  // The signer declaration: settled (a no-op off EVM) then read.
+  settleSignerFor: (chainId: string) => mockSettleSignerFor(chainId),
+  declaredSignerFor: (chainId: string) => mockDeclaredSignerFor(chainId),
   signSendAndReport: (a: unknown) => mockSign(a),
   resolveSignersForChain: () => mockSigners,
 }))
@@ -41,31 +48,14 @@ jest.mock('@/wallet/dispatch', () => ({
 // real here because useOfferSell branches on `instanceof`.
 const mockEnsureSufficientBalance = jest.fn()
 let mockSigners: string[] = ['0xEvm']
-jest.mock('@/wallet/balances', () => {
-  // Plain shape: TS parameter properties trip babel-plugin-jest-hoist inside a
-  // mock factory. Only `instanceof` + `message` matter to the code under test.
-  class InsufficientBalanceError extends Error {
-    constructor(message: string) {
-      super(message)
-      this.name = 'InsufficientBalanceError'
-    }
-  }
-  return {
-    ensureSufficientBalance: (...a: unknown[]) => mockEnsureSufficientBalance(...a),
-    InsufficientBalanceError,
-  }
-})
-jest.mock('@/lib/transaction-gate', () => ({
-  classifyTransactionGateError: () => mockGate,
-  TRANSACTION_GATE_MESSAGE: { link_wallet: 'link a wallet' },
-  transactionGateRoute: () => '/settings/linked-wallets',
+// The binding module only exports the pre-flight now; the error class is
+// shared and stays REAL — useOfferSell narrows `instanceof` against it.
+jest.mock('@/wallet/balances', () => ({
+  ensureSufficientBalance: (...a: unknown[]) => mockEnsureSufficientBalance(...a),
 }))
-
 // Imports stay below mock declarations so their modules observe the test doubles.
-// eslint-disable-next-line import/first
 import { useOfferSell } from '../useOfferSell'
-// eslint-disable-next-line import/first
-import { ApiClientError } from '@/api/client'
+import { ApiClientError, InsufficientBalanceError } from '@tenda/shared'
 
 const OPTION = {
   chainId: 'eip155:84532', assetId: 'USDC_BASE', symbol: 'USDC', decimals: 6, chainName: 'Base', walletAddress: '0xEvm',
@@ -87,7 +77,8 @@ beforeEach(() => {
   mockReplace.mockReset()
   mockPush.mockReset()
   mockToast.mockReset()
-  mockGate = null
+  mockSettleSignerFor.mockReset().mockResolvedValue(undefined)
+  mockDeclaredSignerFor.mockReset().mockReturnValue('DECLARED')
 })
 afterEach(() => jest.restoreAllMocks())
 
@@ -98,8 +89,12 @@ test('threads the chosen windows into escrow + offer creation and signs', async 
   expect(mockCreate).toHaveBeenCalledWith({
     creation_operation_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
     kind: 'exchange', chain_id: 'eip155:84532', asset: 'USDC_BASE', amount_raw: '2500000',
-    accept_deadline_unix: NOW_S + 24 * 3600,
+    // A DURATION now (#41): the server anchors it at build time.
+    accept_window_seconds: 24 * 3600,
     completion_duration_seconds: 21600,
+    // The wallet the create BAKES, declared rather than left to the server's
+    // primary-wallet default.
+    signer_address: 'DECLARED',
   })
   expect(mockExchangeCreate).toHaveBeenCalledWith({
     escrow_id: 'e1', fiat_amount: 16000, fiat_currency: 'NGN', rate: 1600,
@@ -140,22 +135,34 @@ test('discards the draft when attaching offer terms fails', async () => {
   expect(mockToast).toHaveBeenCalledWith('error', expect.any(String))
 })
 
-test('routes to the transaction gate when create is gated (9D)', async () => {
-  mockCreate.mockRejectedValue(new Error('gated'))
-  mockGate = 'link_wallet'
-  const { result } = renderHook(() => useOfferSell())
-  await act(async () => { await result.current.submit(ARGS) })
-
-  expect(mockPush).toHaveBeenCalledWith('/settings/linked-wallets')
-  expect(mockReplace).not.toHaveBeenCalled()
-})
-
 test('surfaces the API error message when create fails ungated', async () => {
   mockCreate.mockRejectedValue(new ApiClientError(409, 'Conflict', 'offer limit reached'))
   const { result } = renderHook(() => useOfferSell())
   await act(async () => { await result.current.submit(ARGS) })
   expect(mockToast).toHaveBeenCalledWith('error', 'offer limit reached')
   expect(mockReplace).not.toHaveBeenCalled()
+})
+
+test('changing the accept window mints a NEW operation id', async () => {
+  // #41 made the window a compared TERM on the server: the same operation id
+  // with a different window is now a 409. That is only safe because the window
+  // is part of this composer's terms fingerprint — drop it there and a seller
+  // who changed their mind after an ambiguous response would resend the old id
+  // with a new window and be refused with no way to clear it.
+  // The FIRST submit must fail ambiguously, or the attempt is cleared on success
+  // and the second id would be new whatever the fingerprint holds — the test
+  // would then pass for a reason that has nothing to do with the window.
+  mockCreate
+    .mockRejectedValueOnce(new Error('request timed out'))
+    .mockResolvedValueOnce({ escrow_id: 'e1', unsigned: { kind: 'evm-tx' } })
+  const { result } = renderHook(() => useOfferSell())
+  await act(async () => { await result.current.submit(ARGS) })
+  await act(async () => { await result.current.submit({ ...ARGS, acceptHours: 48 }) })
+
+  const first = mockCreate.mock.calls[0][0]
+  const changed = mockCreate.mock.calls[1][0]
+  expect(changed.accept_window_seconds).not.toBe(first.accept_window_seconds)
+  expect(changed.creation_operation_id).not.toBe(first.creation_operation_id)
 })
 
 test('an ambiguous create failure retries with the same operation and deadline', async () => {
@@ -170,7 +177,9 @@ test('an ambiguous create failure retries with the same operation and deadline',
   const first = mockCreate.mock.calls[0][0]
   const retry = mockCreate.mock.calls[1][0]
   expect(retry.creation_operation_id).toBe(first.creation_operation_id)
-  expect(retry.accept_deadline_unix).toBe(first.accept_deadline_unix)
+  // The window is a TERM, so an identical retry sends an identical one — and
+  // there is no separately pinned instant left that could drift between them.
+  expect(retry.accept_window_seconds).toBe(first.accept_window_seconds)
   expect(mockExchangeCreate).toHaveBeenCalledTimes(1)
 })
 
@@ -199,11 +208,10 @@ test('checks the sell amount against every candidate wallet before creating', as
 })
 
 test('a short balance leaves NO draft behind and never opens the wallet', async () => {
-  const { InsufficientBalanceError } = jest.requireMock<{
-    InsufficientBalanceError: new (m: string) => Error
-  }>('@/wallet/balances')
+  // The REAL shared error, built the way the pre-flight builds it — the
+  // asserted toast below is its formatted message.
   mockEnsureSufficientBalance.mockRejectedValue(
-    new InsufficientBalanceError('You need 2.5 USDC but your wallet holds 0 USDC.'),
+    new InsufficientBalanceError('USDC_BASE', '2500000', '0'),
   )
   const { result } = renderHook(() => useOfferSell())
 
@@ -220,10 +228,7 @@ test('a short balance leaves NO draft behind and never opens the wallet', async 
 })
 
 test('releases the submitting flag after a short balance (retryable)', async () => {
-  const { InsufficientBalanceError } = jest.requireMock<{
-    InsufficientBalanceError: new (m: string) => Error
-  }>('@/wallet/balances')
-  mockEnsureSufficientBalance.mockRejectedValue(new InsufficientBalanceError('short'))
+  mockEnsureSufficientBalance.mockRejectedValue(new InsufficientBalanceError('USDC_BASE', '1', '0'))
   const { result } = renderHook(() => useOfferSell())
 
   await act(async () => { await result.current.submit(ARGS) })
@@ -249,4 +254,35 @@ test('no linked wallet falls open to the 9D gate rather than a balance error', a
 
   expect(mockEnsureSufficientBalance).toHaveBeenCalledWith(expect.objectContaining({ owners: [] }))
   expect(mockCreate).toHaveBeenCalled()
+})
+
+test('the signer is settled before it is declared, not after', async () => {
+  // On EVM the signer slot is empty until a session is live, so reading it
+  // first would declare the primary and then sign with whatever connects.
+  const order: string[] = []
+  mockSettleSignerFor.mockImplementation(() => { order.push('settle'); return Promise.resolve() })
+  mockDeclaredSignerFor.mockImplementation(() => { order.push('declare'); return 'DECLARED' })
+  mockCreate.mockImplementation(() => { order.push('create'); return Promise.resolve({ escrow_id: 'e1' }) })
+
+  const { result } = renderHook(() => useOfferSell())
+  await act(async () => { await result.current.submit(ARGS) })
+
+  expect(order).toEqual(['settle', 'declare', 'create'])
+})
+
+test('a chain with no resolvable signer sends no declaration at all', async () => {
+  // Absent means "use the primary" — the behaviour that existed before the
+  // field. Sending `signer_address: undefined` would be a different request.
+  //
+  // Asserted as key PRESENCE, not with `not.objectContaining({ signer_address:
+  // expect.anything() })`: `expect.anything()` does not match undefined, so
+  // that form passes against a body that carries the key with an undefined
+  // value — the very thing this guards.
+  mockDeclaredSignerFor.mockReturnValue(undefined)
+
+  const { result } = renderHook(() => useOfferSell())
+  await act(async () => { await result.current.submit(ARGS) })
+
+  const [body] = mockCreate.mock.calls[0] as [Record<string, unknown>]
+  expect('signer_address' in body).toBe(false)
 })

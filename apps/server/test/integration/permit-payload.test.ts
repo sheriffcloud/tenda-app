@@ -98,7 +98,7 @@ test('create: a permit body on a non-EVM chain is rejected before the adapter', 
       chain_id: TEST_CHAIN_ID,
       asset: 'SOL_DEVNET',
       amount_raw: '1000000000',
-      accept_deadline_unix: Math.floor(Date.now() / 1000) + 3_600,
+      accept_window_seconds: 24 * 3600,
       completion_duration_seconds: 7_200,
       permit: {
         value_raw: '1000000000',

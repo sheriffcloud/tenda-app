@@ -15,24 +15,23 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { eq } from 'drizzle-orm'
-import Fastify, { type FastifyInstance } from 'fastify'
+import Fastify from 'fastify'
 import { encodeAbiParameters, encodeEventTopics } from 'viem'
 import chainsPlugin from '@server/plugins/chains'
 import dbPlugin from '@server/plugins/db'
 import { ESCROW_EVM_ABI } from '@server/chains/evm/rpc'
 import { chainEnvPrefix } from '@server/chains/secrets'
-import { chain_contracts, chains as chainsTable } from '@tenda/shared/db/schema'
+import { chain_contracts } from '@tenda/shared/db/schema'
 import {
   TEST_ASSET_ALT,
   TEST_CHAIN_ID_ALT,
   TEST_DB_CONFIGURED,
   createEscrow,
   createUser,
-  seedAltChain,
   useTestApp,
 } from '../helpers/test-app'
 import { startStubRpc, withEvmChainEnv, type StubRpc } from '../helpers/stub-rpc'
+import { seedBootChain, withBootedChainsApp } from '../helpers/chains-boot'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -71,11 +70,22 @@ function receiptFrom(emitter: string): unknown {
   }
 }
 
-const nodeAnswering = (): Promise<StubRpc> =>
+/** What the stub contract answers `approvalWindowSeconds()` with — 48h, the testnets' deploy value. */
+const BOOT_APPROVAL_WINDOW_S = 172_800n
+
+/**
+ * @param approvalWindow what `eth_call` answers: the encoded uint64, or `null`
+ *   for a node whose contract returns no data — the shape of an escrow address
+ *   with no code behind it, which the on-demand read (#148) must reject.
+ */
+const nodeAnswering = (approvalWindow: bigint | null = BOOT_APPROVAL_WINDOW_S): Promise<StubRpc> =>
   startStubRpc((method) => {
     if (method === 'eth_blockNumber') return '0x64'
     if (method === 'eth_chainId') return '0x14a34'
     if (method === 'eth_getTransactionReceipt') return receiptFrom(PREVIOUS)
+    // The only `eth_call` any suite here provokes is the review window read
+    // (#148) — made on demand by a test, never by the plugin at boot.
+    if (method === 'eth_call') return approvalWindow === null ? '0x' : encodeAbiParameters([{ type: 'uint64' }], [approvalWindow])
     return null
   })
 
@@ -85,8 +95,12 @@ const nodeAnswering = (): Promise<StubRpc> =>
  * every test that runs after this file — the env silently, the socket by hanging
  * the runner at exit.
  */
-async function withBootEnv(body: (rpc: StubRpc) => Promise<void>): Promise<void> {
-  const rpc = await nodeAnswering()
+async function withBootEnv(
+  body: (rpc: StubRpc) => Promise<void>,
+  extraEnv: Record<string, string> = {},
+  approvalWindow: bigint | null = BOOT_APPROVAL_WINDOW_S,
+): Promise<void> {
+  const rpc = await nodeAnswering(approvalWindow)
   try {
     // `chainEnvPrefix` rather than a literal: the prefix rule lives in the
     // secrets schema, and a hand-written copy here would keep passing while the
@@ -97,6 +111,7 @@ async function withBootEnv(body: (rpc: StubRpc) => Promise<void>): Promise<void>
         rpcUrl: rpc.url,
         escrow: CURRENT,
         treasury: TREASURY,
+        extraEnv,
       },
       () => body(rpc),
     )
@@ -105,27 +120,17 @@ async function withBootEnv(body: (rpc: StubRpc) => Promise<void>): Promise<void>
   }
 }
 
-/** A booted app carrying the real db + chains plugins, always closed. */
-async function withBootedApp(body: (app: FastifyInstance) => Promise<void>): Promise<void> {
-  const app = Fastify({ logger: false })
-  try {
-    await app.register(dbPlugin)
-    await app.register(chainsPlugin)
-    await body(app)
-  } finally {
-    await app.close()
-  }
-}
+/** Same prefix rule as the env itself — never a hand-written key. */
+const chainEnv = (suffix: string): string => `${chainEnvPrefix(TEST_CHAIN_ID_ALT)}_${suffix}`
+const RELAYER_KEY = `0x${'ab'.repeat(32)}`
 
-/** `chains` naming the CURRENT contract, so the registry-sync boot gate passes. */
-async function seedCurrentChain(app: ReturnType<typeof getApp>): Promise<void> {
-  // The shared helper owns the chain AND its asset row; hand-inserting only the
-  // chain leaves `escrows_asset_chain_fk` unsatisfiable for any escrow on it.
-  await seedAltChain(app)
-  await app.db
-    .update(chainsTable)
-    .set({ treasury_address: TREASURY, escrow_program: CURRENT })
-    .where(eq(chainsTable.id, TEST_CHAIN_ID_ALT))
+/**
+ * `chains` naming the CURRENT contract, so the registry-sync boot gate passes.
+ * The booting itself is `withBootedChainsApp` (helpers/chains-boot) — both were
+ * local to this file until #112's resolver suite needed the same two.
+ */
+function seedCurrentChain(app: ReturnType<typeof getApp>): Promise<void> {
+  return seedBootChain(app, { escrow: CURRENT, treasury: TREASURY })
 }
 
 test('boot: adapters come out KNOWING the superseded contract, not just the current one', { skip }, async () => {
@@ -140,7 +145,7 @@ test('boot: adapters come out KNOWING the superseded contract, not just the curr
       ])
       .onConflictDoNothing({ target: [chain_contracts.chain_id, chain_contracts.address] })
 
-    await withBootedApp(async (app) => {
+    await withBootedChainsApp(async (app) => {
       await app.ready()
 
       // The registry the plugin decorated must carry BOTH generations.
@@ -175,7 +180,7 @@ test('boot: an adapter WITHOUT the history cannot verify the same receipt', { sk
   await withBootEnv(async () => {
     await seedCurrentChain(getApp())
 
-    await withBootedApp(async (app) => {
+    await withBootedChainsApp(async (app) => {
       await app.ready()
       assert.deepStrictEqual([...(app.contracts.get(TEST_CHAIN_ID_ALT)?.known ?? [])], [CURRENT])
 
@@ -226,4 +231,84 @@ test('boot: REFUSES to start when a live escrow names a contract history has los
       await app.close()
     }
   })
+})
+
+/**
+ * #43's operator switch, asserted where it is actually decided.
+ *
+ * This is the same escape the file's docstring describes, one feature along.
+ * The secrets suite proves CHAIN_<ID>_SWEEP_ENABLED resolves to a boolean and
+ * the adapter suite proves an adapter given `sweepEnabled` offers the port —
+ * but each constructs its own adapter and passes the value itself. The hand-off
+ * between them is `plugins/chains.ts`, and nothing looked at it: hardcoding
+ * `sweepEnabled: true` there passed every test in the repo while making every
+ * relayer-equipped chain sweep, which is exactly what the flag exists to stop.
+ */
+test('boot: a relayer key alone does NOT enable sweeping', { skip }, async () => {
+  await withBootEnv(
+    async () => {
+      await seedCurrentChain(getApp())
+      await withBootedChainsApp(async (app) => {
+        await app.ready()
+        const adapter = app.chains.get(TEST_CHAIN_ID_ALT)
+        assert.ok(adapter.relay, 'the key configures relayed funding')
+        assert.strictEqual(
+          adapter.sweep,
+          undefined,
+          'and nothing else — enabling agent funding must not silently start spending ' +
+            'that float on other people\'s refunds',
+        )
+      })
+    },
+    { [chainEnv('RELAYER_KEY')]: RELAYER_KEY },
+  )
+})
+
+test('boot: the flag plus the key is what reaches the adapter', { skip }, async () => {
+  await withBootEnv(
+    async () => {
+      await seedCurrentChain(getApp())
+      await withBootedChainsApp(async (app) => {
+        await app.ready()
+        const adapter = app.chains.get(TEST_CHAIN_ID_ALT)
+        assert.ok(adapter.sweep, 'the operator asked for it, so the port is there')
+        // Paid for by the relayer wallet the key names, not some other account.
+        assert.strictEqual(adapter.sweep.sweeper_address.toLowerCase().startsWith('0x'), true)
+      })
+    },
+    { [chainEnv('RELAYER_KEY')]: RELAYER_KEY, [chainEnv('SWEEP_ENABLED')]: 'true' },
+  )
+})
+
+/**
+ * #148 — the review window is read from the CONTRACT, on demand and once per
+ * TTL, never at boot: boot must not depend on a node answering.
+ */
+test('boot: makes NO contract read; the adapter reads the review window on first use and then caches it', { skip }, async () => {
+  await withBootEnv(async (rpc) => {
+    await seedCurrentChain(getApp())
+    await withBootedChainsApp(async (app) => {
+      await app.ready()
+      assert.strictEqual(rpc.callsTo('eth_call').length, 0, 'boot asked the node for nothing')
+      const adapter = app.chains.get(TEST_CHAIN_ID_ALT)
+      assert.strictEqual(await adapter.approvalWindowSeconds(), Number(BOOT_APPROVAL_WINDOW_S))
+      assert.strictEqual(rpc.callsTo('eth_call').length, 1)
+      assert.strictEqual(await adapter.approvalWindowSeconds(), Number(BOOT_APPROVAL_WINDOW_S))
+      assert.strictEqual(rpc.callsTo('eth_call').length, 1, 'served from the cache, not re-read')
+    })
+  })
+})
+
+test('boot: a contract that answers no review window still boots; the read itself is what fails', { skip }, async () => {
+  await withBootEnv(
+    async () => {
+      await seedCurrentChain(getApp())
+      await withBootedChainsApp(async (app) => {
+        await app.ready()
+        await assert.rejects(app.chains.get(TEST_CHAIN_ID_ALT).approvalWindowSeconds(), /approvalWindowSeconds/)
+      })
+    },
+    {},
+    null,
+  )
 })

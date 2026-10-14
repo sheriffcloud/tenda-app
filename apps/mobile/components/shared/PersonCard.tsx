@@ -5,17 +5,23 @@ import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { StandingBadge } from '@/components/reputation'
+import { AgentBadge } from '@/components/ui/AgentBadge'
 import { ReviewScore } from './ReviewScore'
-import { formatFullName } from '@tenda/shared'
+import { cardPartyName, type CardParty } from './party-name'
 
-interface PersonCardUser {
+/**
+ * Both party shapes render here: a gig poster's name columns, and an exchange
+ * party whose label the server already decided (#175). `CardParty` holds that
+ * fork; this card only draws what comes back.
+ */
+interface PersonCardUser extends CardParty {
   id: string
-  first_name: string | null
-  last_name: string | null
   avatar_url: string | null
   /** numeric(3,2), string on the wire, null when unrated. */
   review_score: string | null
   is_seeker?: boolean
+  /** An autonomous agent's account (#19) — badged so a human always knows. */
+  is_agent?: boolean
 }
 
 interface Props {
@@ -46,7 +52,7 @@ export function PersonCard({
   const { theme } = useUnistyles()
   const router = useRouter()
 
-  const displayName = formatFullName(user.first_name, user.last_name) || 'Anonymous'
+  const displayName = cardPartyName(user) || 'Anonymous'
   const isSelf = currentUserId === user.id
 
   function handleMessage() {
@@ -72,6 +78,7 @@ export function PersonCard({
             {/* Shared with the applicant shortlist — one place owns the
                 null case and the numeric(3,2)-as-string coercion. */}
             <ReviewScore score={user.review_score} />
+            {user.is_agent && <AgentBadge />}
             {user.is_seeker && (
               <>
                 {user.review_score != null && (

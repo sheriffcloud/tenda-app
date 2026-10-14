@@ -2,19 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 
 interface Options {
   threshold?: number | number[]
-  rootMargin?: string
-  /** Stop observing after the first intersection. Default: true. */
-  once?: boolean
 }
 
 /**
- * Observe an element's intersection with the viewport. By default, fires once
- * on first entry — useful for entrance animations and count-ups.
+ * Observe an element's intersection with the viewport. Fires ONCE, on first
+ * entry, and stops observing: the hire loop uses it to start its clock the
+ * first time it is seen, and never needs to know it left.
  */
 export function useIntersect<T extends Element = HTMLDivElement>({
   threshold = 0.2,
-  rootMargin = '0px',
-  once = true,
 }: Options = {}): { ref: React.RefObject<T | null>; isVisible: boolean } {
   const ref = useRef<T | null>(null)
   const [isVisible, setIsVisible] = useState(false)
@@ -27,17 +23,15 @@ export function useIntersect<T extends Element = HTMLDivElement>({
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true)
-          if (once) observer.disconnect()
-        } else if (!once) {
-          setIsVisible(false)
+          observer.disconnect()
         }
       },
-      { threshold, rootMargin },
+      { threshold },
     )
 
     observer.observe(el)
     return () => observer.disconnect()
-  }, [threshold, rootMargin, once])
+  }, [threshold])
 
   return { ref, isVisible }
 }

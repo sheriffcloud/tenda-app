@@ -1,9 +1,12 @@
 /**
- * Notification centre — the in-app feed behind the bell. Pinned announcements
- * (broadcasts) above a cursor-paginated list of personal notices. Tapping a
- * notice marks it read and deep-links (notificationRoute); the header's
- * check-all action clears the badge. Realtime + the badge count live in
- * notifications.store; this screen only reads + drives it.
+ * Notification centre — the in-app feed behind the bell. UNREAD announcements
+ * (broadcasts) pinned above a cursor-paginated list of personal notices.
+ * Tapping a notice marks it read and deep-links (notificationRoute); the
+ * header's check-all action clears the badge AND the pinned broadcasts — the
+ * server serves only announcements published after the viewer's read cursor,
+ * so a cleared one does not come back to sit on top of newer notices.
+ * Realtime + the badge count live in notifications.store; this screen only
+ * reads + drives it.
  */
 import { useEffect, useState } from 'react'
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native'
@@ -25,7 +28,7 @@ export default function NotificationsScreen() {
   const notifications = useNotificationsStore((s) => s.notifications)
   const announcements = useNotificationsStore((s) => s.announcements)
   const unread = useNotificationsStore((s) => s.unread)
-  const loading = useNotificationsStore((s) => s.loading)
+  const feedStatus = useNotificationsStore((s) => s.feedStatus)
   const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
@@ -44,7 +47,12 @@ export default function NotificationsScreen() {
     if (route !== null) router.push(route as Parameters<typeof router.push>[0])
   }
 
-  const empty = !loading && notifications.length === 0 && announcements.length === 0
+  // Only once the feed has an ANSWER. `!isFetchingFeed` would be true during
+  // every refresh, so on an account with no notifications the empty state was
+  // withdrawn and restored on each pull — a screen saying "nothing yet",
+  // un-saying it, then saying it again (#57).
+  const empty =
+    feedStatus === 'ready' && notifications.length === 0 && announcements.length === 0
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
@@ -78,7 +86,10 @@ export default function NotificationsScreen() {
         onEndReachedThreshold={0.4}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing || loading}
+            // The STATUS, so the spinner still stands in as the first-load
+            // affordance (this screen has no other) without a settled refresh
+            // presenting itself as a pull the reader never made.
+            refreshing={refreshing || feedStatus === 'loading'}
             onRefresh={handleRefresh}
             tintColor={theme.colors.brand.primary}
           />

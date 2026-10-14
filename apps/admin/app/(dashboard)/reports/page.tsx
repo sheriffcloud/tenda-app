@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import type { Report, ReportStatus } from '@tenda/shared'
+import type { ReportStatus } from '@tenda/shared'
 import { REPORT_STATUSES } from '@tenda/shared'
 import { AppHeader } from '@/components/layout/header'
 import { Badge } from '@/components/ui/badge'
@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table'
 import { ListPagination } from '@/components/common/list-pagination'
 import { ReportActionDialog } from '@/components/reports/action-dialog'
-import { adminApi } from '@/api/client'
+import { adminApi, type ReportRow } from '@/api/client'
 import { ApiError } from '@/lib/api'
 import { formatAdminDateTime } from '@/lib/date-format'
 
@@ -34,9 +34,9 @@ function isTab(v: string): v is Tab {
 export default function ReportsPage() {
   const [tab, setTab] = useState<Tab>('pending')
   const [page, setPage] = useState(1)
-  const [rows, setRows] = useState<Report[]>([])
+  const [rows, setRows] = useState<ReportRow[]>([])
   const [total, setTotal] = useState(0)
-  const [selected, setSelected] = useState<Report | null>(null)
+  const [selected, setSelected] = useState<ReportRow | null>(null)
 
   // setState lives in the .then callbacks (react-hooks/set-state-in-effect);
   // refreshKey bumps re-run the fetch after a report is actioned.

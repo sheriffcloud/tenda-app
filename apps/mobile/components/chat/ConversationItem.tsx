@@ -3,8 +3,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
-import { formatConvoTime } from '@/lib/date'
-import { formatFullName } from '@tenda/shared'
+import { formatConvoTime, formatFullName } from '@tenda/shared'
 import type { Conversation } from '@tenda/shared'
 
 interface ConversationItemProps {
@@ -68,7 +67,7 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
           {time}
         </Text>
         {isUnread && (
-          <View style={[s.unreadCount, { backgroundColor: theme.colors.brand.primary }]}>
+          <View style={[s.unreadCount, { backgroundColor: theme.colors.brand.solid }]}>
             <Text style={[s.unreadCountText, { color: theme.colors.brand.onPrimary }]}>
               {unread_count > 9 ? '9+' : String(unread_count)}
             </Text>
@@ -112,7 +111,7 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   time: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.medium,
     fontSize: 10.5,
     lineHeight: 14,
     fontWeight: '500',

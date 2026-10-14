@@ -4,10 +4,10 @@
  * into every service operation (quote / intents / settlement).
  */
 
-import type { ProviderRegistryRow } from '../routing'
-import type { FiatStore } from '../store'
-import type { QuoteCache } from '../quote-cache'
-import type { FiatProvider, FiatIntentRow } from '../types'
+import type { ProviderRegistryRow } from '../core/routing'
+import type { FiatStore } from '../core/store'
+import type { QuoteCache } from '../core/quote-cache'
+import type { FiatProvider, FiatIntentRow } from '../core/types'
 
 export interface FiatEvent {
   intent_id: string

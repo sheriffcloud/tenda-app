@@ -47,18 +47,24 @@ app/(auth)/connect-wallet.tsx   app/settings/linked-wallets.tsx
                                     walletconnect.sendEvmTransaction)
 ```
 
+**Moved to `@tenda/shared/src/wallet/` (2026-08-15, shared with web):** the
+canonical account types (`WalletAccount` — formerly `SpikeAccount` — and
+`SignMessageResult`/`AuthenticateResult`; the old local `Namespace` union is
+shared `ChainNamespace` now), `WalletError`/`WalletErrorCode`, the
+`connectThenSign` + `isUserRejection` composer, `classifyConnectError`, the
+EVM JSON-RPC helpers (`evm-rpc`), and the whole balance-reader stack
+(fetch-based solana + evm readers, `readWalletBalances`, `sumUsdcRaw`,
+`resolveWalletSection`, tx-copy). Import all of those from `@tenda/shared`.
+
 Files under `apps/mobile/wallet/`:
 
 | File | Purpose |
 |---|---|
-| `types.ts` | `SpikeAccount`, `Namespace`, `SignMessageResult` (canonical account types) |
 | `config.ts` | Single-source `metadata`, env-driven `SOLANA_NETWORK` + `WALLET_CHAINS` (CAIP-2 ids) |
-| `errors.ts` | `WalletError` / `WalletErrorCode`, standalone so pure consumers skip the native barrel |
 | `auth.ts` | `signInWithWallet` / `linkWalletWith`, nonce ↔ server orchestration |
 | `dispatch.ts` | `signSendAndReport`, routes a server-built `UnsignedTx` to the right transport (`solana-tx` → MWA, `evm-tx` → WalletConnect; `evm-userop` blocked on #47 paymaster). Consumes the server's `approval` hint (allowance-before-broadcast) and exports `resolveEvmFrom()`, the single EVM-account resolution shared with the permit flow |
-| `index.ts` | Solana RPC helpers (`getBalance`, `getTransactionStatus`) + convenience re-exports |
-| `evm-rpc.ts` | Minimal JSON-RPC + ABI-word helpers shared by balances and allowance (public RPCs only) |
-| `balances/` | Pluggable per-namespace balance readers (solana + evm) for the wallet screen, chain facts from `/v1/platform/chains` |
+| `index.ts` | `getTransactionStatus` (Solana tx status via solana-rpc) + convenience re-exports; the balance helpers and their web3.js `Connection` left with the shared-reader convergence |
+| `balances/` | Mobile's OWN layer over the shared readers: `readSpendableBalance` + `ensureSufficientBalance` (tx pre-flight) and the targeted `readAssetBalance`; readers/fan-out live in `@tenda/shared` |
 | `allowance/` | Reusable ERC-20 allowance module: `readAllowance` / `sendApprove` / `waitForReceipt` / `ensureAllowance`, backs both dispatch's approve fallback and the Token-approvals settings screen |
 | `permit.ts` | `buildPermitFor()`, fetches the server-built EIP-2612 typed data (`/v1/blockchain/permit-payload`), signs via `eth_signTypedData_v4`, returns the wire permit body; `undefined` = caller falls back to approve |
 | `reown/` | AppKit config + EVM network defs (`networks.ts`, RPCs come from the shared `CHAIN_MANIFEST`) |
@@ -66,7 +72,6 @@ Files under `apps/mobile/wallet/`:
 | `wallet-icon.tsx` | Rounded `Image`-based wallet icon |
 | `adapters/types.ts` | `WalletAdapter` interface (connect / sign / **authenticate** / disconnect / restore) |
 | `adapters/registry.ts` | Adapter list + `findAdapter` / `requireAdapter` |
-| `adapters/connect-then-sign.ts` | Shared `authenticate` composer + `isUserRejection` for split connect/sign transports |
 | `adapters/detect.ts` | `canOpenScheme()` wrapper over `Linking.canOpenURL` |
 | `adapters/walletconnect.ts` | Reown/WalletConnect EVM adapter (AppKit session; `sendEvmTransaction`) |
 | `adapters/mwa-shared.ts` | Shared MWA helpers (auth/retry/error classification) |

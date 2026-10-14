@@ -1,6 +1,6 @@
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
-import { APP_INFO } from './app-info'
+import { APP_INFO } from '@tenda/shared'
 
 /**
  * The running build's identity, read from the embedded Expo manifest.

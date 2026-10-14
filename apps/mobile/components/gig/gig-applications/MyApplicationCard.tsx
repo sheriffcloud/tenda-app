@@ -20,7 +20,7 @@ import {
   APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL,
   applicationStatusLine,
   openApplicationLine,
-} from './copy'
+} from '@tenda/shared'
 
 interface Props {
   row: MyApplication

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FiatQuoteResponse } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 
 const DEBOUNCE_MS = 600
 

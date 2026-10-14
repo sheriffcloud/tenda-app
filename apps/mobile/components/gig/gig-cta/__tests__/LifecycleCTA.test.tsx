@@ -10,11 +10,14 @@
  * these composites are asserted in matrix.test.ts, where the arrangement is.
  */
 import { render, fireEvent, screen } from '@testing-library/react-native'
-import type { EscrowTxType } from '@tenda/shared'
+import {
+  LIFECYCLE_SLOTS,
+  type ActiveSheet,
+  type CtaWidth,
+  type EscrowTxType,
+  type LifecycleBranch,
+} from '@tenda/shared'
 import { LifecycleCTA } from '../LifecycleCTA'
-import { LIFECYCLE_SLOTS, type LifecycleBranch } from '../branches'
-import type { ActiveSheet } from '../types'
-import type { CtaWidth } from '../slots'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({

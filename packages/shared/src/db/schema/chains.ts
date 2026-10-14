@@ -92,7 +92,7 @@ export const chain_contracts = pgTable(
      * validation and then fail deep inside the seed with a driver error.
      */
     deploy_block: bigint('deploy_block', { mode: 'number' }),
-    recorded_at: timestamp('recorded_at').notNull().defaultNow(),
+    recorded_at: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.chain_id, t.address] })],
 )

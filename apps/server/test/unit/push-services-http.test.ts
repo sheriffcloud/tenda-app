@@ -1,5 +1,5 @@
 /**
- * lib/push-services — the NETWORK seams the sibling suite leaves untouched:
+ * features/notifications/push-services — the NETWORK seams the sibling suite leaves untouched:
  *   - fcmHttpTransport: fetch-stubbed token exchange + send (404 prune,
  *     non-2xx throw)
  *   - apnsHttp2Transport: a real h2c loopback server (200 ok / 410 prune /
@@ -16,7 +16,7 @@ import {
   fcmHttpTransport,
   apnsHttp2Transport,
   buildPushServices,
-} from '@server/lib/push-services'
+} from '@server/features/notifications/push-services'
 
 const realFetch = globalThis.fetch
 afterEach(() => {

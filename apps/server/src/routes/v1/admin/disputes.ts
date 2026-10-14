@@ -6,7 +6,7 @@
  * there); this surface is read-only triage.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { eq, and, or, desc, isNull, isNotNull, sql, type SQL } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { disputes, dispute_resolutions, escrows, gig_details, users } from '@tenda/shared/db/schema'
@@ -19,7 +19,7 @@ import type {
   PaginatedResponse,
   ProposeResolutionBody,
 } from '@tenda/shared'
-import { requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import {
@@ -28,14 +28,14 @@ import {
   getResolutionEscrow,
   narrowWinner,
   toResolutionWire,
-} from '@server/lib/disputes/resolution-store'
-import { claimDispute, releaseDispute } from '@server/lib/disputes/claim-store'
+} from '@server/features/disputes/resolution-store'
+import { claimDispute, releaseDispute } from '@server/features/disputes/claim-store'
 import {
   narrowDisputeAssigned,
   narrowDisputeKind,
   narrowDisputeParty,
   narrowDisputeStatus,
-} from '@server/lib/disputes/list-query'
+} from '@server/features/disputes/list-query'
 
 
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())
@@ -131,7 +131,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
       conditions.push(isNull(disputes.resolved_at), eq(escrows.status, 'disputed'))
     }
     if (status === 'resolved') conditions.push(isNotNull(disputes.resolved_at))
-    // Already narrowed — the vocabulary lives in lib/disputes/list-query.ts,
+    // Already narrowed — the vocabulary lives in features/disputes/list-query.ts,
     // never re-spelled here.
     if (kind !== undefined) conditions.push(eq(escrows.kind, kind))
     // Claim-pool views (CO7): my caseload vs the unclaimed pool.
@@ -179,7 +179,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
 
   // POST /v1/admin/disputes/:id/claim, take the dispute from the open pool
   // (CO7). Semantics — atomic race, party refusal, failure shapes — live in
-  // lib/disputes/claim-store.
+  // features/disputes/claim-store.
   fastify.post<{
     Params: { id: string }
     Reply: { id: string; assigned_to_id: string } | ApiError

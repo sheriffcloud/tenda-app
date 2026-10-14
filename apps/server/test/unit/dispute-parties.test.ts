@@ -1,5 +1,5 @@
 /**
- * lib/disputes/parties — the creator-first party derivation shared by the
+ * features/disputes/parties — the creator-first party derivation shared by the
  * admin dossier and the mediation-thread context. Pure functions, no DB.
  */
 import { test } from 'node:test'
@@ -10,7 +10,7 @@ import {
   deriveDisputeParties,
   type PartyEscrow,
   type PartyIdentity,
-} from '@server/lib/disputes/parties'
+} from '@server/features/disputes/parties'
 
 const CREATOR = '11111111-1111-1111-1111-111111111111'
 const WORKER = '22222222-2222-2222-2222-222222222222'

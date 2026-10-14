@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ScrollView } from 'react-native'
-import { parseUnits, P2P_PROVIDER_ID } from '@tenda/shared'
+import { parseUnits, P2P_PROVIDER_ID, SELL_NO_WALLET_INSTANT } from '@tenda/shared'
 import { Button } from '@/components/ui'
 import { FeeSummary } from '@/components/shared/FeeSummary'
 import { usePayoutAccounts } from '@/hooks/usePayoutAccounts'
@@ -21,7 +21,7 @@ export function InstantSellTab() {
   const amountValid = amountRaw !== null && amountRaw !== '0'
   const account = payout.selected
 
-  const { quote, expiresIn, loading, error, refetch, currencySymbol, submitting, confirm } = useInstantSell({
+  const { quote, expiresIn, loading, error, refetch, currency, submitting, confirm } = useInstantSell({
     option,
     amountRaw,
     account,
@@ -33,7 +33,7 @@ export function InstantSellTab() {
         selection={selection}
         amount={amount}
         onAmountChange={setAmount}
-        noWalletMessage="Link a wallet to cash out crypto."
+        noWalletMessage={SELL_NO_WALLET_INSTANT}
       />
 
       {selection.options.length > 0 && (
@@ -45,14 +45,20 @@ export function InstantSellTab() {
           )}
           {error === 'failed' && <QuoteError onRetry={refetch} />}
 
-          {amountValid && account !== null && error === null && (
+          {/* `currency` joins the guard because a quote summary priced in an
+              unknown currency says nothing. It is implied — with no currency
+              useInstantSell asks for no quote, so `quote` stays null and the
+              block below never renders — but stating it is what lets the
+              compiler see that, and the compiler is what caught this file
+              being missed when the currency became nullable. */}
+          {amountValid && account !== null && error === null && currency !== null && (
             <>
               {quote !== null && (
                 <QuoteSummary
                   rate={quote.rate}
                   fee={quote.fee_amount}
                   fiatAmount={quote.fiat_amount}
-                  currencySymbol={currencySymbol}
+                  currency={currency}
                   assetSymbol={option?.symbol ?? ''}
                   expiresIn={expiresIn}
                   onRefresh={refetch}

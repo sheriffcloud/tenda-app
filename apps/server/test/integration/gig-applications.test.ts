@@ -19,6 +19,7 @@ import {
   TEST_DB_CONFIGURED,
   useTestApp,
   createUser,
+  createTransactableUser,
   createEscrow,
   attachGigDetails,
   authHeader,
@@ -66,7 +67,7 @@ const shortlist = (app: App, token: string, id: string) =>
 test('apply: creates an open application with a TTL from config', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id)
 
   const res = await apply(app, worker.token, gig.id, { message: '  I can start today  ' })
@@ -81,7 +82,7 @@ test('apply: creates an open application with a TTL from config', { skip }, asyn
 test('apply: re-applying UPSERTS rather than stacking rows', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id)
 
   const first = (await apply(app, worker.token, gig.id, { message: 'first' })).json()
@@ -102,7 +103,7 @@ test('apply: re-applying UPSERTS rather than stacking rows', { skip }, async () 
 test('apply: refused on an instant-mode gig — nothing could ever assign it', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const gig = await createEscrow(app, {
     creator_id: poster.row.id,
     status: 'open',
@@ -128,7 +129,7 @@ test('apply: the poster cannot apply to their own gig', { skip }, async () => {
 test('apply: refused once the accept deadline has passed', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id, {
     accept_deadline: new Date(Date.now() - 1_000),
   })
@@ -140,7 +141,7 @@ test('apply: refused once the accept deadline has passed', { skip }, async () =>
 test('apply: an over-long message is rejected at the boundary', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id)
 
   const tooLong = await apply(app, worker.token, gig.id, {
@@ -157,7 +158,7 @@ test('apply: an over-long message is rejected at the boundary', { skip }, async 
 test('apply: the open-application cap blocks a new gig but not editing an existing pitch', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   await setPlatformConfig(app, { max_open_applications: 1 })
 
   const first = await approvalGig(app, poster.row.id)
@@ -179,7 +180,7 @@ test('apply: the open-application cap blocks a new gig but not editing an existi
 test('withdraw: settles the caller own row, and is not repeatable', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id)
   await apply(app, worker.token, gig.id)
 
@@ -206,8 +207,8 @@ test('withdraw: 404 when the caller never applied', { skip }, async () => {
 test('withdraw: cannot reach another worker application', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const workerA = await createUser(app)
-  const workerB = await createUser(app)
+  const workerA = await createTransactableUser(app)
+  const workerB = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id)
   await apply(app, workerA.token, gig.id)
   const bRow = (await apply(app, workerB.token, gig.id)).json()
@@ -226,7 +227,7 @@ test('withdraw: cannot reach another worker application', { skip }, async () => 
 test('shortlist: the poster sees applicants with their profile', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app, { first_name: 'Pat' })
-  const worker = await createUser(app, { first_name: 'Wanda', last_name: 'Okoro' })
+  const worker = await createTransactableUser(app, { first_name: 'Wanda', last_name: 'Okoro' })
   const gig = await approvalGig(app, poster.row.id)
   await apply(app, worker.token, gig.id, { message: 'keen' })
 
@@ -243,7 +244,7 @@ test('shortlist: the poster sees applicants with their profile', { skip }, async
 test('shortlist: refused to anyone but the poster, including an applicant', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const stranger = await createUser(app)
   const gig = await approvalGig(app, poster.row.id)
   await apply(app, worker.token, gig.id)
@@ -257,7 +258,7 @@ test('shortlist: refused to anyone but the poster, including an applicant', { sk
 test('shortlist: defaults to open rows, and rejects an unknown status filter', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id)
   await apply(app, worker.token, gig.id)
   await withdraw(app, worker.token, gig.id)
@@ -285,11 +286,13 @@ test('shortlist: defaults to open rows, and rejects an unknown status filter', {
 test('GET /v1/applications: returns the caller own rows with the gig attached', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
-  const other = await createUser(app)
+  const worker = await createTransactableUser(app)
+  const other = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id, {}, { title: 'Paint the fence' })
-  await apply(app, worker.token, gig.id)
-  await apply(app, other.token, gig.id)
+  // Both asserted: a silently-refused rival apply would leave ONE row in the
+  // table and hollow the caller-scoping claim below into a tautology.
+  assert.strictEqual((await apply(app, worker.token, gig.id)).statusCode, 201)
+  assert.strictEqual((await apply(app, other.token, gig.id)).statusCode, 201)
 
   const res = await app.inject({
     method: 'GET',
@@ -310,7 +313,7 @@ test('GET /v1/applications: returns the caller own rows with the gig attached', 
 test('GET /v1/applications: default PLATFORM ttl is reflected on the row', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id)
   const created = (await apply(app, worker.token, gig.id)).json()
 
@@ -342,7 +345,7 @@ test('a malformed gig id is a 404 on every application route, never a 500', { sk
 test('the shortlist status filter narrows through the shared guard', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id)
   await apply(app, worker.token, gig.id)
 
@@ -413,7 +416,7 @@ test('the gig DETAIL exposes the mode and the poster action fields', { skip }, a
 test('the detail reports a worker step-back once it happens', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const gig = await approvalGig(app, poster.row.id)
   await app.db
     .update(escrows)
@@ -432,7 +435,7 @@ test('the detail reports a worker step-back once it happens', { skip }, async ()
 test('apply: a gig escrow with no listing satellite reads as 404, not a nameless gig', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   // No `attachGigDetails`: the escrow exists but nothing describes it.
   const escrow = await createEscrow(app, {
     creator_id: poster.row.id,

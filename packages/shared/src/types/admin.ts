@@ -9,6 +9,10 @@ import type {
   announcements,
   admin_audit_log,
   admin_users,
+  users,
+  moderation_verdicts,
+  fiat_intents,
+  fiat_providers,
 } from '../db/schema'
 import type { UserRole, UserStatus } from './user'
 import type { EscrowKind, EscrowStatus, EscrowListRow } from './escrow'
@@ -18,6 +22,18 @@ import type { ReportStatus } from '../constants/moderation'
 import type { PaginatedResponse } from './api'
 
 // ─── DB row types ─────────────────────────────────────────────────────────────
+
+/**
+ * What `JSON.stringify` makes of a Drizzle row on the wire: every `Date` is an
+ * ISO string. The `InferSelectModel` types below are what the SERVER holds; a
+ * client receives this. Typing a response with the model (as `Report` and
+ * `Announcement` are) tells a dashboard it has `Date`s it will never see, which
+ * is how `.getTime()` on a string gets written. Shallow on purpose: a row's
+ * timestamps are top-level columns, and a `jsonb` column is left as it is.
+ */
+export type Wire<T> = {
+  [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K]
+}
 
 export type AdminPlatformConfig = InferSelectModel<typeof platform_config>
 export type Report = InferSelectModel<typeof reports>
@@ -76,6 +92,74 @@ export interface DisputeRateMetric {
   dispute_rate_bps: number | null
   /** Strictly above threshold AND at least the minimum volume. */
   fraud_flag: boolean
+}
+
+/** Projection returned by GET /v1/admin/users: the columns a moderator scans, never the whole row. */
+export type AdminUserListRow = Wire<
+  Pick<
+    InferSelectModel<typeof users>,
+    | 'id'
+    | 'first_name'
+    | 'last_name'
+    | 'role'
+    | 'status'
+    | 'is_seeker'
+    | 'country'
+    | 'city'
+    | 'review_score'
+    | 'created_at'
+    | 'last_active_at'
+  >
+>
+
+/**
+ * GET /v1/admin/users/:id: the FULL users row plus the #82 fraud-flag metric.
+ * Derived from the table, not retyped by hand: the dashboard used to declare a
+ * `phone_e164` here that the users table has never carried (a phone lives in
+ * `user_identities`), so the field read `undefined` forever and nothing noticed.
+ */
+export type AdminUserDetail = Wire<InferSelectModel<typeof users>> & {
+  dispute_metric: DisputeRateMetric
+}
+
+/** `PATCH /admin/users/:id/status` and `/role`: the row's new value, nothing else. */
+export interface AdminUserStatusResult { id: string; status: UserStatus }
+export interface AdminUserRoleResult { id: string; role: UserRole }
+
+/** The profile `POST /v1/auth/admin/verify-email-otp` returns beside the token. */
+export interface AdminSessionUser {
+  id: string
+  role: string
+  first_name: string
+  last_name: string
+}
+
+export interface AdminSendEmailOtpResponse {
+  sent: boolean
+  /** The CODE's lifetime in seconds: distinct from the JWT's `token_ttl`. */
+  expires_in: number
+}
+
+export interface AdminVerifyEmailOtpResponse {
+  token: string
+  /** The JWT's lifetime as a duration string ('12h'). */
+  token_ttl: string
+  user: AdminSessionUser
+}
+
+/** Stage-6 verdict: the full table row, dates as strings. */
+export type ModerationVerdictRow = Wire<InferSelectModel<typeof moderation_verdicts>>
+
+/** Stage-8 intent: the full table row (GET /admin/fiat/intents selects every column). */
+export type AdminFiatIntentRow = Wire<InferSelectModel<typeof fiat_intents>>
+export type AdminFiatProviderRow = Wire<InferSelectModel<typeof fiat_providers>>
+
+export interface AdminMetrics {
+  total_users: number
+  active_24h: number
+  active_7d: number
+  active_30d: number
+  suspended: number
 }
 
 // ─── Reports ──────────────────────────────────────────────────────────────────
@@ -177,14 +261,16 @@ export interface UpdateFeaturedSlotBody {
  * The editable subset of `platform_config` — the single source shared by the
  * PATCH route, the admin client and the config form.
  *
- * It previously advertised `approval_window_seconds` and
- * `default_sponsored_tx_count`, which the route has never accepted; both are
+ * It previously advertised `approval_window_seconds` (a column deleted in
+ * #148: the review window is a contract value, read live per chain) and
+ * `default_sponsored_tx_count`, which the route has never accepted and is
  * read-only in the dashboard. Anything listed here must be handled by
  * `routes/v1/admin/platform-config.ts`.
  */
 export interface UpdatePlatformConfigBody {
-  fee_bps?: number
-  seeker_fee_bps?: number
+  // NO fee_bps / seeker_fee_bps: the fee lives on each contract and is changed with
+  // `pnpm --filter tenda-server fee:set`, which writes this row only after every chain
+  // confirms it. The route refuses both by name.
   grace_period_seconds?: number
   max_pending_gigs?: number
   unassign_window_seconds?: number
@@ -241,7 +327,8 @@ export interface FinanceFeeSummary {
 }
 
 export interface FinanceFeesResponse {
-  period: { from: string; to: string }
+  /** ISO instants, or null for an open end: the route answers null when `from`/`to` were not asked for. */
+  period: { from: string | null; to: string | null }
   by_kind: Record<EscrowKind, FinanceFeeSummary>
   grand_total_fee_raw: string
 }

@@ -1,6 +1,7 @@
 {
   "name": "tender-monorepo",
   "version": "0.0.1",
+  "license": "BUSL-1.1",
   "private": true,
   "scripts": {
     "build": "turbo run build",
@@ -17,6 +18,7 @@
     "sync:abi": "node scripts/sync-abi.mjs",
     "check:program-id": "node scripts/check-program-id.mjs",
     "check:app-version": "node scripts/check-app-version.mjs",
+    "check:schema-drift": "node scripts/check-schema-drift.mjs",
     "bump:version": "node scripts/bump-version.mjs",
     "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
     "test:scripts:coverage": "node --test --experimental-test-coverage \"scripts/**/*.test.mjs\"",

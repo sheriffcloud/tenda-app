@@ -8,7 +8,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { buildFiatDeps, initiateIntent, drizzleBankAccountStore } from '@server/features/fiat-rails'
-import { requireFiatRails, requireStr } from '@server/lib/fiat-routes'
+import { requireFiatRails, requireStr } from '@server/features/fiat-rails/http/fiat-routes'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: { intent_id?: unknown; bank_account_id?: unknown } }>(

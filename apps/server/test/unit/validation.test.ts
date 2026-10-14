@@ -1,5 +1,5 @@
 /**
- * lib/validation — ensureIntInRange, extracted from the admin platform-config
+ * lib/http/validation — ensureIntInRange, extracted from the admin platform-config
  * route where each new tunable was adding another hand-written bounds check.
  * Four call sites now share it, so its edges are worth pinning directly.
  */
@@ -7,7 +7,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { ErrorCode } from '@tenda/shared'
-import { ensureIntInRange } from '@server/lib/validation'
+import { ensureIntInRange } from '@server/lib/http/validation'
 import { AppError } from '@server/lib/errors'
 
 function expect400(value: number, match: RegExp) {

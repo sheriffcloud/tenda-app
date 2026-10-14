@@ -9,7 +9,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { drizzleNonceStore, issueNonce } from '@server/lib/nonce'
+import { drizzleNonceStore, issueNonce } from '@server/features/auth/session/nonce'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post('/', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async () => {

@@ -39,3 +39,24 @@ export function disputeRaisedAlert(
     ...over,
   }
 }
+
+/**
+ * A gas-seed low-balance alert — the fat, resolved shape a CHANNEL renders.
+ *
+ * Defaults to the state that matters: a wallet with a couple of grants left,
+ * which is the warning rather than the outage. Overridable so a suite can push
+ * it to zero and check the wording changes.
+ */
+export function gasSeedLowBalanceAlert(
+  over: Partial<AlertOf<'gas-seed.low-balance'>> = {},
+): AlertOf<'gas-seed.low-balance'> {
+  return {
+    kind: 'gas-seed.low-balance',
+    chain_id: 'eip155:16602',
+    funder_address: '0xB661f0d2ce46Bd787b4Fb5C40c74cF94CCBa8B23',
+    balance_raw: '20000000000000000',
+    grant_raw: '10000000000000000',
+    grants_remaining: 2,
+    ...over,
+  }
+}

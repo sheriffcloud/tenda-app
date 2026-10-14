@@ -6,9 +6,8 @@
  * happy, 401-clears vs transient-network-keeps).
  */
 import type { ImageRequireSource } from 'react-native'
-import type { AuthResponse } from '@tenda/shared'
+import type { AuthResponse, ChainNamespace, WalletAccount } from '@tenda/shared'
 import type { WalletAdapter } from '@/wallet/adapters/types'
-import type { Namespace, SpikeAccount } from '@/wallet/types'
 
 jest.mock('@/wallet/auth', () => ({
   signInWithWallet: jest.fn(),
@@ -19,15 +18,8 @@ jest.mock('@/api/client', () => {
   // Defined inside the factory (jest hoists mocks above imports, an
   // out-of-scope class reference is disallowed). The store's `instanceof
   // ApiClientError` matches because both sides resolve to this same class.
-  class ApiClientError extends Error {
-    statusCode: number
-    code?: string
-    constructor(statusCode: number, error: string, message: string, code?: string) {
-      super(message)
-      this.statusCode = statusCode
-      this.code = code
-    }
-  }
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  const { ApiClientError } = jest.requireActual('@tenda/shared')
   return {
     api: {
       auth: { me: jest.fn(), verify: jest.fn(), methods: jest.fn() },
@@ -49,10 +41,15 @@ jest.mock('@/stores/pending-sync.store', () => ({
   usePendingSyncStore: { getState: () => ({ clear: jest.fn(async () => {}) }) },
 }))
 
+// Device-derived Seeker bootstrap (fee tier). Default false = ordinary device.
+jest.mock('@/lib/device', () => ({ isSeekerDevice: jest.fn(() => false) }))
+
 import { act, renderHook } from '@testing-library/react-native'
 import { useAuthStore, useIsSeeker } from '@/stores/auth.store'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
-import { api, ApiClientError } from '@/api/client'
+import { isSeekerDevice } from '@/lib/device'
+import { api } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import {
   getJwtToken,
   getWalletAddress,
@@ -62,6 +59,7 @@ import {
 } from '@/lib/secure-store'
 
 const walletSignInMock = walletSignIn as jest.Mock
+const isSeekerDeviceMock = isSeekerDevice as jest.Mock
 const linkWalletMock = linkWalletWith as jest.Mock
 const meMock = api.auth.me as jest.Mock
 const verifyMock = api.auth.verify as jest.Mock
@@ -86,7 +84,7 @@ const USER: AuthResponse['user'] = {
 
 const AUTH: AuthResponse = { token: 'jwt-123', user: USER }
 
-function account(namespace: Namespace): SpikeAccount {
+function account(namespace: ChainNamespace): WalletAccount {
   return namespace === 'solana'
     ? { namespace, chainId: 'solana:devnet', address: 'SoLaNaAddr', walletId: 'solana-mwa' }
     : { namespace, chainId: 'eip155:84532', address: '0xEvmAddr', walletId: 'metamask' }
@@ -123,6 +121,7 @@ const INITIAL = {
 
 beforeEach(() => {
   useAuthStore.setState(INITIAL)
+  isSeekerDeviceMock.mockReturnValue(false) // per-test overrides never leak
   meMock.mockResolvedValue(USER)
   usersMeMock.mockResolvedValue({
     wallets: [],
@@ -337,7 +336,28 @@ describe('signInWithVerify', () => {
     await useAuthStore.getState().signInWithVerify(body)
     // Exactly one argument: no { link: true }, so the request layer sends no
     // bearer and a stale stored JWT can never 401 a sign-in.
+    expect(verifyMock).toHaveBeenCalledWith({ ...body, is_seeker: false })
+  })
+
+  it('bootstraps is_seeker from the DEVICE on account-creating methods, never from a form', async () => {
+    // Regression: profile-setup once exposed is_seeker as an "I'm looking to
+    // hire" toggle, letting any user self-assign the Seeker fee discount. The
+    // flag is device-derived at signup; the server reads it only on INSERT.
+    isSeekerDeviceMock.mockReturnValue(true)
+    verifyMock.mockResolvedValue({ token: 't', user: USER, is_new: true })
+    await useAuthStore.getState().signInWithVerify({ method: 'email', identifier: 'a@x.io', code: '123456' })
+    expect(verifyMock).toHaveBeenCalledWith({
+      method: 'email', identifier: 'a@x.io', code: '123456', is_seeker: true,
+    })
+  })
+
+  it('wallet method sends NO signup bootstrap (find-or-reject, decision #3 — it never creates)', async () => {
+    isSeekerDeviceMock.mockReturnValue(true)
+    verifyMock.mockResolvedValue({ token: 't', user: USER, is_new: false })
+    const body = { method: 'wallet' as const, chain_id: 'solana:devnet', address: 'A', message: 'm', signature: 's' }
+    await useAuthStore.getState().signInWithVerify(body)
     expect(verifyMock).toHaveBeenCalledWith(body)
+    expect(verifyMock.mock.calls[0][0]).not.toHaveProperty('is_seeker')
   })
 
   it('purges the stored session when verify 401s UNAUTHORIZED (stale token), so retry works', async () => {

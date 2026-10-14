@@ -5,10 +5,10 @@
  * screen supplies its own scope and its own send path via `onUploaded`.
  */
 import { useCallback, useState } from 'react'
-import type { ScopedUploadType } from '@tenda/shared'
+import type { ScopedUploadType, UploadedAttachment } from '@tenda/shared'
 import { pickImage, pickDocument } from '@/components/form/FilePicker'
 import { uploadToCloudinaryDetailed } from '@/lib/upload'
-import { pickedToAttachmentType, type UploadedAttachment } from '@/lib/attachments'
+import { pickedToAttachmentType } from '@/lib/attachments'
 import { showToast } from '@/components/ui/Toast'
 
 export type AttachmentKind = 'image' | 'document'

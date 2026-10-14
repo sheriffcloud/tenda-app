@@ -1,73 +1,77 @@
 import type { ReactNode } from 'react'
+import type { CategoryId } from '@/content/categories'
 import { cn } from '@/lib/cn'
 
-export type PillTone = 'neutral' | 'brand' | 'accent' | 'success' | 'warning' | 'danger' | 'live'
-export type PillSize = 'sm' | 'md'
+/**
+ * `live` is mobile's LiveChip: a success-green dot beside tertiary text. The
+ * feedback tones tint the dot only — the chip itself stays a hairline pill,
+ * because on this page a coloured fill is what a gig CATEGORY looks like and
+ * nothing else may borrow that.
+ */
+export type PillTone = 'neutral' | 'brand' | 'live' | 'warning' | 'danger'
 
 interface Props {
   children: ReactNode
   tone?: PillTone
-  size?: PillSize
+  /** Show the leading 6px dot, tinted by the tone. */
   dot?: boolean
-  /** Add a soft tone-tinted ring around the leading dot (live/locked emphasis). */
-  dotRing?: boolean
+  /** Breathe the dot: a live status, or the hero stamp naming the chains in build. */
+  pulse?: boolean
+  /**
+   * A gig category chip: the app's own category tone as a soft fill, in the
+   * body face rather than mono, exactly as mobile draws a category.
+   */
+  category?: CategoryId
   className?: string
-}
-
-const SURFACE: Record<PillTone, string> = {
-  neutral: 'bg-[var(--surface-inset)] text-[var(--content-secondary)] border-[var(--border-subtle)]',
-  brand:   'bg-[var(--brand-surface)] text-[var(--brand)] border-[var(--brand-border)]',
-  accent:  'bg-[var(--accent-surface)] text-[var(--accent)] border-[var(--accent-border)]',
-  success: 'bg-[var(--success-surface)] text-[var(--success)] border-transparent',
-  warning: 'bg-[var(--warning-surface)] text-[var(--warning)] border-transparent',
-  danger:  'bg-[var(--danger-surface)] text-[var(--danger)] border-transparent',
-  live:    'bg-[var(--brand-surface)] text-[var(--live-bright)] border-transparent',
 }
 
 const DOT: Record<PillTone, string> = {
   neutral: 'bg-[var(--content-tertiary)]',
-  brand:   'bg-[var(--brand)]',
-  accent:  'bg-[var(--accent)]',
-  success: 'bg-[var(--success)]',
-  warning: 'bg-[var(--warning)]',
-  danger:  'bg-[var(--danger)]',
-  live:    'bg-[var(--live-bright)]',
+  brand:   'bg-[var(--brand-primary)]',
+  live:    'bg-[var(--feedback-success-base)]',
+  warning: 'bg-[var(--feedback-warning-base)]',
+  danger:  'bg-[var(--feedback-danger-base)]',
 }
 
-const DOT_RING: Record<PillTone, string> = {
-  neutral: 'shadow-[0_0_0_3px_color-mix(in_oklab,var(--content-tertiary)_24%,transparent)]',
-  brand:   'shadow-[0_0_0_3px_color-mix(in_oklab,var(--brand)_24%,transparent)]',
-  accent:  'shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_24%,transparent)]',
-  success: 'shadow-[0_0_0_3px_color-mix(in_oklab,var(--success)_28%,transparent)]',
-  warning: 'shadow-[0_0_0_3px_color-mix(in_oklab,var(--warning)_24%,transparent)]',
-  danger:  'shadow-[0_0_0_3px_color-mix(in_oklab,var(--danger)_24%,transparent)]',
-  live:    'shadow-[0_0_0_3px_color-mix(in_oklab,var(--live-bright)_28%,transparent)]',
+const CATEGORY: Record<CategoryId, string> = {
+  delivery: 'bg-[var(--category-delivery-surface)] text-[var(--category-delivery-text)]',
+  photo:    'bg-[var(--category-photo-surface)] text-[var(--category-photo-text)]',
+  errand:   'bg-[var(--category-errand-surface)] text-[var(--category-errand-text)]',
+  service:  'bg-[var(--category-service-surface)] text-[var(--category-service-text)]',
+  digital:  'bg-[var(--category-digital-surface)] text-[var(--category-digital-text)]',
 }
 
-const SIZES: Record<PillSize, string> = {
-  sm: 'h-[22px] px-2.5 text-[10.5px] tracking-[0.105em] gap-1.5',
-  md: 'h-7 px-3 text-[11px] tracking-[0.12em] gap-2',
-}
-
+/**
+ * Mobile's Chip.tsx: a 26px pill carrying the Eyebrow face (mono 9.5 / 600 /
+ * +0.95, uppercase) inside a hairline. The one thing on the page that IS a
+ * pill.
+ */
 export function Pill({
   children,
   tone = 'neutral',
-  size = 'sm',
   dot = false,
-  dotRing = false,
+  pulse = false,
+  category,
   className,
 }: Props) {
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center rounded-full border font-semibold uppercase whitespace-nowrap',
-        SURFACE[tone],
-        SIZES[size],
+        'inline-flex h-[26px] items-center gap-[7px] whitespace-nowrap rounded-full border px-[11px]',
+        category === undefined
+          ? 'eyebrow border-[var(--border-default)] text-[var(--content-tertiary)]'
+          : cn('label border-transparent', CATEGORY[category]),
         className,
       )}
     >
       {dot && (
-        <span className={cn('h-1.5 w-1.5 rounded-full', DOT[tone], dotRing && DOT_RING[tone])} />
+        <span
+          className={cn(
+            'relative inline-flex h-1.5 w-1.5 shrink-0 rounded-full',
+            DOT[tone],
+            pulse && 'motion-safe:animate-[live-ping_2.8s_var(--easing-standard)_infinite]',
+          )}
+        />
       )}
       {children}
     </span>

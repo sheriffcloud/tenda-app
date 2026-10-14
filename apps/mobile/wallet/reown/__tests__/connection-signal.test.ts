@@ -4,7 +4,7 @@
  * adapter consumes. Pure: no AppKit, no React, every branch is exercised here.
  */
 import { ConnectionSignal, type EvmRequestProvider, type ReownLiveState } from '../connection-signal'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { WALLET_CHAINS } from '../../config'
 
 const provider: EvmRequestProvider = { request: jest.fn() }

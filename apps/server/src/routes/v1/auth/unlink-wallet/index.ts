@@ -1,6 +1,6 @@
 /**
  * POST /v1/auth/unlink-wallet, remove a linked wallet. Thin wrapper: validates
- * the body, then delegates to `unlinkWallet` (lib/auth/wallet-unlink) which owns
+ * the body, then delegates to `unlinkWallet` (features/auth/wallets/wallet-unlink) which owns
  * the atomic load → guard → delete under a per-user advisory lock. Guards:
  *   1. cannot unlink your ONLY wallet → 409 LAST_WALLET. A wallet is required to
  *      transact, so the account must always keep at least one, this holds even
@@ -16,7 +16,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { chainNamespaceEnum, type ChainNamespace } from '@tenda/shared/db/schema/chains'
 import { AppError } from '@server/lib/errors'
-import { unlinkWallet } from '@server/lib/auth/wallet-unlink'
+import { unlinkWallet } from '@server/features/auth/wallets/wallet-unlink'
 
 interface Body {
   chain_ns?: unknown

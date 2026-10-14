@@ -12,9 +12,9 @@ import type { PayoutRailKind, BankAccountSummary } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
 import type { BankAccountRow } from '@server/features/fiat-rails'
-import { buildNameEnquiry } from '@server/lib/nip'
-import { isPostgresUniqueViolation } from '@server/lib/db'
-import { requireFiatRails, requireStr } from '@server/lib/fiat-routes'
+import { buildNameEnquiry } from '@server/features/fiat-rails/providers/nip'
+import { isPostgresUniqueViolation } from '@server/lib/errors/pg'
+import { requireFiatRails, requireStr } from '@server/features/fiat-rails/http/fiat-routes'
 
 function serialize(a: BankAccountRow): BankAccountSummary {
   // Mask via the rail's own rule (banks show 4, MoMo shows 3); fall back to a
@@ -77,8 +77,24 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(422, ErrorCode.BANK_ACCOUNT_INVALID, `${kind} payouts are not available in '${country}'`)
       }
 
-      const bank_code = requireStr('bank_code', b.bank_code, 30)
-      const account_number = requireStr('account_number', b.account_number, 30)
+      // Both halves of the identity go in canonical form, BEFORE validating and
+      // storing. `(user_id, kind, bank_code, account_number)` is unique, so any
+      // spelling difference that survives to here is a second account.
+      //
+      // Trimming is the DEFAULT, not an AE special case. `requireDigits` and
+      // `maskTail` both trim before they work, so " 1234567890 " validated and
+      // displayed exactly like the unpadded number while being STORED padded —
+      // which is what hid it — and the constraint saw two different values. On
+      // NG it would also have reached the name-enquiry vendor padded, since
+      // that lookup runs on this value before validation.
+      //
+      // A rail needing more than a trim declares it: AE's IBAN validator takes
+      // the grouped form people paste, so its canonical form also strips
+      // internal spacing and upper-cases.
+      const bank_code = requireStr('bank_code', b.bank_code, 30).trim()
+      const account_number = (rail.normalizeAccountNumber ?? ((v: string) => v.trim()))(
+        requireStr('account_number', b.account_number, 30),
+      )
 
       // Name from NIP name-enquiry (Nigeria bank only, when configured);
       // user-supplied and unverified otherwise.

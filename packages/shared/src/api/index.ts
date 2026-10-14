@@ -1,6 +1,7 @@
 export type { Endpoint } from './endpoint'
 export { apiConfig, type AppEnv, type ApiConfig } from './config'
 export { apiRoutes } from './routes'
+export { ApiClientError, requiredWalletOf } from './client-error'
 export { parseWsServerFrame } from './contracts'
 export type {
   ApiContract,
@@ -29,11 +30,22 @@ export type {
   EscrowActionResponse,
   SubmitEscrowProofBody,
   AddEscrowProofsBody,
+  EscrowProofUpload,
   DisputeEscrowApiBody,
   ResolveEscrowApiBody,
+  SignerPreferenceBody,
   ClientPingBody,
   ClientPingResponse,
   GigsContract,
+  AdminContract,
+  AdminPage,
+  AgentContract,
+  AgentRegisterBody,
+  AgentRegisterResponse,
+  AgentTaskBody,
+  AgentTaskPaymentRequired,
+  AgentTaskCreated,
+  AgentTaskValidated,
   UsersContract,
   MeUser,
   MeResponse,
@@ -43,12 +55,26 @@ export type {
   UserStandingResponse,
   MyRestriction,
   MyStandingResponse,
+  MyOverviewResponse,
+  CompletedWorkCategory,
+  CompletedWorkResponse,
   UploadContract,
   UploadSignatureBody,
   BlockchainContract,
   PermitTypedData,
   PermitPayloadBody,
   PermitPayloadResponse,
+  EvmCreateParamsWire,
+  ReceiveAuthorizationTypedData,
+  EvmAuthorizationTerms,
+  SolanaTransactionTerms,
+  RelayTerms,
+  RelayPaymentRequired,
+  EvmAuthorizationPayment,
+  SolanaTransactionPayment,
+  RelayPaymentPayload,
+  RelaySettlementResponse,
+  FundEscrowResponse,
   PlatformContract,
   PlatformConfig,
   ExchangeRates,
@@ -75,6 +101,13 @@ export type {
   ModerationReason,
   ModerationPreviewBody,
   ModerationPreviewResponse,
+  WalletContract,
+  GasSeedState,
+  GasSeedUnavailableReason,
+  GasSeedAvailability,
+  GasSeedAvailabilityResponse,
+  GasSeedClaimBody,
+  GasSeedClaimResponse,
 } from './contracts'
 export {
   WS_PATH,
@@ -91,3 +124,14 @@ export {
   type GigFeedServerFrame,
   type WsServerFrame,
 } from './contracts'
+
+export {
+  createApiClient,
+  ESCROW_CREATE_TIMEOUT_MS,
+  MODERATION_TIMEOUT_MS,
+  PROOF_PERSISTENCE_TIMEOUT_MS,
+  TX_BUILD_TIMEOUT_MS,
+  type ApiClient,
+  type ApiRequest,
+  type ApiRequestOptions,
+} from './client'

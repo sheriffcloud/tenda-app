@@ -8,7 +8,7 @@ import { showToast } from '@/components/ui/Toast'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { StarRating } from '@/components/form/StarRating'
 import { useGigsStore } from '@/stores/gigs.store'
-import type { ReviewInput } from '@tenda/shared'
+import { errorMessage, type ReviewInput } from '@tenda/shared'
 
 type Score = 1 | 2 | 3 | 4 | 5
 
@@ -42,7 +42,7 @@ export function ReviewSheet({
       onReviewSubmitted()
       showToast('success', 'Review submitted!')
     } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to submit review')
+      showToast('error', errorMessage(e) || 'Failed to submit review')
     }
   }
 

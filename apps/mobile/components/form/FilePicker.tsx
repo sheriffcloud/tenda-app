@@ -98,7 +98,7 @@ export function FilePicker({ files, onChange, accept = 'any', max = 5, showPrevi
               )}
               <Pressable
                 onPress={() => remove(index)}
-                style={[s.removeBtn, { backgroundColor: theme.colors.feedback.danger.base }]}
+                style={[s.removeBtn, { backgroundColor: theme.colors.feedback.danger.solid }]}
               >
                 <X size={10} color="#fff" />
               </Pressable>

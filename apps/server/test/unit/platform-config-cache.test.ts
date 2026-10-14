@@ -12,8 +12,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 
-// The unseeded fallback reads PLATFORM_FEE_BPS through getConfig(), which
-// loads env lazily on first call — stub before importing the lib.
+// Required config is stubbed before the lib is imported.
 process.env.DATABASE_URL ??= 'postgres://localhost/test'
 process.env.JWT_SECRET ??= 'test-secret'
 process.env.CLOUDINARY_CLOUD_NAME ??= 'test-cloud'
@@ -56,15 +55,11 @@ test('unseeded fallback matches the shared defaults for every tunable', async ()
   const { db } = fakeDb([])
   const cfg = await getPlatformConfig(db)
 
-  // fee_bps is the one deployment-specific value (PLATFORM_FEE_BPS env).
+  // The unseeded fallback is the shared defaults, fee included: no env override remains.
   assert.strictEqual(cfg.grace_period_seconds, PLATFORM_CONFIG_DEFAULTS.grace_period_seconds)
   assert.strictEqual(cfg.max_pending_gigs, PLATFORM_CONFIG_DEFAULTS.max_pending_gigs)
   assert.strictEqual(cfg.seeker_fee_bps, PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps)
-  assert.strictEqual(
-    cfg.approval_window_seconds,
-    PLATFORM_CONFIG_DEFAULTS.approval_window_seconds,
-  )
-  assert.strictEqual(typeof cfg.fee_bps, 'number')
+  assert.strictEqual(cfg.fee_bps, PLATFORM_CONFIG_DEFAULTS.fee_bps)
 })
 
 test('the fallback grace period is the 1h column default, not the old 24h drift', async () => {

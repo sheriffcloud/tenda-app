@@ -8,7 +8,7 @@ import { and, count, desc, eq, inArray, lt } from 'drizzle-orm'
 import { gig_applications, escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { ACTIVE_APPLICATION_STATUSES, type ApplicationStatus } from '@tenda/shared'
 import type { EscrowStatus } from '@server/lib/escrow'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 import type { AppDatabase } from '@server/plugins/db'
 
 export interface ApplicationRow {
@@ -16,6 +16,8 @@ export interface ApplicationRow {
   escrow_id: string
   applicant_id: string
   message: string | null
+  /** The wallet the applicant chose to work under; null predates the choice. */
+  wallet_address: string | null
   status: ApplicationStatus
   expires_at: Date
   created_at: Date
@@ -45,6 +47,8 @@ export interface ApplicationStore {
     escrow_id: string
     applicant_id: string
     message: string | null
+    /** Validated by the route; recorded so the assign bakes exactly it. */
+    wallet_address: string
     expires_at: Date
   }): Promise<ApplicationRow>
   /** Poster's shortlist for one gig, newest first. */
@@ -62,6 +66,7 @@ const APPLICATION_COLS = {
   escrow_id: gig_applications.escrow_id,
   applicant_id: gig_applications.applicant_id,
   message: gig_applications.message,
+  wallet_address: gig_applications.wallet_address,
   status: gig_applications.status,
   expires_at: gig_applications.expires_at,
   created_at: gig_applications.created_at,
@@ -109,15 +114,16 @@ export function drizzleApplicationStore(db: AppDatabase): ApplicationStore {
       return row ?? null
     },
 
-    async upsert({ escrow_id, applicant_id, message, expires_at }) {
+    async upsert({ escrow_id, applicant_id, message, wallet_address, expires_at }) {
       const [row] = await db
         .insert(gig_applications)
-        .values({ escrow_id, applicant_id, message, expires_at, status: 'open' })
+        .values({ escrow_id, applicant_id, message, wallet_address, expires_at, status: 'open' })
         .onConflictDoUpdate({
           target: [gig_applications.escrow_id, gig_applications.applicant_id],
           // Re-applying revives the row: a withdrawn or expired applicant who
-          // changes their mind gets a fresh window, not their old one.
-          set: { message, expires_at, status: 'open', updated_at: new Date() },
+          // changes their mind gets a fresh window, not their old one — and
+          // their latest wallet choice, not their old one.
+          set: { message, wallet_address, expires_at, status: 'open', updated_at: new Date() },
         })
         .returning(APPLICATION_COLS)
       // The insert always returns exactly one row (conflict → update).
@@ -196,6 +202,8 @@ export interface ApplicationEscrowRow {
   kind: 'gig' | 'exchange'
   status: EscrowStatus
   creator_id: string
+  /** Names the chain namespace the applicant must hold a wallet on. */
+  chain_id: string
   requires_approval: boolean
   accept_deadline: Date | null
   /** CO1 takedown — a hidden gig takes no new applications (`assertNotTakenDown`). */
@@ -222,6 +230,7 @@ export async function findApplicationEscrow(
       kind: escrows.kind,
       status: escrows.status,
       creator_id: escrows.creator_id,
+      chain_id: escrows.chain_id,
       requires_approval: escrows.requires_approval,
       accept_deadline: escrows.accept_deadline,
       hidden: escrows.hidden,

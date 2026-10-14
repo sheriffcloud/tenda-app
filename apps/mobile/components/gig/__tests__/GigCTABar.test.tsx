@@ -10,7 +10,7 @@ import { render, screen, fireEvent } from '@testing-library/react-native'
 import { GigCTABar } from '../GigCTABar'
 import { CREATOR_ID, WORKER_ID, assignedApprovalGig, gigDetail, userRef } from '../__fixtures__/gig-detail'
 import type { EscrowTxType, GigDetail } from '@tenda/shared'
-import { isGatedTxAction, txConfirmCopy } from '@/components/escrow/tx-action/copy'
+import { isGatedTxAction, txConfirmCopy } from '@tenda/shared'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({

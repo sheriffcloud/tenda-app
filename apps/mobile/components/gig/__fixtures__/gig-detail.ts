@@ -23,6 +23,7 @@ export function userRef(id: string): UserRef {
     review_score: null,
     country: 'NG',
     is_seeker: false,
+    is_agent: false,
   }
 }
 
@@ -32,6 +33,7 @@ export function application(overrides: Partial<GigApplication> = {}): GigApplica
     escrow_id: 'escrow-1',
     applicant_id: WORKER_ID,
     message: null,
+    wallet_address: null,
     status: 'open',
     // Comfortably in the future so a test that does not care about expiry
     // never trips over it.
@@ -54,7 +56,7 @@ export function review(reviewer_id: string, overrides: Partial<Review> = {}): Re
     reviewee_id: reviewer_id === CREATOR_ID ? WORKER_ID : CREATOR_ID,
     score: 5,
     comment: null,
-    created_at: new Date('2026-07-01T00:00:00.000Z'),
+    created_at: '2026-07-01T00:00:00.000Z',
     ...overrides,
   }
 }
@@ -83,6 +85,7 @@ export function gigDetail(overrides: Partial<GigDetail> = {}): GigDetail {
     remote: false,
     cross_border: false,
     proof_requirements: [],
+    proof_params: null,
     requires_approval: false,
     // Visible by default; takedown tests opt in with `{ hidden: true }`, which
     // keeps the moderation state readable at the call site rather than in a
@@ -93,6 +96,7 @@ export function gigDetail(overrides: Partial<GigDetail> = {}): GigDetail {
     completion_deadline: null,
     submitted_at: null,
     approval_deadline: null,
+    my_signer_address: null,
     dispute_bond_raw: '0',
     assigned_counterparty_id: null,
     is_assigned: false,

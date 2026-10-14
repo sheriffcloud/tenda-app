@@ -43,7 +43,7 @@ export interface UserEscrowTransaction {
   /** Resolve rows only: the creator's principal share (amount_raw carries the counterparty's). */
   creator_payout_raw: string | null
   actor_id: string | null
-  created_at: string | null
+  created_at: string
   /** Populated for resolve transactions only; null otherwise. */
   winner: 'creator' | 'counterparty' | 'split' | null
   escrow: {
@@ -79,7 +79,7 @@ export interface EscrowListRow {
   creator_id: string
   counterparty_id: string | null
   accept_deadline: string | null
-  created_at: string | null
+  created_at: string
 }
 
 // ── Query types ───────────────────────────────────────────────────────

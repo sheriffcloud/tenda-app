@@ -19,13 +19,13 @@ import { displayName } from '@tenda/shared'
 import { alertPartyName, loadAlertPartyNames } from '@server/features/alerts'
 import type { AlertDeps } from '@server/features/alerts'
 import { slackAlertChannel } from '@server/features/alerts/channels/slack'
-import { slackEnvKey } from '@server/lib/slack'
+import { slackEnvKey } from '@server/features/alerts/slack'
 import { AppError } from '@server/lib/errors'
 import { ADMIN_DASHBOARD_URL_ENV } from '@server/config'
 import { TEST_DB_CONFIGURED, useTestApp, createUser } from '../helpers/test-app'
 import { queueDouble } from '../helpers/queue-double'
 import { restoreFetch, stubFetch, stubFetchRejecting, type CapturedRequest } from '../helpers/fetch-stub'
-import { disputeRaisedAlert } from '../helpers/alert-fixtures'
+import { disputeRaisedAlert, gasSeedLowBalanceAlert } from '../helpers/alert-fixtures'
 import { alertLogSpy, type AlertLogSpy } from '../helpers/alert-log'
 
 const skip = !TEST_DB_CONFIGURED
@@ -210,16 +210,22 @@ test('deliver: a network failure propagates rather than being swallowed', { skip
   await assert.rejects(() => slackAlertChannel.deliver(disputeAlert(), deps()), /ECONNREFUSED/)
 })
 
-// `deliver` MAY ASSUME configured(). Reaching it unconfigured means the
-// consumer's filter is broken — a wiring bug, not a missing webhook — and a
-// silent return would make those two indistinguishable and invisible.
+// `deliver` MAY ASSUME `configured(alert.kind, deps.env)`. Reaching it
+// unconfigured means the consumer's filter is broken — a wiring bug, not a
+// missing webhook — and a silent return would make those two indistinguishable
+// and invisible.
 test('deliver: throws when the destination is not configured', { skip }, async () => {
   await assert.rejects(
     () => slackAlertChannel.deliver(disputeAlert(), deps({})),
     (err: unknown) => {
       assert.ok(err instanceof AppError)
       assert.strictEqual(err.statusCode, 500)
-      assert.match(err.message, /not configured/)
+      // Names the KIND, not just "Slack is off": with more than one room, an
+      // operator reading this in removeOnFail has to know which alert was lost
+      // and which webhook would have carried it.
+      assert.match(err.message, /no configured destination/)
+      assert.match(err.message, /dispute\.raised/)
+      assert.match(err.message, /'disputes'/)
       return true
     },
   )
@@ -230,7 +236,7 @@ test('deliver: throws when the destination is not configured', { skip }, async (
 // check against one webhook and post to another.
 test('deliver: reads the same env configured() was asked about', { skip }, async () => {
   const env: NodeJS.ProcessEnv = { [slackEnvKey('disputes')]: WEBHOOK }
-  assert.strictEqual(slackAlertChannel.configured(env), true)
+  assert.strictEqual(slackAlertChannel.configured('dispute.raised', env), true)
   await slackAlertChannel.deliver(disputeAlert(), deps(env))
   assert.strictEqual(posted[0].url, WEBHOOK)
 })
@@ -240,4 +246,63 @@ test('deliver: the posted body carries blocks and a fallback text', { skip }, as
   const body = postedBody()
   assert.ok(typeof body.text === 'string' && body.text.length > 0, 'fallback text')
   assert.ok(Array.isArray(body.blocks) && body.blocks.length > 0, 'blocks')
+})
+
+// ---------- per-kind routing ----------------------------------------------
+//
+// The reason `configured` and `deliver` both take a kind. Two rooms with two
+// DIFFERENT urls, so a channel that ignored the kind and resolved one fixed
+// destination would post to the wrong one and be caught by the url assertion
+// rather than passing on a shared value.
+
+const OPS_WEBHOOK = 'https://hooks.slack.test/services/T/B/ops'
+
+const BOTH_ROOMS_ENV: NodeJS.ProcessEnv = {
+  [slackEnvKey('disputes')]: WEBHOOK,
+  [slackEnvKey('ops')]: OPS_WEBHOOK,
+  [ADMIN_DASHBOARD_URL_ENV]: DASHBOARD,
+}
+
+test('deliver: each kind posts to its OWN room', { skip }, async () => {
+  await slackAlertChannel.deliver(disputeAlert(), deps(BOTH_ROOMS_ENV))
+  await slackAlertChannel.deliver(gasSeedLowBalanceAlert(), deps(BOTH_ROOMS_ENV))
+
+  assert.strictEqual(posted.length, 2)
+  assert.strictEqual(posted[0].url, WEBHOOK, 'a dispute goes to the mediation room')
+  assert.strictEqual(posted[1].url, OPS_WEBHOOK, 'a low balance goes to the operators room')
+})
+
+test(
+  'deliver: a gas-seed alert throws rather than posting into the disputes room',
+  { skip },
+  async () => {
+    // The failure the split exists to prevent, and the one a shared destination
+    // would hide: with only the mediation webhook set, a low-balance alert must
+    // NOT quietly land in front of mediators. `configured` already returns false
+    // for this pair, so the consumer skips it — reaching `deliver` at all means
+    // the filter is broken, and the contract says that throws.
+    const disputes_only: NodeJS.ProcessEnv = { [slackEnvKey('disputes')]: WEBHOOK }
+    assert.strictEqual(slackAlertChannel.configured('gas-seed.low-balance', disputes_only), false)
+
+    await assert.rejects(
+      () => slackAlertChannel.deliver(gasSeedLowBalanceAlert(), deps(disputes_only)),
+      (err: unknown) => {
+        assert.ok(err instanceof AppError)
+        assert.match(err.message, /gas-seed\.low-balance/)
+        assert.match(err.message, /'ops'/)
+        return true
+      },
+    )
+    assert.strictEqual(posted.length, 0, 'the mediation room must not receive it')
+  },
+)
+
+test('deliver: logs the room it posted to', { skip }, async () => {
+  // Without this an operator debugging "the alert never arrived" cannot tell a
+  // delivery to the wrong room from no delivery at all — both look like one
+  // 'alert delivered to slack' line.
+  await slackAlertChannel.deliver(gasSeedLowBalanceAlert(), deps(BOTH_ROOMS_ENV))
+  const line = log.infos.find((entry) => entry.msg === 'alert delivered to slack')
+  assert.ok(line !== undefined, 'expected a delivery log line')
+  assert.strictEqual(line.obj.destination, 'ops')
 })

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Shared `#[derive(Accounts)]` structs for state-machine + settlement paths.
 //!
 //! `EscrowMutation` — no funds move, signer can be either party (each handler
@@ -188,8 +189,9 @@ pub struct ReclaimSpl<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-/// Shared fee math — mirrors `lib/escrow.ts:computePlatformFee` bit-for-bit
-/// (floor division, no rounding). Single source of truth on-chain.
+/// Shared fee math — floor division, no rounding. The Solidity `_fee` and the
+/// shared `computePlatformFee` implement the same formula independently;
+/// `contracts/settlement-vectors.json` is what keeps the three in step.
 pub fn compute_fee(amount: u64, fee_bps: u16) -> Result<u64> {
     let product = amount
         .checked_mul(fee_bps as u64)

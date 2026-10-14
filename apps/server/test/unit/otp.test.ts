@@ -1,5 +1,5 @@
 /**
- * lib/otp — channel-agnostic issue/verify, every policy branch: per-identifier
+ * features/auth/otp — channel-agnostic issue/verify, every policy branch: per-identifier
  * + per-user rate limits, expiry, attempt cap, single-use, hash round-trip,
  * pre-account (null user) binding, and the phone/email channel split.
  */
@@ -21,7 +21,7 @@ import {
   type OtpChannel,
   type OtpDeps,
   type OtpStore,
-} from '@server/lib/otp'
+} from '@server/features/auth/otp'
 
 const NOW = new Date('2026-06-04T12:00:00Z')
 const PHONE = '+2348012345678'

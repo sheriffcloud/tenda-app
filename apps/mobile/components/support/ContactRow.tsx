@@ -25,11 +25,11 @@ interface ContactRowProps {
 export function ContactRow({ Icon, label, value, url, tone = 'brand', showDivider = true }: ContactRowProps) {
   const { theme } = useUnistyles()
   const iconBg =
-    tone === 'accent'  ? theme.colors.accent.primarySurface :
+    tone === 'accent'  ? theme.colors.feedback.warning.surface :
     tone === 'success' ? theme.colors.feedback.success.surface :
                          theme.colors.brand.primarySurface
   const iconFg =
-    tone === 'accent'  ? theme.colors.accent.primary :
+    tone === 'accent'  ? theme.colors.feedback.warning.base :
     tone === 'success' ? theme.colors.feedback.success.base :
                          theme.colors.brand.primary
 

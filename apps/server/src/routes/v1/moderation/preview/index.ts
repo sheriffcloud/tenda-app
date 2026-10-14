@@ -8,8 +8,8 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { moderateGig } from '@server/features/moderation/service'
-import { buildModerationDeps } from '@server/features/moderation/store'
+import { moderateGig } from '@server/features/moderation/core/service'
+import { buildModerationDeps } from '@server/features/moderation/core/store'
 import { isAmountRaw } from '@server/chains/types'
 
 interface Body {

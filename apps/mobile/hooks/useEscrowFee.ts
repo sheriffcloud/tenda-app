@@ -1,24 +1,20 @@
 import { useEffect } from 'react'
-import { computePlatformFeeRaw } from '@tenda/shared'
+import { escrowFeeBreakdown, type EscrowFeeBreakdown } from '@tenda/shared'
 import { usePlatformConfigStore } from '@/stores/platform-config.store'
 
-export interface EscrowFeeBreakdown {
-  /** Tier bps from live platform config; null until config loads. */
-  feeBps: number | null
-  /** Human percentage ('1.00'); null until config loads. */
-  feePct: string | null
-  /** Fee in asset base units; null until config loads. */
-  feeRaw: bigint | null
-  /** principal − fee in base units; null until config loads. */
-  netRaw: bigint | null
-}
+export type { EscrowFeeBreakdown }
 
 /**
- * Projected platform-fee breakdown for an escrow: what the counterparty is
- * actually credited at settlement (contract: payout = amount − fee, floor
- * division, live platform bps by the escrow's is_seeker tier). Single source
- * for every "X receives" figure — FeeSummary, gig/exchange detail, confirm
- * dialogs — so the fee math can never fork per surface.
+ * Projected platform-fee breakdown for an escrow — what the counterparty is
+ * actually credited at settlement.
+ *
+ * WIRING ONLY. The rule itself is `escrowFeeBreakdown` in @tenda/shared, and
+ * that is the point: this hook and its twin in the other client each used to
+ * claim to be the "single source for every 'X receives' figure" while writing
+ * the tier selection, the percent formatting and the payout contract out
+ * inline — so the math was forked across clients by the very files that said
+ * it could not be (#41). What stays here is the store subscription, because
+ * React does not belong in shared.
  *
  * `isSeeker` must be the tier baked into the ESCROW (escrows.is_seeker), not
  * the viewer's own status — pass the wire value on read surfaces.
@@ -26,17 +22,9 @@ export interface EscrowFeeBreakdown {
 export function useEscrowFee(isSeeker: boolean, principalRaw: string): EscrowFeeBreakdown {
   const config = usePlatformConfigStore((s) => s.config)
   const fetchConfig = usePlatformConfigStore((s) => s.fetch)
-  useEffect(() => { void fetchConfig() }, [fetchConfig])
+  useEffect(() => {
+    void fetchConfig()
+  }, [fetchConfig])
 
-  if (config === null) return { feeBps: null, feePct: null, feeRaw: null, netRaw: null }
-
-  const feeBps = isSeeker ? config.seeker_fee_bps : config.fee_bps
-  const principal = BigInt(principalRaw)
-  const feeRaw = computePlatformFeeRaw(principal, feeBps)
-  return {
-    feeBps,
-    feePct: (feeBps / 100).toFixed(2),
-    feeRaw,
-    netRaw: principal - feeRaw,
-  }
+  return escrowFeeBreakdown(config, isSeeker, principalRaw)
 }

@@ -11,7 +11,7 @@
 import { apiConfig, parseWsServerFrame, WS_PATH, WS_AUTH_SUBPROTOCOL, type WsServerFrame } from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
-import { notifyListeners } from '@/lib/realtime/notify-listeners'
+import { notifyListeners } from '@tenda/shared'
 
 const RECONNECT_BASE_MS = 1_000
 const RECONNECT_MAX_MS = 30_000

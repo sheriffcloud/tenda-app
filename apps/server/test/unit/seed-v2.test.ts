@@ -1,5 +1,5 @@
 /**
- * db/seed-v2 — pure row builder over the ACTIVE chain secrets + the shared
+ * db/seed/seed-v2 — pure row builder over the ACTIVE chain secrets + the shared
  * manifest; the row VALUES are what need guarding here. The I/O wrapper
  * (applySeed — registry-fact upserts + enablement reconcile) is DB-tested in
  * integration/seed-upsert.test.ts. Secrets are built through the real loader.
@@ -8,11 +8,8 @@
  */
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { Keypair } from '@solana/web3.js'
-import bs58 from 'bs58'
 import { ESCROW_IDL } from '@tenda/shared/idl'
-import { buildSeedRows, enablementDelta } from '@server/db/seed-v2'
-import { gasSeedAddressFromSecret } from '@server/chains/solana/gas-seed-sender'
+import { buildSeedRows, enablementDelta } from '@server/db/seed/seed-v2'
 import { loadChainSecrets } from '@server/chains/secrets'
 
 const SOL = 'So11111111111111111111111111111111111111112'
@@ -23,11 +20,11 @@ const RPC = 'https://rpc.example'
 
 const solDevnet = (extra: NodeJS.ProcessEnv = {}) =>
   loadChainSecrets({ CHAIN_SOLANA_DEVNET_RPC_URL: RPC, CHAIN_SOLANA_DEVNET_TREASURY_ADDR: SOL, ...extra })
-const baseMainnet = () =>
+const baseSepolia = () =>
   loadChainSecrets({
-    CHAIN_EIP155_8453_RPC_URL: RPC,
-    CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ESCROW,
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
+    CHAIN_EIP155_84532_RPC_URL: RPC,
+    CHAIN_EIP155_84532_ESCROW_ADDR: EVM_ESCROW,
+    CHAIN_EIP155_84532_TREASURY_ADDR: EVM_TREASURY,
   })
 const celoMainnet = () =>
   loadChainSecrets({
@@ -53,21 +50,6 @@ test('seeds only the active solana chain — IDL program id + configured treasur
   assert.strictEqual(c.gas_seed_wallet_address, null)
 })
 
-test('gas-seed pair populates from the manifest amount + derived funder when the key is set', () => {
-  const kp = Keypair.generate()
-  const key = bs58.encode(kp.secretKey)
-  const rows = buildSeedRows(
-    solDevnet({ CHAIN_SOLANA_DEVNET_USDC_MINT: MINT, CHAIN_SOLANA_DEVNET_GAS_SEED_KEY: key }),
-  )
-  const c = rows.chains[0]
-  assert.ok(c)
-  assert.strictEqual(c.gas_seed_amount_raw, '7000000')
-  // Funder address is DERIVED from the same secret the sender signs with — never
-  // a separately-configured value that could drift from it.
-  assert.strictEqual(c.gas_seed_wallet_address, kp.publicKey.toBase58())
-  assert.strictEqual(c.gas_seed_wallet_address, gasSeedAddressFromSecret(key))
-})
-
 test('native SOL + USDC bound to the active network from its secret mint', () => {
   const rows = buildSeedRows(solDevnet({ CHAIN_SOLANA_DEVNET_USDC_MINT: MINT }))
   const usdc = rows.assets.find((a) => a.id === 'USDC_SOL')
@@ -78,7 +60,13 @@ test('native SOL + USDC bound to the active network from its secret mint', () =>
   assert.strictEqual(usdc.is_stable, true)
   const native = rows.assets.find((a) => a.token_address === null)
   assert.ok(native && native.id === 'SOL_DEVNET' && native.decimals === 9)
-  assert.strictEqual(rows.skipped.length, 0)
+  // No ASSET was skipped. The gas seed reports itself dormant here (#53a) —
+  // devnet declares an amount and this fixture configures no key — so the
+  // assertion names what it means instead of counting lines.
+  assert.strictEqual(
+    rows.skipped.some((sk) => sk.includes('USDC_SOL')),
+    false,
+  )
 })
 
 test('missing USDC mint → USDC_SOL skipped with a named warning, never silent', () => {
@@ -87,20 +75,21 @@ test('missing USDC mint → USDC_SOL skipped with a named warning, never silent'
     rows.assets.some((a) => a.id === 'USDC_SOL'),
     false,
   )
-  assert.strictEqual(rows.skipped.length, 1)
-  assert.match(rows.skipped[0] ?? '', /USDC_SOL/)
+  const asset = rows.skipped.filter((sk) => sk.includes('USDC_SOL'))
+  assert.strictEqual(asset.length, 1)
+  assert.match(asset[0] ?? '', /usdcMint not configured/)
 })
 
 test('BASE: chain + manifest USDC + native ETH, treasury/escrow from secrets', () => {
-  const rows = buildSeedRows(baseMainnet())
-  const base = rows.chains.find((c) => c.id === 'eip155:8453')
+  const rows = buildSeedRows(baseSepolia())
+  const base = rows.chains.find((c) => c.id === 'eip155:84532')
   assert.ok(base)
   assert.strictEqual(base.escrow_program, EVM_ESCROW)
   assert.strictEqual(base.treasury_address, EVM_TREASURY)
-  assert.strictEqual(base.min_confirmations, 2) // manifest: 2 for an L2 (was 5)
+  assert.strictEqual(base.min_confirmations, 1) // manifest: 1 on the Sepolia L2
   const usdc = rows.assets.find((a) => a.id === 'USDC_BASE')
   assert.ok(usdc)
-  assert.strictEqual(usdc.token_address, '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913')
+  assert.strictEqual(usdc.token_address, '0x036CbD53842c5426634e7929541eC2318f3dCF7e')
   assert.ok(usdc.decimals === 6 && usdc.is_stable === true)
   const eth = rows.assets.find((a) => a.id === 'ETH_BASE')
   assert.ok(eth && eth.token_address === null && eth.decimals === 18)
@@ -126,12 +115,12 @@ test('different-family chains seed together', () => {
       CHAIN_SOLANA_DEVNET_RPC_URL: RPC,
       CHAIN_SOLANA_DEVNET_TREASURY_ADDR: SOL,
       CHAIN_SOLANA_DEVNET_USDC_MINT: MINT,
-      CHAIN_EIP155_8453_RPC_URL: RPC,
-      CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ESCROW,
-      CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
+      CHAIN_EIP155_84532_RPC_URL: RPC,
+      CHAIN_EIP155_84532_ESCROW_ADDR: EVM_ESCROW,
+      CHAIN_EIP155_84532_TREASURY_ADDR: EVM_TREASURY,
     }),
   )
-  assert.deepStrictEqual(rows.chains.map((c) => c.id).sort(), ['eip155:8453', 'solana:devnet'])
+  assert.deepStrictEqual(rows.chains.map((c) => c.id).sort(), ['eip155:84532', 'solana:devnet'])
 })
 
 test('fiat providers are always seeded', () => {
@@ -195,14 +184,14 @@ test('the seed emits a chain_contracts row per chain, carrying the deploy block'
   // superseded contract strands its escrows.
   const rows = buildSeedRows(
     loadChainSecrets({
-      CHAIN_EIP155_8453_RPC_URL: RPC,
-      CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ESCROW,
-      CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
-      CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK: '44318123',
+      CHAIN_EIP155_84532_RPC_URL: RPC,
+      CHAIN_EIP155_84532_ESCROW_ADDR: EVM_ESCROW,
+      CHAIN_EIP155_84532_TREASURY_ADDR: EVM_TREASURY,
+      CHAIN_EIP155_84532_ESCROW_DEPLOY_BLOCK: '44318123',
     }),
   )
   assert.deepStrictEqual(rows.chain_contracts, [
-    { chain_id: 'eip155:8453', address: EVM_ESCROW.toLowerCase(), deploy_block: 44_318_123 },
+    { chain_id: 'eip155:84532', address: EVM_ESCROW.toLowerCase(), deploy_block: 44_318_123 },
   ])
 })
 
@@ -213,9 +202,9 @@ test('the seed NORMALISES the recorded address, whatever casing env carries', ()
   const checksummed = '0x954FC8a4908f49B7499504190ab11d925dEE490b'
   const rows = buildSeedRows(
     loadChainSecrets({
-      CHAIN_EIP155_8453_RPC_URL: RPC,
-      CHAIN_EIP155_8453_ESCROW_ADDR: checksummed,
-      CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
+      CHAIN_EIP155_84532_RPC_URL: RPC,
+      CHAIN_EIP155_84532_ESCROW_ADDR: checksummed,
+      CHAIN_EIP155_84532_TREASURY_ADDR: EVM_TREASURY,
     }),
   )
   assert.strictEqual(rows.chain_contracts[0].address, checksummed.toLowerCase())
@@ -234,7 +223,7 @@ test('the recorded address always matches the chain row it accompanies', () => {
   // One source (`escrowAddressOf`) feeds both, and they must not be able to
   // drift: `chains.escrow_program` says CURRENT, `chain_contracts` says LEGITIMATE,
   // and the current contract must always be legitimate.
-  const rows = buildSeedRows(baseMainnet())
+  const rows = buildSeedRows(baseSepolia())
   for (const chain of rows.chains) {
     const recorded = rows.chain_contracts.filter((r) => r.chain_id === chain.id)
     assert.strictEqual(recorded.length, 1)

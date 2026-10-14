@@ -19,7 +19,7 @@ import {
   assertChainRegistryInSync,
   escrowAddressOf,
   findRegistryMismatches,
-} from '@server/chains/registry-sync'
+} from '@server/chains/registry/registry-sync'
 import type { ResolvedChainSecret } from '@server/chains/secrets'
 import type { AppDatabase } from '@server/plugins/db'
 

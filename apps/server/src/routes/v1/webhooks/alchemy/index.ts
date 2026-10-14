@@ -3,7 +3,7 @@
  *
  * Auth: Alchemy signs the RAW body with HMAC-SHA256 (signing key from the
  * webhook dashboard) in the `x-alchemy-signature` header, verified via
- * core/webhooks/verify-hmac with a scoped raw-body parser (same pattern as
+ * lib/http/verify-hmac with a scoped raw-body parser (same pattern as
  * the provider webhooks). Tampered/absent → 401; unconfigured → 503 (the
  * polling listener + reconciliation carry verification meanwhile).
  *
@@ -18,8 +18,8 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { paymasterChainSecret } from '@server/chains/secrets'
-import { verifyHmac } from '@server/core/webhooks/verify-hmac'
-import { verifyTxDedupKey } from '@server/jobs/verify-tx'
+import { verifyHmac } from '@server/lib/http/verify-hmac'
+import { verifyTxDedupKey } from '@server/queue/jobs/verify-tx'
 
 const SIGNATURE_HEADER = 'x-alchemy-signature'
 

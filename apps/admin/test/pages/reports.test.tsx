@@ -1,7 +1,9 @@
 import { test, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { PaginatedResponse, Report } from '@tenda/shared'
+import type { PaginatedResponse } from '@tenda/shared'
+import type { ReportRow } from '@/api/client'
+import { reportRow } from '../fixtures'
 import { renderPage } from '../test-utils'
 import ReportsPage from '@/app/(dashboard)/reports/page'
 import { adminApi } from '@/api/client'
@@ -14,12 +16,9 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const list = vi.mocked(adminApi.reports.list)
 const err = vi.mocked(toast.error)
 
-const REPORT = {
-  id: 'r1', reason: 'spam', note: 'buying followers', content_type: 'user',
-  status: 'pending', created_at: new Date('2026-06-10T00:00:00.000Z'),
-} as unknown as Report
+const REPORT = reportRow({ id: 'r1', reason: 'spam', note: 'buying followers', content_type: 'user', status: 'pending' })
 
-function page(rows: Report[]): PaginatedResponse<Report> {
+function page(rows: ReportRow[]): PaginatedResponse<ReportRow> {
   return { data: rows, total: rows.length, limit: 20, offset: 0 }
 }
 

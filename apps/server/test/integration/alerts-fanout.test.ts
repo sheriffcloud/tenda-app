@@ -30,10 +30,10 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
-import { buildVerifyTxDeps } from '@server/workers/processors'
+import { buildVerifyTxDeps } from '@server/queue/workers/processors'
 import { channelsFor } from '@server/features/alerts'
 import type { AlertChannel } from '@server/features/alerts'
-import { channelName } from '@server/lib/ws'
+import { channelName } from '@server/realtime/ws'
 import { installCapture, interceptQueue, type SideEffectCapture } from '../helpers/side-effects'
 import { republishEvent } from '../helpers/republish-event'
 import {
@@ -68,7 +68,11 @@ beforeEach(() => {
  * and it is not something one test should guard on behalf of the others.
  */
 function expectedChannels(): AlertChannel[] {
-  const configured = channelsFor('dispute.raised').filter((channel) => channel.configured())
+  const configured = channelsFor('dispute.raised').filter((channel) =>
+    // Asked about the kind this helper is about: a channel can route its kinds
+    // to different rooms, so "configured" has no channel-wide answer.
+    channel.configured('dispute.raised'),
+  )
   assert.ok(configured.length > 0, 'no configured channel — every assertion here would be vacuous')
   return configured
 }

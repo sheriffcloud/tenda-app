@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { loadConfig } from '@server/config'
-import { expectedAuthUri } from '@server/lib/auth-message'
+import { expectedAuthUri } from '@server/features/auth/session/auth-message'
 
 /**
  * expectedAuthUri() gates the auth-message URI binding (cross-deployment replay

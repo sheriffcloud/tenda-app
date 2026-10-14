@@ -6,13 +6,15 @@
  * AllowanceRow + displayToAmountRaw so formatting and input parsing are
  * covered; only the RPC/wallet boundary is mocked.
  */
-import { render, fireEvent, waitFor, screen } from '@testing-library/react-native'
+import { act, render, fireEvent, waitFor, screen } from '@testing-library/react-native'
 
 jest.mock('expo-router', () => ({
   // Real useFocusEffect fires on focus; firing on mount (once) is the test
   // equivalent. Calling cb() bare on every render would loop via setRows.
   useFocusEffect: (cb: () => void) => {
     const { useEffect } = require('react')
+    // Once, on mount — the real hook fires on FOCUS, never on callback identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => cb(), [])
   },
 }))
@@ -83,8 +85,10 @@ jest.mock('@/wallet/dispatch', () => ({
 jest.mock('@/wallet/adapters/walletconnect', () => ({
   sendEvmTransaction: jest.fn(),
 }))
-jest.mock('@/wallet/allowance', () => ({
-  ...jest.requireActual('@/wallet/allowance'),
+// The allowance module moved to @tenda/shared (2026-08-15): partial mock —
+// real pure helpers (displayToAmountRaw), spies for the RPC/wallet legs.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   readAllowance: jest.fn(),
   sendApprove: jest.fn(),
   waitForReceipt: jest.fn(),
@@ -100,9 +104,10 @@ jest.mock('@/stores/chain-registry.store', () => {
 import TokenApprovalsScreen from '@/app/settings/token-approvals'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { resolveEvmFrom } from '@/wallet/dispatch'
-import { readAllowance, sendApprove, waitForReceipt } from '@/wallet/allowance'
+import { readAllowance, sendApprove, waitForReceipt } from '@tenda/shared'
 import { showToast } from '@/components/ui'
 import type { ChainRegistryEntry } from '@tenda/shared'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const resolveEvmFromMock = resolveEvmFrom as jest.Mock
 const readAllowanceMock = readAllowance as jest.Mock
@@ -117,6 +122,7 @@ const BASE_SEPOLIA: ChainRegistryEntry = {
   namespace: 'eip155',
   display_name: 'Base Sepolia',
   escrow_address: '0xEscrow',
+  ...registryEntryDefaults('eip155:84532'),
   assets: [
     {
       id: 'USDC_BASE_SEPOLIA',
@@ -125,6 +131,8 @@ const BASE_SEPOLIA: ChainRegistryEntry = {
       is_stable: true,
       token_address: '0xUSDC',
       supports_permit: true,
+      funds_by_signature: true,
+      roles: ['gig', 'exchange'],
     },
     // Native gas token, token_address null, must NOT produce a row.
     {
@@ -134,6 +142,8 @@ const BASE_SEPOLIA: ChainRegistryEntry = {
       is_stable: false,
       token_address: null,
       supports_permit: false,
+      funds_by_signature: false,
+      roles: ['exchange'],
     },
   ],
 }
@@ -142,6 +152,7 @@ const SOLANA_DEVNET: ChainRegistryEntry = {
   namespace: 'solana',
   display_name: 'Solana Devnet',
   escrow_address: 'TendaProgram1111',
+  ...registryEntryDefaults('solana:devnet'),
   assets: [],
 }
 
@@ -169,9 +180,14 @@ describe('TokenApprovalsScreen, states', () => {
     expect(screen.queryByText('No EVM chains are enabled right now.')).toBeNull()
   })
 
-  it('says so when only non-EVM chains are enabled', () => {
+  it('says so when only non-EVM chains are enabled', async () => {
     registryState.chains = [SOLANA_DEVNET]
     render(<TokenApprovalsScreen />)
+    // The effect still runs `Promise.allSettled([])` over an empty row list and
+    // calls setRows a second time when it resolves. Nothing on screen changes,
+    // so there is no text to waitFor — flush the microtask inside act, and
+    // assert against the render React has actually finished committing.
+    await act(async () => {})
     expect(screen.getByText('No EVM chains are enabled right now.')).toBeTruthy()
     expect(readAllowanceMock).not.toHaveBeenCalled()
   })
@@ -226,6 +242,9 @@ describe('TokenApprovalsScreen, set a custom limit', () => {
         spender: '0xEscrow',
         amountRaw: '12500000',
         from: OWNER,
+        // The screen binds its wallet transport into the shared module — the
+        // approve must ride the connected session, never a bare RPC.
+        sendTx: expect.any(Function),
       }),
     )
     // doneMsg captures the typed amount BEFORE the input resets.

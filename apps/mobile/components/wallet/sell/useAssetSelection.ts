@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
+import type { WalletSectionState } from '@tenda/shared'
 import { useExchangeAssetOptions, type ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
 import { optionKey } from '@/components/exchange/AssetChainPicker'
 
 export interface AssetSelection {
   options: ExchangeAssetOption[]
+  /** Why `options` is empty (#60) — the surface must say which. */
+  section: WalletSectionState
   /** The chosen option, defaulting to the first available; null when none. */
   option: ExchangeAssetOption | null
   selectedKey: string
@@ -17,7 +20,7 @@ export interface AssetSelection {
  * changes (e.g. a wallet is linked/unlinked mid-session).
  */
 export function useAssetSelection(): AssetSelection {
-  const options = useExchangeAssetOptions()
+  const { options, section } = useExchangeAssetOptions()
   const [pickedKey, setPickedKey] = useState<string | null>(null)
   const option = useMemo(
     () => options.find((o) => optionKey(o) === pickedKey) ?? options[0] ?? null,
@@ -25,6 +28,7 @@ export function useAssetSelection(): AssetSelection {
   )
   return {
     options,
+    section,
     option,
     selectedKey: option !== null ? optionKey(option) : '',
     select: (o) => setPickedKey(optionKey(o)),

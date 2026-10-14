@@ -8,17 +8,32 @@
 import { BN } from '@coral-xyz/anchor'
 import { PublicKey, SystemProgram, type TransactionInstruction } from '@solana/web3.js'
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
-import { uuidToBytes } from '@server/chains/ids'
+import { uuidToBytes } from '@server/chains/shared/ids'
 import { escrowPda, platformPda, tokenVaultPda, vaultPda } from '@server/chains/solana/pdas'
 import type { BuildTxArgs } from '@server/chains/types'
+import { AppError } from '@server/lib/errors'
+import { ErrorCode } from '@tenda/shared'
 import {
   decodeProofHash,
-  fetchEscrow,
   toBn,
+  type FetchedEscrow,
   type SolanaBuilderDeps,
-} from '@server/chains/solana/builder-internals'
+} from '@server/chains/solana/build/builder-internals'
 import { buildSettleInstruction } from './settle'
 import { buildDisputeInstruction } from './dispute'
+
+/**
+ * builders.ts fetches the escrow account ONCE (signer resolution needs it
+ * first) and threads it here; only createEscrow legitimately has none. A null
+ * on any other path is a wiring bug, not an on-chain condition — fetchEscrow
+ * itself 404s a missing account before this can run.
+ */
+function requireFetched(fetched: FetchedEscrow | null): FetchedEscrow {
+  if (fetched === null) {
+    throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'escrow account not fetched for a transition build')
+  }
+  return fetched
+}
 
 /**
  * Encode the instruction(s) for one escrow action. Returns an array because
@@ -30,6 +45,8 @@ export async function buildInstruction(
   deps: SolanaBuilderDeps,
   args: BuildTxArgs,
   wallet: PublicKey,
+  /** The escrow account builders.ts fetched; null only for createEscrow. */
+  fetched: FetchedEscrow | null,
 ): Promise<TransactionInstruction[]> {
   switch (args.action) {
     case 'createEscrow': {
@@ -83,7 +100,7 @@ export async function buildInstruction(
     case 'acceptEscrow':
     case 'declineAssignedEscrow':
     case 'unassign': {
-      const { escrowAddr } = await fetchEscrow(deps, args.payload.escrow_id)
+      const { escrowAddr } = requireFetched(fetched)
       const method =
         args.action === 'acceptEscrow'
           ? deps.program.methods.acceptEscrow()
@@ -98,11 +115,14 @@ export async function buildInstruction(
     }
 
     case 'assignAccept': {
-      const { escrowAddr } = await fetchEscrow(deps, args.payload.escrow_id)
+      const { escrowAddr } = requireFetched(fetched)
       // The worker signs nothing here — they are an instruction ARGUMENT, not
-      // an account, which is the whole point of approval mode.
+      // an account, which is the whole point of approval mode. The
+      // application's chosen wallet wins when the route validated one; the
+      // primary-first resolver only covers pre-choice applications.
       const worker = new PublicKey(
-        await deps.resolveWalletAddress(args.payload.worker_user_id),
+        args.payload.worker_address ??
+          (await deps.resolveWalletAddress(args.payload.worker_user_id)),
       )
       return [
         await deps.program.methods
@@ -113,7 +133,7 @@ export async function buildInstruction(
     }
 
     case 'submitProof': {
-      const { escrowAddr } = await fetchEscrow(deps, args.payload.escrow_id)
+      const { escrowAddr } = requireFetched(fetched)
       return [
         await deps.program.methods
           .submitProof(decodeProofHash(args.payload.proof_hash))
@@ -127,10 +147,10 @@ export async function buildInstruction(
     case 'reclaimAbandoned':
     case 'cancelEscrow':
     case 'refundExpired':
-      return buildSettleInstruction(deps, args, wallet)
+      return buildSettleInstruction(deps, args, wallet, requireFetched(fetched))
 
     case 'disputeEscrow':
     case 'resolveDispute':
-      return buildDisputeInstruction(deps, args, wallet)
+      return buildDisputeInstruction(deps, args, wallet, requireFetched(fetched))
   }
 }

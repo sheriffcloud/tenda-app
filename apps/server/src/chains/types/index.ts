@@ -31,6 +31,7 @@ export type {
   ResolveDisputePayload,
   BuildTxAction,
   BuildTxArgs,
+  BuildTxSignerHints,
   UserOperation,
   UnsignedTx,
 } from './build-tx'
@@ -43,8 +44,13 @@ export type {
   VerifyAuthSigArgs,
 } from './verify'
 
+export type { EscrowRelay, RelayedCreateArgs } from './relay'
+
+export type { EscrowSweep, SweepArgs, SweepableTransition } from './sweep'
+
 export type {
   ChainAdapter,
+  ChainFees,
   RpcProvider,
   ChainListener,
   PushService,

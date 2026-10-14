@@ -4,7 +4,6 @@
  * new offer, and a licensed-provider intent routes to the intent screen.
  */
 import { renderHook, act } from '@testing-library/react-native'
-import { DEFAULT_PAYOUT_CURRENCY } from '@tenda/shared'
 import type { BankAccountSummary } from '@tenda/shared'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
 
@@ -14,16 +13,23 @@ const mockOfframp = jest.fn()
 const mockReplace = jest.fn()
 const mockToast = jest.fn()
 const mockRefetch = jest.fn()
+// Captures what the hook ASKS FOR, not just what it gets back: passing null
+// means "do not quote", which is the behaviour when no currency is resolved.
+// The `mock` prefix is required — jest hoists the factory above these consts.
+const mockQuoteArgs = jest.fn()
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace }) }))
 // Mirrors the real hook, which returns `{ ...state, refetch }`. Omitting
 // refetch here made the stale-quote branch throw instead of nudging.
 jest.mock('@/hooks/useFiatQuote', () => ({
-  useFiatQuote: () => ({ ...mockQuoteState, refetch: mockRefetch }),
+  useFiatQuote: (args: unknown) => {
+    mockQuoteArgs(args)
+    return { ...mockQuoteState, refetch: mockRefetch }
+  },
 }))
 jest.mock('@/api/client', () => ({
   api: { fiat: { offramp: (b: unknown) => mockOfframp(b) } },
-  ApiClientError: class ApiClientError extends Error {},
+  ApiClientError: jest.requireActual('@tenda/shared').ApiClientError,
 }))
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockToast(...a) }))
 
@@ -38,6 +44,7 @@ beforeEach(() => {
   mockReplace.mockReset()
   mockToast.mockReset()
   mockRefetch.mockReset()
+  mockQuoteArgs.mockReset()
 })
 
 test('blocks submit and nudges when there is no fresh quote', async () => {
@@ -73,10 +80,11 @@ test('surfaces an error toast when the offramp call fails', async () => {
   expect(mockToast).toHaveBeenCalledWith('error', expect.any(String))
 })
 
-test('exposes the NGN currency symbol derived from the account country', () => {
+test('exposes the payout CURRENCY derived from the account country', () => {
+  // The code, not a symbol: the shared formatters take the code and own symbol
+  // placement, which differs by currency (prefix for ₦, suffix for €).
   const { result } = renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: ACCOUNT }))
   expect(result.current.currency).toBe('NGN')
-  expect(result.current.currencySymbol).toBe('₦')
 })
 
 test('confirm is a no-op with no option/amount/account (nothing to quote)', async () => {
@@ -86,7 +94,39 @@ test('confirm is a no-op with no option/amount/account (nothing to quote)', asyn
   expect(mockToast).not.toHaveBeenCalled() // guarded before the stale-quote nudge
 })
 
-test('falls back to the default payout currency when there is no account', () => {
+/**
+ * There is no default payout currency any more. It used to answer NGN with no
+ * account selected, which showed a Kenyan seller a naira label on an empty
+ * form — and, on the server, made an unrecognised country look Nigerian to the
+ * offer guard. The account's country is the only thing that knows.
+ */
+test('reports no currency until a payout account is chosen', () => {
   const { result } = renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: null }))
-  expect(result.current.currency).toBe(DEFAULT_PAYOUT_CURRENCY)
+  expect(result.current.currency).toBeNull()
+})
+
+test('does not request a quote while the currency is unknown', () => {
+  renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: null }))
+  // A quote priced in a guessed currency is worse than no quote.
+  expect(mockQuoteArgs).toHaveBeenCalledWith(null)
+})
+
+test('requests a quote in the account currency once an account is chosen', () => {
+  renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: ACCOUNT }))
+  expect(mockQuoteArgs).toHaveBeenCalledWith(expect.objectContaining({ fiatCurrency: 'NGN' }))
+})
+
+/**
+ * The case the `account !== null` conjunct cannot reach. A retired market is a
+ * REAL account — chosen, saved, with an id and a country — whose country no
+ * longer resolves to a currency, so it is the only input for which the second
+ * conjunct is the one doing the work. Without it the hook asks for a quote
+ * priced in `null`; with `account: null` above, the first conjunct short-
+ * circuits and the guard would look tested while being unproven.
+ */
+test('does not request a quote for an account in a retired market', () => {
+  const retired = { ...ACCOUNT, country: 'ZW' } as BankAccountSummary
+  const { result } = renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: retired }))
+  expect(result.current.currency).toBeNull()
+  expect(mockQuoteArgs).toHaveBeenCalledWith(null)
 })

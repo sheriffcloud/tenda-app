@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import type { Announcement } from '@tenda/shared'
 import { AppHeader } from '@/components/layout/header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,12 +19,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { adminApi } from '@/api/client'
+import { adminApi, type AnnouncementRow } from '@/api/client'
 import { ApiError } from '@/lib/api'
 import { formatAdminDateTime } from '@/lib/date-format'
 
 export default function AnnouncementsPage() {
-  const [rows, setRows] = useState<Announcement[]>([])
+  const [rows, setRows] = useState<AnnouncementRow[]>([])
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [priority, setPriority] = useState('0')
@@ -68,7 +67,7 @@ export default function AnnouncementsPage() {
     }
   }
 
-  async function setActive(row: Announcement, is_active: boolean) {
+  async function setActive(row: AnnouncementRow, is_active: boolean) {
     try {
       await adminApi.announcements.update(row.id, { is_active })
       refresh()

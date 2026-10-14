@@ -5,8 +5,8 @@
  * deadline show no row.
  */
 import { render, screen } from '@testing-library/react-native'
-import type { ExchangeDetail, EscrowStatus, UserRef } from '@tenda/shared'
-import { exchangeDetail } from '../__fixtures__/exchange-detail'
+import type { ExchangeDetail, EscrowStatus } from '@tenda/shared'
+import { exchangeDetail, exchangeParty } from '../__fixtures__/exchange-detail'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -45,15 +45,14 @@ jest.mock('@/stores/platform-config.store', () => ({
     }),
 }))
 
+import { BOUND_WALLET_LABEL } from '@tenda/shared'
 import { ExchangeTermsCard } from '../ExchangeTermsCard'
 
 const iso = (hoursFromNow: number) => new Date(Date.now() + hoursFromNow * 3_600_000).toISOString()
 /** The live clock renders as total-hours H:MM:SS ("5:23:04", "49:59:58"). */
 const CLOCK = /^\d+:\d{2}:\d{2}$/
 
-const user: UserRef = {
-  id: 'u1', first_name: 'A', last_name: 'B', avatar_url: null, review_score: '0', is_seeker: false, country: 'NG',
-}
+const user = exchangeParty('u1')
 
 function makeOffer(
   status: EscrowStatus,
@@ -76,6 +75,29 @@ test('always shows rate and the payment-window duration', () => {
 test('names the network the escrow lives on (from the chain manifest)', () => {
   render(<ExchangeTermsCard offer={makeOffer('open', { accept_deadline: iso(5) })} />)
   expect(screen.getByText('Network')).toBeTruthy()
+})
+
+test('names the wallet THIS escrow bound the reader to', () => {
+  // The party never necessarily chose it — an accept bakes whatever wallet
+  // signed — so the first they hear of it must not be a refused signature.
+  render(
+    <ExchangeTermsCard
+      offer={makeOffer('accepted', { completion_deadline: iso(3) }, { my_signer_address: '0xBound111' })}
+    />,
+  )
+  expect(screen.getByText(BOUND_WALLET_LABEL)).toBeTruthy()
+  expect(screen.getByText('0xBo…d111')).toBeTruthy()
+})
+
+test('shows no wallet row to a reader the escrow binds to nothing', () => {
+  // The wire is viewer-relative: a non-party (or a still-open offer) gets
+  // null, and a row labelled "Your escrow wallet" with no wallet is a lie.
+  render(
+    <ExchangeTermsCard
+      offer={makeOffer('open', { accept_deadline: iso(5) }, { my_signer_address: null })}
+    />,
+  )
+  expect(screen.queryByText(BOUND_WALLET_LABEL)).toBeNull()
 })
 
 test('buyer net = amount − platform fee at the regular tier (100 − 1% = 99)', () => {
@@ -138,4 +160,31 @@ test('terminal/draft statuses show no live-deadline row', () => {
     expect(screen.queryByText('Accept in')).toBeNull()
     unmount()
   }
+})
+
+describe('the Rate row shows a rate, not a rounded amount', () => {
+  // The test above asserts the LABEL exists. The value was never checked, and
+  // the fixture rate is 1600 — a whole number, so `formatFiat` (the AMOUNT
+  // formatter, maximumFractionDigits: 0) looked correct on it forever.
+  test('keeps the decimals a GHS rate is decided on', () => {
+    render(
+      <ExchangeTermsCard
+        offer={makeOffer('open', {}, { rate: '15.4900000000', fiat_currency: 'GHS' })}
+      />,
+    )
+    expect(screen.getByText(/15\.49 \//)).toBeTruthy()
+  })
+
+  test('leaves a whole NGN rate whole', () => {
+    render(<ExchangeTermsCard offer={makeOffer('open', {}, { rate: '1600.0000000000' })} />)
+    expect(screen.getByText(/₦1,600 \//)).toBeTruthy()
+  })
+})
+
+test('an asset the display metadata does not know renders as its raw id', () => {
+  // Same fallback the web audit found untested on its twin: `asset` is a plain
+  // string on the wire, so a chain enabled server-side before the client ships
+  // its ASSET_META entry lands here.
+  render(<ExchangeTermsCard offer={makeOffer('open', {}, { asset: 'USDC_NEWCHAIN' })} />)
+  expect(screen.getByText(/\/ USDC_NEWCHAIN$/)).toBeTruthy()
 })

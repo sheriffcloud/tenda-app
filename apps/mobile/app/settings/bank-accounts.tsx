@@ -5,7 +5,8 @@ import { useUnistyles } from 'react-native-unistyles'
 import type { BankAccountSummary } from '@tenda/shared'
 import { ScreenContainer, Text, Header, Button, BottomSheet, ConfirmDialog, showToast } from '@/components/ui'
 import { PayoutAccountRow, AddPayoutAccountForm } from '@/components/payout'
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { spacing } from '@/theme/tokens'
 
 /**

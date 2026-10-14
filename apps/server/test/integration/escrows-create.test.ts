@@ -8,17 +8,21 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
-import { escrows, gig_details } from '@tenda/shared/db/schema'
+import { escrows, gig_details, users } from '@tenda/shared/db/schema'
 import {
   TEST_DB_CONFIGURED,
   FAKE_UNSIGNED,
   useTestApp,
+  createTransactableUser,
   createUser,
   createEscrow,
-  makeTransactable,
   authHeader,
 } from '../helpers/test-app'
 import { createEscrowBody, gigDetailsBody } from '../helpers/escrow-states'
+import {
+  MAX_COMPLETION_DURATION_SECONDS,
+  MIN_COMPLETION_DURATION_SECONDS,
+} from '@tenda/shared'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -55,6 +59,67 @@ test('POST /v1/escrows: 422 on invalid kind', { skip }, async () => {
   })
   assert.strictEqual(res.statusCode, 422)
   assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+})
+
+/**
+ * The completion window is BOUNDED at the API, not just in the composer (#52).
+ *
+ * Before this, any positive integer was accepted: ~3.2 years produced a draft
+ * row and a transaction to sign, and the refusal arrived from the chain — both
+ * contracts cap the window at ESCROW_LIMITS.maxCompletionDurationSeconds (180
+ * days) — AFTER the user had signed. The bound enforced is the tighter product
+ * rail the pickers already offer, so client and API cannot disagree.
+ *
+ * Through the route, not just the validator, because the validator being right
+ * is not the same claim as the endpoint refusing.
+ */
+test('POST /v1/escrows: accepts a window at EITHER boundary', { skip }, async () => {
+  const app = getApp()
+  const u = await createTransactableUser(app)
+  for (const seconds of [MIN_COMPLETION_DURATION_SECONDS, MAX_COMPLETION_DURATION_SECONDS]) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/escrows',
+      headers: authHeader(u.token),
+      payload: createEscrowBody({ completion_duration_seconds: seconds }),
+    })
+    assert.strictEqual(res.statusCode, 201, `boundary ${seconds} should be inside the window`)
+  }
+})
+
+test('POST /v1/escrows: 422 one second past either boundary', { skip }, async () => {
+  const app = getApp()
+  const u = await createTransactableUser(app)
+  for (const seconds of [
+    MIN_COMPLETION_DURATION_SECONDS - 1,
+    MAX_COMPLETION_DURATION_SECONDS + 1,
+  ]) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/escrows',
+      headers: authHeader(u.token),
+      payload: createEscrowBody({ completion_duration_seconds: seconds }),
+    })
+    assert.strictEqual(res.statusCode, 422, `${seconds} should be outside the window`)
+    assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+  }
+})
+
+test('POST /v1/escrows: 422 for a non-integer window, and for the chain-reverting one', { skip }, async () => {
+  const app = getApp()
+  const u = await createTransactableUser(app)
+  // 100_000_000s ≈ 3.2 years — past the 180-day contract limit, which is the
+  // case that used to reach the chain.
+  for (const seconds of [7_200.5, 100_000_000]) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/escrows',
+      headers: authHeader(u.token),
+      payload: createEscrowBody({ completion_duration_seconds: seconds }),
+    })
+    assert.strictEqual(res.statusCode, 422, `${seconds} should be refused`)
+    assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+  }
 })
 
 test('POST /v1/escrows: 422 on a chain the registry does not carry', { skip }, async () => {
@@ -96,8 +161,7 @@ test('POST /v1/escrows: 400 when the client supplies an id', { skip }, async () 
 
 test('POST /v1/escrows: 201 inserts a draft and returns the unsigned tx', { skip }, async () => {
   const app = getApp()
-  const u = await createUser(app)
-  await makeTransactable(app, u.row.id) // wallet + verified contact (9D gate)
+  const u = await createTransactableUser(app) // wallet + verified contact (9D gate)
   const res = await app.inject({
     method: 'POST',
     url: '/v1/escrows',
@@ -212,3 +276,39 @@ test('POST /v1/gigs: 201, and the draft upsert retries clean (no 409)', { skip }
   const [row] = await app.db.select().from(gig_details).where(eq(gig_details.escrow_id, escrow.id))
   assert.strictEqual(row.title, 'Wash my car thoroughly')
 })
+
+test('POST /v1/escrows: a token whose user no longer exists is refused 401 (#105 T2)', { skip }, async () => {
+  // A user deleted after their token was minted still presents a structurally
+  // valid JWT, and the create handler reads `is_seeker` off the row to pick the
+  // fee tier — so something must refuse before it builds an escrow for nobody.
+  //
+  // WHICH guard refuses depends on STATE, which the sweep and its first
+  // correction both missed. Cold cache — this case, whose token is minted and
+  // never used — is `authenticate` at 401. Warm, it passes from cache and
+  // `requireProfileComplete` answers 403 PROFILE_INCOMPLETE instead; both arms
+  // run in deleted-account-refusals.test.ts. Either way the handler's own guard
+  // at routes/v1/escrows/index.ts:55 never runs, and it STAYS: deleting a guard
+  // because today's preHandler order hides it is how that order becomes
+  // load-bearing without anyone deciding it (#108).
+  const app = getApp()
+  const u = await createTransactableUser(app)
+  await app.db.delete(users).where(eq(users.id, u.row.id))
+
+  const res = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(u.token), payload: createEscrowBody(),
+  })
+  assert.strictEqual(res.statusCode, 401, res.body)
+  assert.match(res.json().message, /[Uu]ser no longer exists/)
+})
+
+// SUPERSEDED (#112), kept as the pointer: the sweep listed
+// routes/v1/escrows/index.ts:194 and :197 as unexecuted. Both are the RACE
+// copies of guards that also exist on the sequential path at 136-141, which is
+// what made 197 hard to test — a test for the reuse rule survives its removal
+// because it is exercising 136 instead (measured in T2; that test was deleted).
+// What this note used to say next — that the harness cannot stage the race
+// deterministically — was wrong. escrow-draft-refusals.test.ts stages the
+// collision at the route's own await, closes 197 there (removing 197 fails it,
+// removing the sequential copy does not) and records 194 with its measurement.
+// Line 55 is shadowed by TWO earlier guards, one per cache state — see above.
+

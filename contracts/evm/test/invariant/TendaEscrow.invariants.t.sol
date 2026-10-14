@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
@@ -28,6 +28,13 @@ contract TendaEscrowInvariants is Test {
         escrow = new TendaEscrow(admin, disputeAdmin, treasury, 250, 100, 48 hours, 1 hours);
         token = new MockUSDCPermitV2();
         handler = new TendaEscrowHandler(escrow, token, admin, disputeAdmin, treasury);
+        // Every actor may relay permits: the handler picks relayers at random.
+        address[6] memory actors = handler.actorList();
+        vm.startPrank(admin);
+        for (uint256 i = 0; i < actors.length; i++) {
+            escrow.setRelayer(actors[i], true);
+        }
+        vm.stopPrank();
         targetContract(address(handler));
     }
 

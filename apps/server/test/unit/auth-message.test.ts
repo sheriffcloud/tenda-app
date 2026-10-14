@@ -6,7 +6,7 @@ import {
   type AuthMessageFields,
   assertAuthMessage,
   parseAuthMessage,
-} from '@server/lib/auth-message'
+} from '@server/features/auth/session/auth-message'
 
 const NOW = new Date('2026-05-20T12:00:00.000Z')
 

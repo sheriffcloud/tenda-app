@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! `cancel_escrow_{sol,spl}` — creator unwinds an Open escrow before any
 //! counterparty has accepted. Refunds the full amount to the creator. No
 //! platform fee (nothing was delivered).
@@ -67,7 +68,10 @@ pub struct CancelSpl<'info> {
 
 pub fn handler_sol(ctx: Context<CancelSol>) -> Result<()> {
     let escrow = &mut ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Open, TendaError::InvalidEscrowStatus);
+    require!(
+        escrow.status == EscrowStatus::Open,
+        TendaError::InvalidEscrowStatus
+    );
 
     let amount = escrow.amount;
     let escrow_id = escrow.escrow_id;
@@ -94,7 +98,10 @@ pub fn handler_sol(ctx: Context<CancelSol>) -> Result<()> {
 
 pub fn handler_spl(ctx: Context<CancelSpl>) -> Result<()> {
     let escrow = &mut ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Open, TendaError::InvalidEscrowStatus);
+    require!(
+        escrow.status == EscrowStatus::Open,
+        TendaError::InvalidEscrowStatus
+    );
 
     let amount = escrow.amount;
     let escrow_id = escrow.escrow_id;

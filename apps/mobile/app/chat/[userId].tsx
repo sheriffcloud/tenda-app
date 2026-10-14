@@ -18,7 +18,7 @@ import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatContextDivider } from '@/components/chat/ChatContextDivider'
 import { ChatTimestampGroup } from '@/components/chat/ChatTimestampGroup'
-import { formatFullName } from '@tenda/shared'
+import { buildMessageFeed, isDivider, isTimestamp, scopedName } from '@tenda/shared'
 import { ChatHeader } from '@/components/chat/ChatHeader'
 import { ChatInput } from '@/components/ui/ChatInput'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
@@ -30,7 +30,6 @@ import { useConversation } from '@/hooks/useConversation'
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'
 import { useChatRealtime } from '@/hooks/useChatRealtime'
 import { useAttachmentUpload } from '@/hooks/useAttachmentUpload'
-import { buildMessageFeed, isDivider, isTimestamp } from '@/lib/chat'
 import { attachmentToMediaItem } from '@/lib/attachments'
 import { spacing } from '@/theme/tokens'
 import type { MediaItem } from '@/components/shared/media/types'
@@ -60,7 +59,8 @@ export default function ChatScreen() {
 
   const feed = useMemo(() => {
     const msgs = conversationId ? (messages[conversationId] ?? []) : []
-    return buildMessageFeed(msgs)
+    // Shared builder is chronological; the inverted FlatList wants newest first.
+    return buildMessageFeed(msgs).reverse()
   }, [conversationId, messages])
 
   const escrowContext = escrowId ? { escrowId, kind: kind ?? null } : undefined
@@ -120,7 +120,7 @@ export default function ChatScreen() {
   }
 
   const displayName = otherUser
-    ? formatFullName(otherUser.first_name, otherUser.last_name) || 'Anonymous'
+    ? scopedName(otherUser) || 'Anonymous'
     : 'User'
 
   return (

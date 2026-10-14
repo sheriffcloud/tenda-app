@@ -9,18 +9,18 @@
  * ever appeared in a chat room nobody scrolled back through is as lost as one
  * that only appeared in a feed nobody opened.
  *
- * It produces NOTIFICATION JOBS rather than writing rows itself. lib/notify is
+ * It produces NOTIFICATION JOBS rather than writing rows itself. features/notifications is
  * the single producer of those jobs by design, and going around it would mean
  * re-implementing the stable-id contract, the column clamping and the live WS
  * broadcast — three things that are already right in one place.
  */
 
-import { enqueueNotificationToMany, stableNotificationId } from '@server/lib/notify'
-import { alertIdentity } from '../../identity'
-import { loadAlertPartyNames } from '../../identities'
-import { mediatorUserIds } from '../../recipients'
+import { enqueueNotificationToMany, stableNotificationId } from '@server/features/notifications'
+import { alertIdentity } from '../../identity/identity'
+import { loadAlertPartyNames } from '../../identity/identities'
+import { mediatorUserIds } from '../../pipeline/recipients'
 import type { AlertChannel, AlertChannelName } from '../../types'
-import { IN_APP_ALERT_KINDS, inAppExcludedIds, inAppNotice, inAppPartyIds } from './copy'
+import { IN_APP_ALERT_KINDS, inAppExcludedIds, inAppNotice, inAppPartyIds } from './render/copy'
 
 /** The registry name. Typed so it must be one `ALERT_CHANNEL_NAMES` declares. */
 const NAME: AlertChannelName = 'in_app'

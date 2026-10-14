@@ -20,6 +20,9 @@ import {
   disputeViewerSeat,
   type DisputeMessage,
   type DisputeSender,
+  buildDisputeFeed,
+  isDisputeDay,
+  disputeSendMessage,
 } from '@tenda/shared'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
@@ -36,8 +39,6 @@ import { DisputeContextHeader } from '@/components/dispute/DisputeContextHeader'
 import { useDisputeThread } from '@/hooks/useDisputeThread'
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'
 import { useAttachmentUpload } from '@/hooks/useAttachmentUpload'
-import { buildDisputeFeed, isDisputeDay } from '@/lib/dispute-thread'
-import { disputeSendMessage } from '@/lib/dispute-send-error'
 import { attachmentToMediaItem } from '@/lib/attachments'
 import { useAuthStore } from '@/stores/auth.store'
 import { spacing } from '@/theme/tokens'

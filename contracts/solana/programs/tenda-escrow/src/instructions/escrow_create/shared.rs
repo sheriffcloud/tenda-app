@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use anchor_lang::prelude::*;
 
 use crate::constants::{
@@ -36,10 +37,7 @@ impl CreateEscrowArgs {
     /// state writes.
     pub fn validate(&self, now: i64) -> Result<()> {
         require!(self.amount >= MIN_ESCROW_AMOUNT, TendaError::AmountTooLow);
-        require!(
-            self.accept_deadline > now,
-            TendaError::AcceptDeadlineInPast
-        );
+        require!(self.accept_deadline > now, TendaError::AcceptDeadlineInPast);
         require!(
             (MIN_COMPLETION_DURATION_SECONDS..=MAX_COMPLETION_DURATION_SECONDS)
                 .contains(&self.completion_duration_seconds),

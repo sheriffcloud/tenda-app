@@ -1,6 +1,6 @@
 /**
  * Operational alert contracts — "something happened that a HUMAN OPERATOR must
- * act on", as distinct from lib/notify/, which tells the parties to an escrow
+ * act on", as distinct from features/notifications/, which tells the parties to an escrow
  * what happened to their own escrow.
  *
  * The split exists because the two have different audiences, different

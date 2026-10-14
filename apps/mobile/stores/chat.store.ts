@@ -1,8 +1,16 @@
 import { create } from 'zustand'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
-import type { UploadedAttachment } from '@/lib/attachments'
-import { ATTACHMENT_PREVIEW, type Conversation, type Message } from '@tenda/shared'
+import { inboxActions, totalUnread } from '@/stores/chat-inbox'
+import {
+  accountGeneration,
+  ATTACHMENT_PREVIEW,
+  isSameAccount,
+  registerAccountReset,
+  type Conversation,
+  type Message,
+  type UploadedAttachment,
+} from '@tenda/shared'
 
 // A message optimistically added before server confirmation
 export type LocalMessage = Message & {
@@ -15,12 +23,18 @@ export interface EscrowContext {
   kind: 'gig' | 'exchange' | null
 }
 
-interface ChatState {
+export interface ChatState {
   conversations:    Conversation[]
   messages:         Record<string, LocalMessage[]>   // conversationId → messages (oldest first)
-  unread:           number                           // total unread across all conversations
+  unread:           number                           // total unread across the LOADED conversations
+  /** False once a page came back short: nothing older is left to ask for. */
+  hasMoreConversations:     boolean
+  loadingMoreConversations: boolean
 
+  /** Refresh the newest page. Pages already scrolled to are KEPT (see chat-inbox). */
   fetchConversations: () => Promise<void>
+  /** The next older page, after the last conversation held. */
+  loadMoreConversations: () => Promise<void>
   findOrCreate:       (userId: string) => Promise<Conversation>
   fetchMessages:      (conversationId: string, beforeId?: string) => Promise<Message[]>
   sendMessage:        (conversationId: string, content: string, context?: EscrowContext, attachment?: UploadedAttachment) => Promise<void>
@@ -28,34 +42,36 @@ interface ChatState {
   closeConversation:  (conversationId: string) => Promise<void>
   appendMessage:      (conversationId: string, message: LocalMessage) => void
   receiveMessage:     (conversationId: string, message: Message) => void
+  /** Back to empty — every field in `INITIAL`, which is what the store
+   *  spreads, so a field added there is reset for free. One added directly in
+   *  the store body below is NOT, which is the one way to get this wrong. */
+  reset:              () => void
+}
+
+/** The store as the module defines it — the single source for `reset`. */
+const INITIAL = {
+  conversations: [] as Conversation[],
+  messages:      {} as Record<string, LocalMessage[]>,
+  unread:        0,
+  // Optimistic: one load decides it. A fresh store has loaded nothing, so there
+  // is no page that came back short.
+  hasMoreConversations:     true,
+  loadingMoreConversations: false,
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  conversations: [],
-  messages:      {},
-  unread:        0,
+  ...INITIAL,
 
-  fetchConversations: async () => {
-    const convs = await api.conversations.list()
-    const unread = convs.reduce((sum, c) => sum + c.unread_count, 0)
-    set({ conversations: convs, unread })
-  },
+  reset: () => set({ ...INITIAL }),
 
-  findOrCreate: async (userId) => {
-    const conv = await api.conversations.findOrCreate({ user_id: userId })
-    set((s) => {
-      const exists = s.conversations.find((c) => c.id === conv.id)
-      return {
-        conversations: exists
-          ? s.conversations.map((c) => (c.id === conv.id ? conv : c))
-          : [conv, ...s.conversations],
-      }
-    })
-    return conv
-  },
+  ...inboxActions(set, get),
 
   fetchMessages: async (conversationId, beforeId) => {
+    const gen = accountGeneration()
     const fetched = await api.conversations.messages({ id: conversationId }, beforeId ? { before_id: beforeId } : undefined)
+    // The message bodies: the one write here that would put another account's
+    // private content on screen. The caller still gets its rows.
+    if (!isSameAccount(gen)) return fetched
     // Server returns newest-first; reverse for display (oldest first)
     const ordered = [...fetched].reverse()
 
@@ -72,7 +88,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const conversations = s.conversations.map((c) =>
         c.id === conversationId ? { ...c, unread_count: 0 } : c
       )
-      const unread = conversations.reduce((sum, c) => sum + c.unread_count, 0)
+      const unread = totalUnread(conversations)
       return {
         messages:      { ...s.messages, [conversationId]: [...ordered, ...optimistic] },
         conversations,
@@ -102,8 +118,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     get().appendMessage(conversationId, optimistic)
 
+    const gen = accountGeneration()
+    // The try wraps the REQUEST and nothing else (#72). It used to wrap the
+    // swap below as well, so anything that handler threw was caught by the
+    // failure handler: the message was on the server, the thread showed it as
+    // failed, and the Retry beside it sent a second copy the server already
+    // had. A silent duplicate reported as a network error.
+    let sent: Message
     try {
-      const sent = await api.conversations.sendMessage(
+      sent = await api.conversations.sendMessage(
         { id: conversationId },
         {
           content,
@@ -113,6 +136,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
             : {}),
         },
       )
+    } catch {
+      // The send did not reach the server. Marking it failed is still a write
+      // into the thread list, so it is account-guarded like every other.
+      if (isSameAccount(gen)) {
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
+              m.id === tempId ? { ...m, _status: 'failed' as const } : m,
+            ),
+          },
+        }))
+      }
+      return
+    }
+
+    if (!isSameAccount(gen)) return
+    try {
       set((s) => {
         const existing = s.messages[conversationId] ?? []
         // The WS echo of our own message may land before this response,
@@ -122,15 +163,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : existing.map((m) => (m.id === tempId ? { ...sent, _status: 'sent' as const } : m))
         return { messages: { ...s.messages, [conversationId]: updated } }
       })
-    } catch {
-      set((s) => ({
-        messages: {
-          ...s.messages,
-          [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
-            m.id === tempId ? { ...m, _status: 'failed' as const } : m,
-          ),
-        },
-      }))
+    } catch (e) {
+      // Contained, but NOT as a failed send: the server has the message, so the
+      // one thing this must never do is offer a Retry that duplicates it. The
+      // optimistic copy stays 'sending' — honest, since we could not reconcile
+      // it — and the warn is what tells a developer the handler broke.
+      //
+      // Contained HERE rather than left to propagate because all three callers
+      // are `void sendMessage(...)`: a rejection would surface as an unhandled
+      // one rather than reaching anybody who could act on it.
+      console.warn('[chat] send succeeded but the store update failed:', e)
     }
   },
 
@@ -153,13 +195,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       message.escrow_id !== null ? { escrowId: message.escrow_id, kind: message.escrow_kind } : undefined,
       attachment,
     )
-  },
-
-  closeConversation: async (conversationId) => {
-    await api.conversations.close({ id: conversationId })
-    set((s) => ({
-      conversations: s.conversations.filter((c) => c.id !== conversationId),
-    }))
   },
 
   appendMessage: (conversationId, message) => {
@@ -198,3 +233,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })
   },
 }))
+
+// Private threads, their bodies and the unread badge: nothing here may outlive
+// the account that fetched it. Registered beside the state rather than listed
+// inside `logout`, because the list-in-logout is what left three stores out on
+// web (#25) — and mobile's copy of that list named only `notifications`, so
+// chat, gigs and escrow were never in it at all (#65).
+registerAccountReset(() => useChatStore.getState().reset())

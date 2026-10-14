@@ -27,12 +27,13 @@ import {
   canViewHiddenEscrow,
   scopeEscrowAcceptanceMode,
   scopeEscrowPrivateFields,
-} from '@server/lib/escrow-detail-scope'
-import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
-import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
-import { optionalUserId, uuidParamGuard } from '@server/lib/guards'
+  scopeMySignerAddress,
+} from '@server/features/escrows/detail/scope'
+import { loadEscrowEvidence } from '@server/features/escrows/detail/evidence'
+import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow/party'
+import { optionalUserId, uuidParamGuard } from '@server/lib/http/guards'
 import { loadGigViewerContext } from '@server/features/applications/viewer'
-import { USER_COLS } from '@server/lib/users'
+import { USER_COLS } from '@server/lib/db/users'
 
 type GetRoute = GigsContract['get']
 
@@ -145,12 +146,15 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       remote: details.remote,
       cross_border: details.cross_border,
       proof_requirements: details.proof_requirements,
+      proof_params: details.proof_params,
       creator,
       completion_duration_seconds: escrow.completion_duration_seconds,
       completion_deadline: iso(escrow.completion_deadline),
       submitted_at: iso(escrow.submitted_at),
       approval_deadline: iso(escrow.approval_deadline),
       dispute_bond_raw: escrow.dispute_bond_raw,
+      // Viewer-relative bound wallet (chain-attested); null for outsiders.
+      my_signer_address: scopeMySignerAddress(escrow, viewer_id),
       // Flag public, assignee id party-only — the same projection the exchange
       // detail uses, so the two surfaces cannot mean different things by
       // "assigned". Rationale lives with the helper.
@@ -160,7 +164,10 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       ...scopeEscrowPrivateFields({ counterparty, ...evidence }, isParty),
       // Reviews stay public: they are the same rows `/v1/users/:id/reviews`
       // serves on a profile, and public reputation is the point of them.
-      reviews: gigReviews,
+      reviews: gigReviews.map((review) => ({
+        ...review,
+        created_at: review.created_at.toISOString(),
+      })),
       viewer,
     })
   })

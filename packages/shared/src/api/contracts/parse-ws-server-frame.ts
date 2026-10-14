@@ -87,6 +87,9 @@ function isGigSummary(value: unknown): value is GigSummary {
     Array.isArray(value.proof_requirements) && value.proof_requirements.every(
       (proof) => typeof proof === 'string' && (PROOF_TYPES as readonly string[]).includes(proof),
     ) &&
+    // Structural only, like `creator` below: the server built the frame from
+    // params it validated at create; the guard's job is shape, not re-audit.
+    (value.proof_params === null || isRecord(value.proof_params)) &&
     isRecord(creator) &&
     hasString(creator, 'id') && creator.id !== '' &&
     hasString(creator, 'first_name') &&
@@ -94,6 +97,9 @@ function isGigSummary(value: unknown): value is GigSummary {
     hasNullableString(creator, 'avatar_url') &&
     hasNullableString(creator, 'review_score') &&
     typeof creator.is_seeker === 'boolean' &&
+    // Every UserRef key, is_agent included (#19): a frame that omits it would
+    // insert a card whose poster reads as a person.
+    typeof creator.is_agent === 'boolean' &&
     hasNullableString(creator, 'country')
   )
 }

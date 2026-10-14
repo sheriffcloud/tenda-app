@@ -5,14 +5,14 @@
  * lifecycle states are visible here, unlike the public browse surfaces.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { isEscrowCounterpartySide, isEscrowPartyOrAssigned } from '@server/lib/escrow-party'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
+import { isEscrowCounterpartySide, isEscrowPartyOrAssigned } from '@server/lib/escrow/party'
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError, EscrowListRow } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { chainFilterCondition } from '@server/lib/chain-filter'
+import { chainFilterCondition } from '@server/lib/http/chain-filter'
 
 type EscrowsRoute = UsersContract['escrows']
 

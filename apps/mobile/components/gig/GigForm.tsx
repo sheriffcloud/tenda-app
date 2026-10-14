@@ -1,20 +1,16 @@
 import { useRef, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native'
-import { formatAssetAmount } from '@tenda/shared'
-import { formatDuration } from '@/lib/gig-display'
+import { formatAssetAmount, formatDuration } from '@tenda/shared'
 import { PriceWarningSheet } from '@/components/moderation/PriceWarningSheet'
+import { ComposerWalletNotice } from './gig-form/ComposerWalletNotice'
 import { ModerationHint } from './gig-form/ModerationHint'
 import { GigComposerNavigation } from './gig-form/GigComposerNavigation'
 import { GigComposerProgress } from './gig-form/GigComposerProgress'
-import { GIG_COMPOSER_STEPS, type GigComposerStep } from './gig-form/gig-composer.steps'
+import { GIG_COMPOSER_STEPS, type GigComposerStep, type GigFormValues } from '@tenda/shared'
 import { GigDeliveryStep } from './gig-form/steps/GigDeliveryStep'
 import { GigDetailsStep } from './gig-form/steps/GigDetailsStep'
 import { GigPaymentStep } from './gig-form/steps/GigPaymentStep'
 import { useGigForm } from './gig-form/useGigForm'
-import type { GigFormValues } from './gig-form/constants'
-
-export type { GigFormValues } from './gig-form/constants'
-export { ACCEPT_DEADLINE_OPTIONS } from './gig-form/constants'
 
 interface GigFormProps {
   initialValues?: Partial<GigFormValues>
@@ -60,6 +56,9 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Above the step, so it is read on step ONE rather than discovered at
+            the signature — the whole point of #59. */}
+        <ComposerWalletNotice gate={form.walletGate} onRetry={() => void form.retryWallets()} />
         <GigStep step={step} form={form} />
       </ScrollView>
 
@@ -121,7 +120,7 @@ function GigStep({ step, form }: { step: GigComposerStep; form: GigFormControlle
       <GigPaymentStep
         chainOptions={form.chainOptions}
         chainId={form.chainId}
-        onChainChange={form.setChainId}
+        onChainChange={form.selectChain}
         asset={form.asset}
         assetSymbol={form.assetSymbol}
         paymentRaw={form.paymentRaw}
@@ -143,9 +142,12 @@ function GigStep({ step, form }: { step: GigComposerStep; form: GigFormControlle
       onApprovalChange={form.setRequiresApproval}
       proofRequirements={form.proofRequirements}
       onProofRequirementsChange={form.setProofRequirements}
+      remote={form.isRemote}
+      proofDraft={form.proofDraft}
+      onProofDraftChange={form.setProofDraft}
       title={form.title}
       location={location}
-      budget={formatAssetAmount(String(form.paymentRaw), form.asset)}
+      budget={formatAssetAmount(form.paymentRaw, form.asset)}
       timing={`${formatDuration(form.completionDuration)} to complete`}
     />
   )

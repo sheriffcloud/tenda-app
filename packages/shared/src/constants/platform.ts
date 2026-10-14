@@ -15,7 +15,6 @@ export const PLATFORM_CONFIG_DEFAULTS = {
   fee_bps: 250,
   seeker_fee_bps: 100,
   grace_period_seconds: 3_600,
-  approval_window_seconds: 172_800,
   default_sponsored_tx_count: 3,
   moderation_rules_version: 1,
   /**

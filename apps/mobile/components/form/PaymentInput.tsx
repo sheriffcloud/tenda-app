@@ -6,14 +6,33 @@ import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
 import { Text } from '@/components/ui/Text'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { ASSET_META, CURRENCY_META, gigAmountBounds } from '@tenda/shared'
+import {
+  getAssetMeta,
+  CURRENCY_META,
+  gigBudgetRangeLabel,
+  gigBudgetToRaw,
+  gigBudgetToText,
+  hasGigBudget,
+  sanitizeGigBudgetText,
+  sanitizeDecimalText,
+  FIAT_ENTRY_DECIMALS,
+} from '@tenda/shared'
+import {
+  fiatRatePerUnit,
+  fiatTextToRaw,
+  useDenominationSync,
+} from './payment-input/payment-input.fiat'
 
 interface PaymentInputProps {
   /** Asset registry id (CO5), drives decimals, symbol and budget rails. */
   asset: string
-  /** Raw units of `asset` (lamports for SOL, 6dp for USDC). */
-  value: number
-  onChange: (raw: number) => void
+  /**
+   * Budget in raw units of `asset`, as a base-unit string; '' when unset.
+   * A string because an 18-decimal budget is past what a number can hold —
+   * see @tenda/shared's gig-budget helpers, which own the conversion.
+   */
+  value: string
+  onChange: (raw: string) => void
 }
 
 type Mode = 'FIAT' | 'ASSET'
@@ -23,6 +42,17 @@ type Mode = 'FIAT' | 'ASSET'
  *   inset 72h R14 with mono 22/700 amount + mono 13 unit suffix + mono 12.5 fiat alt right-aligned.
  *   Asset-aware since CO5, the FIAT alt converts via the platform SOL rate
  *   (stables ride the USD leg: NGN-per-USDC ≈ rates.NGN / rates.USD).
+ *
+ * NO "this asset cannot be priced" STATE, deliberately (#81). `fiatRatePerUnit`
+ * answers null FOREVER for a native token that is not SOL, and a fresh composer
+ * opens on the FIAT tab — so such an asset would sit in the rates-unknown path
+ * looking like a load that never finishes, with nothing telling the reader the
+ * difference. It cannot get here: `asset` is policy-derived rather than picked,
+ * taken from `gigAssetByChain`, and every chain in the manifest gives the 'gig'
+ * role to a USDC stable. A state for it would be a control for a case the
+ * producer cannot emit; keeping that true is a test's job instead, and
+ * packages/shared/test/chains/gig-asset-pricing.test.ts fails the day a chain
+ * gives the role to something this rule cannot price.
  */
 export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
   const { theme } = useUnistyles()
@@ -30,50 +60,55 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
   const currency = useSettingsStore((s) => s.currency)
   const currencyMeta = CURRENCY_META[currency]
 
-  const meta = ASSET_META[asset]
+  const meta = getAssetMeta(asset)
   const symbol = meta?.symbol ?? asset
-  const decimals = meta?.decimals ?? 9
-  const scale = 10 ** decimals
 
-  // Fiat per display unit of `asset`: SOL rates come straight from the
-  // platform cache; stables ≈ USD, so divide out the USD leg.
-  const solRate = rates?.[currency] ?? null
-  const usdRate = rates?.USD ?? null
-  const rate =
-    meta?.is_stable === true
-      ? solRate !== null && usdRate !== null && usdRate > 0
-        ? solRate / usdRate
-        : null
-      : solRate
+  const rate = fiatRatePerUnit(rates, currency, asset)
 
-  const hasInitial = value > 0
+  const hasInitial = hasGigBudget(value)
   const [mode, setMode] = useState<Mode>(hasInitial ? 'ASSET' : 'FIAT')
-  const [text, setText] = useState(() => (hasInitial ? String(value / scale) : ''))
+  const [text, setText] = useState(() => gigBudgetToText(value, asset))
 
-  const currentUnits = value / scale
+  // Display magnitude only — safe as a number, and the fiat alt is an
+  // approximation by construction ('≈'). The RAW never goes through here.
+  const currentUnits = hasInitial ? Number(gigBudgetToText(value, asset)) : 0
   const currentFiat = rate != null ? currentUnits * rate : null
 
-  const { min_raw } = gigAmountBounds(asset)
-  const minDisplay = `${min_raw / scale} ${symbol}`
+  const rangeDisplay = gigBudgetRangeLabel(asset)
 
-  function handleChangeText(raw: string) {
-    setText(raw)
-    const num = parseFloat(raw)
-    if (isNaN(num) || num <= 0) return
+  useDenominationSync({ asset, value, mode, currency, rate, text, setText, onChange })
+
+  function handleChangeText(typed: string) {
+    // In ASSET mode the field IS the amount, so it is precision-limited at
+    // entry. In FIAT mode it is a fiat amount that happens to share the
+    // widget — the asset's decimals say nothing about how many kobo a reader
+    // may type, so only the character filter applies.
+    const next =
+      mode === 'ASSET'
+        ? sanitizeGigBudgetText(typed, asset)
+        : sanitizeDecimalText(typed, FIAT_ENTRY_DECIMALS)
+    setText(next)
+
+    if (mode === 'ASSET') {
+      onChange(gigBudgetToRaw(next, asset))
+      return
+    }
 
     // No rate yet → a FIAT entry can't convert; emitting it as ASSET units
-    // would misprice by orders of magnitude. Wait for the rate (the toggle
-    // to the asset tab always works).
-    if (mode === 'FIAT' && rate == null) return
-
-    const units = mode === 'FIAT' && rate != null ? num / rate : num
-    const { max_raw } = gigAmountBounds(asset)
-    onChange(Math.min(Math.round(units * scale), max_raw))
+    // would misprice by orders of magnitude. Wait for the rate: null here is a
+    // CACHE state, never a property of the asset — every gig asset is priceable
+    // once the rates land (see the header) — and the toggle to the asset tab
+    // works regardless.
+    if (rate === null || rate <= 0) return
+    onChange(fiatTextToRaw(next, rate, asset))
   }
 
   function toggleMode(next: Mode) {
     setMode(next)
     setText('')
+    // The cleared field is a cleared budget. Leaving the old raw behind let
+    // the step stay satisfied by a number that was no longer on screen.
+    onChange('')
   }
 
   const fiatAlt =
@@ -137,7 +172,7 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
       </View>
 
       <Text size={12} color={theme.colors.content.tertiary} style={s.helper}>
-        Minimum {minDisplay}
+        Budget {rangeDisplay}
       </Text>
     </View>
   )
@@ -166,7 +201,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 9.5,
     lineHeight: 12,
     fontWeight: '600',
@@ -182,7 +217,7 @@ const s = StyleSheet.create({
   amount: {
     flex: 1,
     minWidth: 0,
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 22,
     lineHeight: 26,
     fontWeight: '700',
@@ -190,7 +225,7 @@ const s = StyleSheet.create({
     padding: 0,
   },
   suffix: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 13,
     lineHeight: 16,
     fontWeight: '600',
@@ -198,7 +233,7 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   fiat: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12.5,
     lineHeight: 16,
     marginTop: 4,

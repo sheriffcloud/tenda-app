@@ -8,11 +8,11 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { escrowNoticeFor } from '@server/workers/escrow-fanout'
-import { enqueueEscrowNotice } from '@server/workers/escrow-fanout/enqueue-notice'
-import { escrowPushData } from '@server/lib/notify'
+import { escrowNoticeFor } from '@server/queue/workers/escrow-fanout'
+import { enqueueEscrowNotice } from '@server/queue/workers/escrow-fanout/enqueue-notice'
+import { escrowPushData } from '@server/features/notifications'
 import { queueDouble } from '../helpers/queue-double'
-import { INTERNAL_EVENT_BY_WIRE, type InternalEscrowEvent } from '@server/lib/escrow-events'
+import { INTERNAL_EVENT_BY_WIRE, type InternalEscrowEvent } from '@server/features/escrows/events'
 
 /**
  * Events that deliberately send NO push, each with the reason. This list is

@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/Badge'
-import { STATUS_BADGE_VARIANT, STATUS_LABEL } from '@/lib/gig-display'
+import { STATUS_BADGE_VARIANT, STATUS_LABEL } from '@tenda/shared'
 import type { EscrowStatus } from '@tenda/shared'
 
 interface GigStatusBadgeProps {

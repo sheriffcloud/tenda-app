@@ -10,12 +10,16 @@ import { assert } from "chai";
 import {
   LIMITS,
   PLATFORM_DEFAULTS,
+  PLATFORM_STATE_LEN,
+  PLATFORM_STATE_LEN_PRE_27,
   TestCtx,
   expectFailure,
   expectTendaError,
+  idlAccountFields,
   initPlatform,
   newCtx,
   platformArgs,
+  setUpgradeAuthority,
   warpBy,
   sendIxs,
   expectEvent,
@@ -56,8 +60,6 @@ describe("admin", () => {
         state.gracePeriodSeconds.toNumber(),
         PLATFORM_DEFAULTS.gracePeriodSeconds,
       );
-      assert.equal(state.totalVolume.toNumber(), 0);
-
       const event = expectEvent(ctx, logs, "platformInitialized");
       assert.equal(event.feeBps as number, PLATFORM_DEFAULTS.feeBps);
     });
@@ -108,6 +110,52 @@ describe("admin", () => {
         initPlatform(ctx, { gracePeriodSeconds: new BN(-1) }),
         "GracePeriodOutOfRange",
       );
+    });
+
+    it("REFUSES a signer who is not the program's upgrade authority (#39)", async () => {
+      // Solana has no constructor: initialize_platform is necessarily a separate
+      // transaction, so between `solana program deploy` and the deployer's own
+      // init there is a window in which anybody could call this. Whoever wins
+      // names protocol_admin / dispute_admin / treasury — i.e. takes every fee
+      // and the power to resolve disputes, which moves escrowed user funds.
+      //
+      // It is IRRECOVERABLE: `close_legacy_platform` only closes a PDA whose
+      // length is not LEN (an attacker's is exactly LEN) and every set_* needs
+      // the incumbent admin. So the gate has to be on-chain, not operational.
+      const attacker = Keypair.generate();
+      ctx.svm.airdrop(attacker.publicKey, 1_000_000_000n);
+
+      await expectTendaError(
+        ctx.program.methods
+          .initializePlatform(
+            platformArgs(ctx, { treasury: attacker.publicKey }),
+          )
+          .accountsPartial({
+            platformState: ctx.platformPda,
+            payer: attacker.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([attacker])
+          .rpc(),
+        "NotUpgradeAuthority",
+      );
+
+      // Nothing was created — the next legitimate init still has a free PDA.
+      assert.isNull(ctx.svm.getAccount(ctx.platformPda));
+      await initPlatform(ctx);
+      const state = await ctx.program.account.platformState.fetch(
+        ctx.platformPda,
+      );
+      assert.isTrue(state.treasury.equals(ctx.treasury.publicKey));
+    });
+
+    it("REFUSES an IMMUTABLE program — no upgrade authority means no initializer", async () => {
+      // `solana program set-upgrade-authority --final` leaves Option::None here.
+      // Such a program can never be initialized, which is a real ordering
+      // constraint on launch: initialize BEFORE making the program immutable.
+      setUpgradeAuthority(ctx, null);
+      await expectTendaError(initPlatform(ctx), "NotUpgradeAuthority");
+      assert.isNull(ctx.svm.getAccount(ctx.platformPda));
     });
 
     it("rejects double initialization", async () => {
@@ -296,6 +344,38 @@ describe("admin", () => {
   });
 });
 
+describe("PlatformState layout", () => {
+  it("carries exactly the fields the program reads — no reserved padding", () => {
+    // #27 removed a reserved `total_volume: u64` that no instruction wrote.
+    // Names, not the byte length: the length is DERIVED from the struct, so it
+    // moves with any change and can never hold one still. Re-adding a field
+    // fails here, which is the point — every extra byte is rent every
+    // deployment pays forever, and a layout change needs a migration.
+    assert.deepEqual(idlAccountFields("PlatformState"), [
+      "protocol_admin",
+      "dispute_admin",
+      "treasury",
+      "fee_bps",
+      "seeker_fee_bps",
+      "approval_window_seconds",
+      "grace_period_seconds",
+      "bump",
+    ]);
+  });
+
+  it("its declared LEN is what a freshly initialized account measures", async () => {
+    // Ties the IDL-derived size to reality: `close_legacy_platform` decides
+    // what is migratable by comparing an account's length to this number, so
+    // a size that drifted from the struct would silently repoint that guard.
+    const ctx = newCtx();
+    await initPlatform(ctx);
+    assert.equal(
+      ctx.svm.getAccount(ctx.platformPda)!.data.length,
+      PLATFORM_STATE_LEN,
+    );
+  });
+});
+
 describe("close_legacy_platform (devnet migration path)", () => {
   let ctx: TestCtx;
 
@@ -303,11 +383,11 @@ describe("close_legacy_platform (devnet migration path)", () => {
     ctx = newCtx();
   });
 
-  /** Forge the pre-rewrite artifact: an 88-byte program-owned account at the platform PDA. */
-  function plantLegacyPlatform(): void {
+  /** Forge a program-owned platform PDA of an arbitrary (stale) size. */
+  function plantLegacyPlatform(size = 88): void {
     ctx.svm.setAccount(ctx.platformPda, {
-      lamports: Number(ctx.svm.minimumBalanceForRentExemption(88n)),
-      data: new Uint8Array(88),
+      lamports: Number(ctx.svm.minimumBalanceForRentExemption(BigInt(size))),
+      data: new Uint8Array(size),
       owner: ctx.program.programId,
       executable: false,
     });
@@ -336,6 +416,41 @@ describe("close_legacy_platform (devnet migration path)", () => {
     const state = await ctx.program.account.platformState.fetch(
       ctx.platformPda,
     );
+    assert.equal(state.feeBps, PLATFORM_DEFAULTS.feeBps);
+  });
+
+  it("closes a PRE-#27 platform (the extra total_volume u64) and re-creates it at the new size", async () => {
+    // The #27 devnet migration, end to end: an account written by a deployment
+    // whose PlatformState was 8 bytes longer no longer matches LEN, which is
+    // the whole reason it becomes closeable. (That total_volume specifically is
+    // gone is pinned by the field-list test above — a length derived from the
+    // struct cannot pin the struct.)
+    plantLegacyPlatform(PLATFORM_STATE_LEN_PRE_27);
+
+    await ctx.program.methods
+      .closeLegacyPlatform()
+      .accountsPartial({
+        platformRaw: ctx.platformPda,
+        payer: ctx.payer.publicKey,
+      })
+      .rpc();
+    assert.isNull(ctx.svm.getAccount(ctx.platformPda));
+
+    warpBy(ctx, 1);
+    await initPlatform(ctx);
+    const account = ctx.svm.getAccount(ctx.platformPda)!;
+    assert.equal(account.data.length, PLATFORM_STATE_LEN);
+
+    // The field that matters after a layout shift is `bump`: SEVEN account
+    // structs constrain `bump = platform_state.bump`, and lib.rs routes
+    // NINETEEN of its 29 instructions through them — every state transition,
+    // both dispute resolves and all six admin setters. Reading `bump` from the
+    // OLD layout yields total_volume's first byte (0), not the real bump, and
+    // all nineteen fail their seeds constraint.
+    const state = await ctx.program.account.platformState.fetch(
+      ctx.platformPda,
+    );
+    assert.isAbove(state.bump, 0);
     assert.equal(state.feeBps, PLATFORM_DEFAULTS.feeBps);
   });
 

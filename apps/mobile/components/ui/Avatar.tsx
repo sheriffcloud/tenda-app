@@ -47,15 +47,15 @@ export function Avatar({
 
   if (isLarge) {
     const grad: AvatarGradient = gradient ?? 'accent'
-    backgroundColor = grad === 'brand' ? theme.colors.brand.primary : theme.colors.accent.primary
+    backgroundColor = grad === 'brand' ? theme.colors.brand.primary : theme.colors.feedback.warning.base
     initialColor = '#FFFFFF'
   } else {
     if (tone === 'brand') {
       backgroundColor = theme.colors.brand.primarySurface
       initialColor = theme.colors.brand.primary
     } else if (tone === 'accent') {
-      backgroundColor = theme.colors.accent.primarySurface
-      initialColor = theme.colors.accent.primary
+      backgroundColor = theme.colors.feedback.warning.surface
+      initialColor = theme.colors.feedback.warning.base
     } else if (tone === 'ok') {
       backgroundColor = theme.colors.feedback.success.surface
       initialColor = theme.colors.feedback.success.base
@@ -101,7 +101,7 @@ export function Avatar({
         style={{
           padding: 2,
           borderRadius: r + 5,
-          backgroundColor: theme.colors.accent.primary,
+          backgroundColor: theme.colors.feedback.warning.base,
         }}
       >
         <View
@@ -139,7 +139,7 @@ export function Avatar({
               width: 10,
               height: 10,
               borderRadius: 5,
-              backgroundColor: theme.colors.brand.primary,
+              backgroundColor: theme.colors.brand.solid,
             }}
           />
         </View>

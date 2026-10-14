@@ -57,7 +57,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   errorCode: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,

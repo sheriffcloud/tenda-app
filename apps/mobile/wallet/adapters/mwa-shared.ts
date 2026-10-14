@@ -9,7 +9,7 @@ import {
   transact,
   type Web3MobileWallet,
 } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { metadata, SOLANA_NETWORK } from '../config'
 
 // MWA spec: `identity.icon` MUST be a relative URI. Don't reuse the absolute

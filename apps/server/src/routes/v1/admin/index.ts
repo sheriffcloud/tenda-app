@@ -10,7 +10,7 @@
 // wiring.
 import { FastifyPluginAsync } from 'fastify'
 import { ADMIN_ROLES } from '@tenda/shared'
-import { requireRole } from '@server/lib/guards'
+import { requireRole } from '@server/lib/http/guards'
 import announcements from './announcements'
 import disputes from './disputes'
 import escrows from './escrows'

@@ -8,6 +8,26 @@
  * code whose only symptom is Redis never giving memory back.
  */
 
+import { readdirSync } from 'node:fs'
+import { join } from 'node:path'
+
+/**
+ * Every `.ts` file under `dir`, recursively — a source scan's input.
+ *
+ * Shared rather than re-declared per suite: three guards now walk the tree
+ * (queue construction, the gas-seed module boundary, and whatever comes next),
+ * and three copies of a recursive walk is three chances for one of them to
+ * quietly stop descending into a subdirectory — which does not fail, it just
+ * scans less and passes.
+ */
+export function tsFilesUnder(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) return tsFilesUnder(full)
+    return entry.name.endsWith('.ts') ? [full] : []
+  })
+}
+
 /**
  * Blank out comment bodies, PRESERVING line numbers so a failure can still name
  * the line.

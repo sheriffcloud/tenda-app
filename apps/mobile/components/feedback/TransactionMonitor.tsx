@@ -3,15 +3,16 @@ import { View, Modal, StyleSheet, ActivityIndicator } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { CheckCircle, XCircle, Wallet } from 'lucide-react-native'
 import { useNetInfo } from '@react-native-community/netinfo'
-import { TRANSACTION_COPY, TRANSACTION_RESILIENCE } from '@tenda/shared'
-import { radius, spacing } from '@/theme/tokens'
-import { Text } from '@/components/ui/Text'
-import { Button } from '@/components/ui/Button'
 import {
+  TRANSACTION_COPY,
+  TRANSACTION_RESILIENCE,
   abortPendingWalletRequest,
   hasPendingWalletRequest,
   subscribePendingWalletRequest,
-} from '@/wallet'
+} from '@tenda/shared'
+import { radius, spacing } from '@/theme/tokens'
+import { Text } from '@/components/ui/Text'
+import { Button } from '@/components/ui/Button'
 import type { TxPhase } from '@/hooks/useEscrowActions'
 import { ESCROW_CONFIRM_DISMISS_MS, useEscrowTransactionSync } from '@/hooks/escrow-sync'
 import { useSlowOperation } from '@/hooks/useSlowOperation'

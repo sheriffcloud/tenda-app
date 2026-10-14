@@ -12,14 +12,14 @@
 
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { OPENROUTER_CHAT_URL, moderationConfig } from '@server/features/moderation/config'
+import { OPENROUTER_CHAT_URL, moderationConfig } from '@server/features/moderation/core/config'
 import type {
   ModerationInput,
   ModerationProvider,
   PriceStats,
   Verdict,
   VerdictReason,
-} from '@server/features/moderation/types'
+} from '@server/features/moderation/core/types'
 
 // ---------- transport seam (tests stub this; prod uses fetch) -----------------
 

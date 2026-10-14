@@ -1,94 +1,50 @@
-import type { ReactNode } from 'react'
-import { ArrowRight, ArrowLeftRight, Briefcase } from 'lucide-react'
-import type { ProductPanel as ProductPanelData } from './content'
+import { Period } from '@/components/ui/SectionRule'
+import { Pill } from '@/components/ui/Pill'
 import { cn } from '@/lib/cn'
+import type { ProductPanel as ProductPanelData } from './content'
 
 interface Props {
   panel: ProductPanelData
-  /** Mini visual slot — gigs list or offer summary. */
-  children: ReactNode
+  /** The dividing rule between the two halves; the parent decides which side. */
+  className?: string
 }
 
-const ICONS = {
-  Briefcase,
-  ArrowLeftRight,
-} as const
-
-const ACCENT_VAR: Record<ProductPanelData['accent'], { color: string; soft: string; line: string; glow: string }> = {
-  brand: {
-    color: 'var(--brand)',
-    soft: 'var(--brand-surface)',
-    line: 'color-mix(in oklab, var(--brand) 70%, transparent)',
-    glow: 'color-mix(in oklab, var(--brand) 25%, transparent)',
-  },
-  accent: {
-    color: 'var(--accent)',
-    soft: 'var(--accent-surface)',
-    line: 'color-mix(in oklab, var(--accent) 70%, transparent)',
-    glow: 'color-mix(in oklab, var(--accent) 22%, transparent)',
-  },
-}
-
-export function ProductPanel({ panel, children }: Props) {
-  const Icon = ICONS[panel.icon]
-  const accent = ACCENT_VAR[panel.accent]
-
+/**
+ * One half of the §03 sheet. NO CARD CHROME OF ITS OWN: the two halves are
+ * one surface divided by a hairline, because the copy's whole point is that
+ * gigs and exchange are ONE app, and two cards would say otherwise.
+ */
+export function ProductPanel({ panel, className }: Props) {
   return (
-    <article
-      className={cn(
-        'relative flex flex-col gap-7 overflow-hidden rounded-3xl border border-[var(--border-default)] bg-[var(--surface-card-elevated)] p-7 md:p-9',
-        'shadow-[var(--shadow-card)]',
-      )}
-    >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{ background: `linear-gradient(90deg, transparent, ${accent.line}, transparent)` }}
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute right-0 top-0 h-40 w-40 blur-3xl"
-        style={{ background: accent.glow }}
-      />
-
-      <header className="relative flex items-center gap-4">
-        <span
-          className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border"
-          style={{ background: accent.soft, borderColor: 'transparent', color: accent.color }}
-        >
-          <Icon className="h-5 w-5" />
+    <article className={cn('flex flex-col p-[clamp(26px,3.2vw,38px)]', className)}>
+      <header className="flex items-center gap-2.5">
+        <span className="font-[var(--font-mono)] text-[11px] font-semibold tracking-[0.95px] text-[var(--content-primary)]">
+          {panel.name}
         </span>
-        <div className="min-w-0">
-          <p className="eyebrow" style={{ color: accent.color }}>
-            {panel.eyebrow}
-          </p>
-          <p className="mono mt-1 text-[var(--content-secondary)]">{panel.name}</p>
-        </div>
+        <Pill className="ml-auto">{panel.count}</Pill>
       </header>
 
-      <div className="relative flex flex-col gap-4">
-        <h3 className="h2 text-[var(--content-primary)]">
-          {panel.headline.lead}{' '}
-          <span style={{ color: accent.color }}>{panel.headline.emphasis}</span>
-        </h3>
-        <p className="body-lg text-[var(--content-secondary)]">{panel.body}</p>
-      </div>
+      <h3 className="h2 mt-[22px] max-w-[17ch] text-[var(--content-primary)]">
+        {panel.headline}<Period />
+      </h3>
+      <p className="mt-3.5 text-[14.5px] leading-[23px] text-[var(--content-secondary)]">{panel.body}</p>
 
-      <div className="relative flex flex-col gap-2">{children}</div>
+      <ul className="mt-[22px] border-t border-[var(--border-subtle)]">
+        {panel.rows.map((row) => (
+          <li
+            key={row.label}
+            className="flex items-center gap-3 border-b border-[var(--border-subtle)] py-3"
+          >
+            <span className="min-w-0 truncate text-[13.5px] text-[var(--content-primary)]">{row.label}</span>
+            <span className="ml-auto whitespace-nowrap font-[var(--font-mono)] text-[12.5px] font-semibold tabular-nums text-[var(--content-primary)]">
+              {row.value}
+            </span>
+          </li>
+        ))}
+      </ul>
 
-      <footer className="relative flex flex-wrap items-center gap-3 border-t border-[var(--border-subtle)] pt-5">
-        <a
-          href={panel.link.href}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold transition-colors hover:opacity-80"
-          style={{ color: accent.color }}
-        >
-          {panel.link.label}
-          <ArrowRight className="h-3.5 w-3.5" />
-        </a>
-        <p className="mono-sm ml-auto hidden text-[var(--content-tertiary)] md:block">
-          {panel.statsLabel} ·{' '}
-          <span className="font-semibold text-[var(--content-secondary)]">{panel.statsValue}</span>
-        </p>
+      <footer className="mt-[18px]">
+        <span className="eyebrow leading-4 text-[var(--content-tertiary)]">{panel.foot}</span>
       </footer>
     </article>
   )

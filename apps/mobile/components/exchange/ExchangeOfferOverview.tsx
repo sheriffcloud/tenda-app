@@ -101,7 +101,7 @@ export function ExchangeOfferOverview({ offer, userId, fiat, contextTitle }: Pro
 const s = StyleSheet.create({
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   title: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 22,
     lineHeight: 28,
     fontWeight: '700',

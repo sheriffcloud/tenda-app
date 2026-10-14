@@ -41,7 +41,8 @@ jest.mock('@/stores/exchange-rate.store', () => ({
 jest.mock('@/stores/settings.store', () => ({
   useSettingsStore: (sel: (s: { currency: string }) => unknown) => sel({ currency: 'NGN' }),
 }))
-jest.mock('@/lib/currency', () => ({
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   toAssetPaymentDisplay: () => ({ amount: 50, symbol: 'USDC', fiat: null }),
   formatFiat: () => '',
 }))
@@ -68,6 +69,7 @@ function gig(overrides: Partial<GigSummary> = {}): GigSummary {
     remote: false,
     cross_border: false,
     proof_requirements: [],
+    proof_params: null,
     requires_approval: false,
     creator: {
       id: 'u1',
@@ -77,6 +79,7 @@ function gig(overrides: Partial<GigSummary> = {}): GigSummary {
       review_score: null,
       country: 'NG',
       is_seeker: false,
+      is_agent: false,
     },
     ...overrides,
   }

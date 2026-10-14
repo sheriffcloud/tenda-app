@@ -1,6 +1,7 @@
 {
   "name": "@tenda/shared",
   "version": "0.0.1",
+  "license": "BUSL-1.1",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,6 +10,11 @@
       "types": "./dist/index.d.ts",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./api/admin": {
+      "types": "./dist/api/admin-routes.d.ts",
+      "require": "./dist/api/admin-routes.js",
+      "default": "./dist/api/admin-routes.js"
     },
     "./db/schema": {
       "types": "./dist/db/schema/index.d.ts",
@@ -39,6 +45,11 @@
       "types": "./dist/chains/index.d.ts",
       "require": "./dist/chains/index.js",
       "default": "./dist/chains/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "require": "./dist/testing/index.js",
+      "default": "./dist/testing/index.js"
     }
   },
   "scripts": {

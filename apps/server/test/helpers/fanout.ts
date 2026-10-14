@@ -15,7 +15,7 @@
  * would put half the answer somewhere nothing else can reach.
  */
 import type { FastifyInstance } from 'fastify'
-import { buildProcessors } from '@server/workers/processors'
+import { buildProcessors } from '@server/queue/workers/processors'
 import type { JobPayload } from '@server/plugins/queue'
 import type { SideEffectCapture } from './side-effects'
 

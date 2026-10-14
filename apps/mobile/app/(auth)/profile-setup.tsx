@@ -6,14 +6,13 @@ import { ScreenContainer, Text, Spacer, Header, Avatar, Button, showToast } from
 import { Input } from '@/components/ui/Input'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { CountryCityPicker } from '@/components/form/CountryCityPicker'
-import { RemoteToggle } from '@/components/form/RemoteToggle'
 import { useAuthStore } from '@/stores/auth.store'
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
+import { ApiClientError, formatFullName } from '@tenda/shared'
 import { uploadToCloudinary } from '@/lib/upload'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
 import { getDeviceCountry } from '@/lib/device'
 import { pickAvatar, type PickedFile } from '@/components/form/FilePicker'
-import { formatFullName } from '@tenda/shared'
 
 
 export default function ProfileSetupScreen() {
@@ -25,7 +24,6 @@ export default function ProfileSetupScreen() {
   const [lastName,  setLastName]  = useState(user?.last_name ?? '')
   const [country,   setCountry]   = useState<string | null>(user?.country ?? getDeviceCountry())
   const [city,      setCity]      = useState<string | null>(user?.city ?? null)
-  const [isSeeker,  setIsSeeker]  = useState<boolean>(user?.is_seeker ?? false)
   const [pickedAvatar,  setPickedAvatar]  = useState<PickedFile | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar_url ?? null)
   const [isSaving, setIsSaving] = useState(false)
@@ -48,10 +46,12 @@ export default function ProfileSetupScreen() {
         avatarUrl = await uploadToCloudinary(pickedAvatar, 'avatar')
       }
 
+      // is_seeker is deliberately absent: it is the Solana Seeker DEVICE
+      // fee-tier flag, bootstrapped at account creation (auth.store
+      // signInWithVerify ← isSeekerDevice()), never a form preference.
       const updated = await api.users.updateMe({
         first_name: firstName.trim(),
         last_name:  lastName.trim(),
-        is_seeker:  isSeeker,
         ...(country !== null ? { country } : {}),
         ...(city !== null ? { city } : {}),
         ...(avatarUrl !== undefined ? { avatar_url: avatarUrl } : {}),
@@ -127,14 +127,6 @@ export default function ProfileSetupScreen() {
               onChange={(c, ct) => { setCountry(c); setCity(ct) }}
             />
           </View>
-
-          <SectionLabel>How will you use Tenda?</SectionLabel>
-          <RemoteToggle
-            value={isSeeker}
-            onChange={setIsSeeker}
-            title="I'm looking to hire"
-            hint={isSeeker ? 'You post gigs and pay workers.' : 'You find gigs and get paid for work.'}
-          />
 
           <Spacer size={20} />
         </ScrollView>

@@ -19,7 +19,7 @@ import { inArray } from 'drizzle-orm'
 import { chain_contracts } from '@tenda/shared/db/schema'
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import type { AppDatabase } from '@server/plugins/db'
-import { escrowAddressOf } from '@server/chains/registry-sync'
+import { escrowAddressOf } from '@server/chains/registry/registry-sync'
 import type { ResolvedChainSecret } from '@server/chains/secrets'
 import { normalizeContractAddress } from './normalize'
 

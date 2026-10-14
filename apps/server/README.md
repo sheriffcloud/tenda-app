@@ -2,8 +2,6 @@
 
 Fastify v5 REST API + in-process workers for the Tenda gig marketplace.
 
-## Stack
-
 Fastify v5 · Drizzle ORM + PostgreSQL · BullMQ + Redis · multichain adapters
 (Solana web3.js + EVM viem, config-driven) · multi-method auth (wallet
 signature, email/phone OTP, Google/Apple → JWT) · Cloudinary · FCM/APNs push
@@ -12,24 +10,14 @@ signature, email/phone OTP, Google/Apple → JWT) · Cloudinary · FCM/APNs push
 ## Setup
 
 ```bash
-cp .env.example .env                # see ../../docs/production_setup_guide.md § 2
+cp .env.example .env                # required vs optional documented inline
 pnpm --filter @tenda/shared build   # required before first run
-pnpm dev
+pnpm db:migrate && pnpm db:seed
+pnpm dev                            # http://localhost:3000
 ```
 
-## Database
-
-```bash
-pnpm db:generate   # generate migration after schema changes in @tenda/shared
-pnpm db:migrate    # apply pending migrations
-pnpm db:seed       # manifest-driven chains/assets/config seed (re-run after chain env changes)
-pnpm db:studio     # open Drizzle Studio
-```
-
-## Env
-
-Required (`loadConfig()` fail-fasts on boot; the full matrix incl. optional
-services lives in `.env.example` and the setup guide):
+Required env (`loadConfig()` fail-fasts on boot; the full matrix incl.
+optional services lives in `.env.example`):
 
 | Variable | Description |
 |---|---|
@@ -41,22 +29,23 @@ services lives in `.env.example` and the setup guide):
 Chains are activated via `CHAIN_<ID>_*` env against the shared
 `CHAIN_MANIFEST` (see `src/chains/README.md`) — no per-chain code changes.
 
+## Scripts
+
+| Command | Description |
+|---|---|
+| `pnpm dev` | Dev server (tsx watch) |
+| `pnpm build` / `pnpm start` | Compile to `dist/` / run compiled server |
+| `pnpm db:generate` | Generate a migration after schema changes in `@tenda/shared` |
+| `pnpm db:migrate` / `pnpm db:seed` | Apply migrations / manifest-driven chains+assets+config seed (idempotent — re-run after chain env changes) |
+| `pnpm db:studio` | Drizzle Studio |
+| `pnpm test` | Full DB-backed c8 suite — needs `TEST_DATABASE_URL` (e.g. `postgresql://postgres:postgres@localhost:5432/tenda_test`) |
+| `pnpm test:unit` / `pnpm test:file <path>` | Unit tests only / a single file |
+| `pnpm admin:grant-email -- <user-id> <email>` | Grant admin email login (admin dashboard bootstrap) |
+| `pnpm type-check` / `pnpm lint` | tsc / eslint |
+
 ## Docker
 
 `Dockerfile` (build from the **repo root**) has two targets: `runtime`
 (default; lean, non-root) and `migrate` (drizzle-kit, run before rolling).
 Opt-in boot-time migration: `MIGRATE_ON_BOOT=true` (advisory-locked,
-multi-replica safe). Details: setup guide § 3.5.
-
-## Tests
-
-```bash
-TEST_DATABASE_URL=postgresql://…/tenda_test pnpm test   # full DB-backed c8 suite
-```
-
-
-
-
-
-
-// deploy test Thu, Sep 10, 2026  1:44:55 PM
+multi-replica safe).

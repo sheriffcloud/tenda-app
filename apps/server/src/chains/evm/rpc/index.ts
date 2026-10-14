@@ -4,7 +4,8 @@
  * implementation for production and in-memory fakes in tests.
  */
 
-import { createPublicClient, fallback, http, type Abi } from 'viem'
+import { createPublicClient, type Abi } from 'viem'
+import { evmTransport } from '@server/chains/rpc'
 import { TENDA_ESCROW_EVM_ABI } from '@tenda/shared/abi'
 
 /** The contract ABI, narrowed once at this boundary (same pattern as the
@@ -24,16 +25,12 @@ export type {
 
 import type { EvmEscrowStruct, EvmLogRef, EvmRpc } from './types'
 
-export const DEFAULT_EVM_RPC_TIMEOUT_MS = 15_000
-
-/**
- * Per-endpoint attempt timeout when a fallback RPC is configured. Failover IS
- * the retry (two independent providers beat re-hitting a degraded one), so
- * each transport gets one bounded attempt: worst case 2 × 6s = 12s, inside
- * the mobile client's 20s tx-build budget (TX_BUILD_TIMEOUT_MS) — a dead
- * primary degrades to ~6s + fallback latency instead of an aborted request.
- */
-export const FALLBACK_EVM_RPC_TIMEOUT_MS = 6_000
+// RPC policy — the EVM timeouts and the transport that applies them — lives in
+// chains/rpc; import it FROM there. This module deliberately does not re-export
+// it: the line that did was removed after deleting it and type-checking the
+// whole project, tests included, produced no error. Its Solana counterpart
+// survives that same check, because solana-rpc-fallback.test.ts imports through
+// it. Line comments, not JSDoc, so nothing attaches this to the const below.
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -160,6 +157,24 @@ export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
       }
     },
 
+    async readApprovalWindow(escrow_contract) {
+      return (await client.readContract({
+        address: escrow_contract,
+        abi: ESCROW_EVM_ABI,
+        functionName: 'approvalWindowSeconds',
+        args: [],
+      })) as bigint
+    },
+
+    async readFees(escrow_contract) {
+      const [feeBps, seekerFeeBps] = await Promise.all([
+        client.readContract({ address: escrow_contract, abi: ESCROW_EVM_ABI, functionName: 'feeBps', args: [] }),
+        client.readContract({ address: escrow_contract, abi: ESCROW_EVM_ABI, functionName: 'seekerFeeBps', args: [] }),
+      ])
+      // uint16 decodes as a number in viem; the cast names what the widened ABI cannot infer.
+      return { feeBps: Number(feeBps), seekerFeeBps: Number(seekerFeeBps) }
+    },
+
     async readEscrow(escrow_contract, escrow_id) {
       // `getEscrow` returns the NAMED struct. The auto-generated `escrows`
       // mapping getter flattens it into a positional tuple, which this used to
@@ -205,25 +220,9 @@ export function createEvmRpc(args: {
   rpc_url_fallback?: string
   timeout_ms?: number
 }): EvmRpc {
-  const transport =
-    args.rpc_url_fallback !== undefined
-      ? fallback(
-          [
-            http(args.rpc_url, {
-              timeout: args.timeout_ms ?? FALLBACK_EVM_RPC_TIMEOUT_MS,
-              retryCount: 0,
-            }),
-            http(args.rpc_url_fallback, {
-              timeout: args.timeout_ms ?? FALLBACK_EVM_RPC_TIMEOUT_MS,
-              retryCount: 0,
-            }),
-          ],
-          // No aggregate retries either: both providers failing once is a real
-          // outage, surface it inside the client's budget rather than stacking
-          // delays past it. rank stays off, the primary is always tried first.
-          { retryCount: 0 },
-        )
-      : http(args.rpc_url, { timeout: args.timeout_ms ?? DEFAULT_EVM_RPC_TIMEOUT_MS })
+  // From the central seam (chains/rpc), which owns the transport policy for
+  // every EVM client in this server — this one and the hot wallet's.
+  const transport = evmTransport(args)
   const vc = createPublicClient({
     transport,
     // Confirmation counting needs a FRESH head: viem's default ~4s

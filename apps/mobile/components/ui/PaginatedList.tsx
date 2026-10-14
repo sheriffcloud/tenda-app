@@ -17,7 +17,7 @@ import {
 } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
-import { END_REACHED_THRESHOLD } from '@/lib/pagination'
+import { END_REACHED_THRESHOLD } from '@tenda/shared'
 import type { PaginatedListState } from '@/hooks/usePaginatedList'
 
 /**

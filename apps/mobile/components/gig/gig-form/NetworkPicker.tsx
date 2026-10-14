@@ -1,6 +1,7 @@
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
+import { chainOptionLabel } from '@tenda/shared'
 import { Chip } from '@/components/ui/Chip'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import type { ChainOption } from './useGigForm'
@@ -34,7 +35,7 @@ export function NetworkPicker({
         {options.map((opt) => (
           <Chip
             key={opt.id}
-            label={opt.enabled ? opt.label : `${opt.label} (link a wallet)`}
+            label={chainOptionLabel(opt)}
             variant="form"
             selected={selected === opt.id}
             disabled={!opt.enabled}

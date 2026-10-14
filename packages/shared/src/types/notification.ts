@@ -12,7 +12,7 @@ export interface NotificationWire {
   /** Deep-link params ({ screen, escrowId, kind, ... }); null when non-routable. */
   data: Record<string, string> | null
   read_at: string | null
-  created_at: string | null
+  created_at: string
 }
 
 export interface AnnouncementWire {

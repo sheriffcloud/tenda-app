@@ -12,7 +12,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode, type ResolutionWinner } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
-import { guardTransition } from '@server/lib/escrow-routes'
+import { guardTransition } from '@server/features/escrows/routes'
 import { buildResolveTx } from '@server/lib/escrow/resolve-tx'
 
 interface Body { winner: ResolutionWinner }

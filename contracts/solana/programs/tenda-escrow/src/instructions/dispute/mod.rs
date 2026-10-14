@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Dispute lifecycle.
 //!
 //! Bond economics (decision recorded in `open_issues.md` — confirmation gate

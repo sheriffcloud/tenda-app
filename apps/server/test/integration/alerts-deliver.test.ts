@@ -1,5 +1,5 @@
 /**
- * features/alerts/deliver-alert — the worker body's failure posture.
+ * features/alerts/pipeline/deliver-alert — the worker body's failure posture.
  *
  * The whole point of this function is WHICH failures retry and which do not, so
  * every test here is about a branch that must NOT throw — plus the one that
@@ -23,7 +23,9 @@ import type {
   AlertChannel,
   AlertDeps,
   AlertJob,
+  AlertKind,
   AlertRef,
+  AlertRefOf,
 } from '@server/features/alerts'
 import { queueDouble } from '../helpers/queue-double'
 import {
@@ -44,9 +46,10 @@ const getApp = useTestApp()
 
 interface FakeChannel extends AlertChannel {
   delivered: Alert[]
-  /** Every env `configured()` was handed — a channel that ignored it would
-   *  silently fall back to process.env while deliver() used deps.env. */
-  configuredWith: (NodeJS.ProcessEnv | undefined)[]
+  /** Every (kind, env) pair `configured()` was handed — a channel that ignored
+   *  the env would silently fall back to process.env while deliver() used
+   *  deps.env, and one that ignored the kind would consult the wrong room. */
+  configuredWith: { kind: AlertKind; env: NodeJS.ProcessEnv | undefined }[]
   /** Every deps object `deliver()` was handed. */
   deliveredWith: AlertDeps[]
 }
@@ -58,7 +61,10 @@ interface FakeChannel extends AlertChannel {
  *
  * Records its ARGUMENTS, not just that it was called. A fake that ignored them
  * would pass every test below while `deliverAlert` called `configured()` with
- * nothing — which is exactly the split the AlertDeps.env contract forbids.
+ * nothing — which is exactly the split the AlertDeps.env contract forbids. The
+ * KIND is recorded for the same reason: a channel that routes its kinds to
+ * different rooms is asked about one of them, and passing the wrong one would
+ * consult the wrong webhook.
  */
 function fakeChannel(opts: {
   kinds?: readonly AlertJob['ref']['kind'][]
@@ -66,7 +72,7 @@ function fakeChannel(opts: {
   throws?: Error
 } = {}): FakeChannel {
   const delivered: Alert[] = []
-  const configuredWith: (NodeJS.ProcessEnv | undefined)[] = []
+  const configuredWith: { kind: AlertKind; env: NodeJS.ProcessEnv | undefined }[] = []
   const deliveredWith: AlertDeps[] = []
   return {
     delivered,
@@ -74,8 +80,8 @@ function fakeChannel(opts: {
     deliveredWith,
     name: 'slack',
     kinds: opts.kinds ?? ['dispute.raised'],
-    configured: (env) => {
-      configuredWith.push(env)
+    configured: (kind, env) => {
+      configuredWith.push({ kind, env })
       return opts.configured ?? true
     },
     deliver: async (alert, channelDeps) => {
@@ -109,8 +115,26 @@ function jobFor(ref: AlertRef, channel: AlertJob['channel'] = 'slack'): AlertJob
   return { ref, channel }
 }
 
+/**
+ * The SECOND kind, and the only reason this file can tell "asked about the job's
+ * kind" apart from "asked about a constant": every other ref here is a dispute.
+ *
+ * Needs no fixture rows. Both tests that use it return at step 2 or step 3,
+ * before `resolveAlert` touches the database.
+ */
+const gasSeedRef: AlertRefOf<'gas-seed.low-balance'> = {
+  kind: 'gas-seed.low-balance',
+  chain_id: 'eip155:16602',
+}
+
 interface DisputedGig {
-  ref: AlertRef
+  /**
+   * Typed to the KIND it builds, not the union `AlertRef` became once a second
+   * kind existed. This helper cannot produce anything else, and the alternative
+   * — narrowing at every call site — asks each test to re-prove a fact this
+   * function already guarantees.
+   */
+  ref: AlertRefOf<'dispute.raised'>
   creator: TestUser
   worker: TestUser
 }
@@ -169,7 +193,11 @@ test('a configured channel that accepts the kind receives the RESOLVED alert', {
   assert.strictEqual(channel.delivered.length, 1)
   const alert = channel.delivered[0]
   // The channel gets facts, not the thin ref it was queued with.
-  assert.strictEqual(alert.kind, 'dispute.raised')
+  // `assert.ok` rather than `strictEqual`: it is an assertion function, so it
+  // NARROWS the union — which `Alert` became once a second kind existed. Every
+  // field below belongs to this kind alone, and asserting the kind is itself
+  // part of the claim: the resolver must not answer with another kind's shape.
+  assert.ok(alert.kind === 'dispute.raised')
   assert.strictEqual(alert.escrow_id, ref.escrow_id)
   assert.strictEqual(alert.escrow_title, 'Fix the roof')
   assert.strictEqual(alert.reason, 'No show')
@@ -210,7 +238,9 @@ test('the disputes row is the fallback when the chain names no known user', { sk
 
   await deliverAlert(deps(), jobFor(ref), () => channel)
 
-  assert.strictEqual(channel.delivered[0].raised_by_id, creator.row.id)
+  const delivered = channel.delivered[0]
+  assert.ok(delivered.kind === 'dispute.raised')
+  assert.strictEqual(delivered.raised_by_id, creator.row.id)
 })
 
 // Neither source knows: an on-chain dispute with no triage row and an
@@ -221,7 +251,9 @@ test('an unknown raiser resolves to null rather than to a guess', { skip }, asyn
 
   await deliverAlert(deps(), jobFor(ref), () => channel)
 
-  assert.strictEqual(channel.delivered[0].raised_by_id, null)
+  const delivered = channel.delivered[0]
+  assert.ok(delivered.kind === 'dispute.raised')
+  assert.strictEqual(delivered.raised_by_id, null)
 })
 
 // ---------- branches that must SKIP, never throw --------------------------------------
@@ -335,9 +367,32 @@ test('configured() and deliver() are handed the SAME env instance', { skip }, as
   await deliverAlert(deps({ env }), jobFor(ref), () => channel)
 
   assert.strictEqual(channel.configuredWith.length, 1)
-  assert.strictEqual(channel.configuredWith[0], env, 'configured() must receive deps.env')
+  assert.strictEqual(channel.configuredWith[0].env, env, 'configured() must receive deps.env')
+  assert.strictEqual(
+    channel.configuredWith[0].kind,
+    ref.kind,
+    "configured() must be asked about THIS job's kind, not a channel-wide question",
+  )
   assert.strictEqual(channel.deliveredWith.length, 1)
   assert.strictEqual(channel.deliveredWith[0].env, env, 'deliver() must receive the same env')
+})
+
+test('configured() is asked about the JOB\'S kind, not a constant', { skip }, async () => {
+  // The env test above cannot see this: its ref is a dispute, so
+  // `configuredWith[0].kind === ref.kind` holds just as well for a hardcoded
+  // 'dispute.raised'. MEASURED — with this call site hardcoded, all 193 alert
+  // tests passed. A second kind is the only thing that separates them.
+  //
+  // It matters because Slack routes its kinds to different rooms: asked about
+  // the wrong kind, the consumer consults the wrong webhook, and an alert whose
+  // own room is unset sails past this filter into `deliver`, which throws and
+  // burns the retry budget.
+  const channel = fakeChannel({ kinds: ['gas-seed.low-balance'], configured: false })
+
+  await deliverAlert(deps(), jobFor(gasSeedRef), () => channel)
+
+  assert.strictEqual(channel.configuredWith.length, 1)
+  assert.strictEqual(channel.configuredWith[0].kind, 'gas-seed.low-balance')
 })
 
 test('deliver() receives the deps it can actually work with', { skip }, async () => {
@@ -368,12 +423,16 @@ test('deliver() receives the deps it can actually work with', { skip }, async ()
 // opposite — in_app delivers, slack skips — so no one wrong default can satisfy
 // both.
 //
-// The remaining skip branches (unknown channel, kind no longer accepted) are
-// NOT re-tested here against the real registry, and deliberately: `AlertJob`
-// types `channel` as a currently-registered name and `AlertKind` has one member
-// that both live channels accept, so each is unconstructible without lying
-// about a value's type. They are covered above through the lookup seam, which
-// is the asymmetry that seam exists for.
+// The UNKNOWN-CHANNEL skip stays untestable against the real registry, and
+// deliberately: `AlertJob` types `channel` as a currently-registered name, so a
+// name this build does not know is unconstructible without lying about a
+// value's type. It is covered above through the lookup seam, which is the
+// asymmetry that seam exists for.
+//
+// The KIND-NOT-ACCEPTED skip is a different story since a second kind existed:
+// the in-app bell deliberately refuses `gas-seed.low-balance`, so that job is
+// perfectly constructible and is exercised below. This comment used to claim
+// otherwise, on the strength of `AlertKind` having one member.
 
 test('the DEFAULT lookup resolves in_app against the real registry', { skip }, async () => {
   // The positive direction, and it runs the whole way through: the in-app
@@ -414,4 +473,23 @@ test('the DEFAULT lookup resolves slack against the real registry', { skip }, as
   assert.strictEqual(log.infos.length, 1)
   assert.match(log.infos[0].msg, /not configured/)
   assert.strictEqual(log.infos[0].obj.channel, 'slack')
+})
+
+test('the DEFAULT lookup honours a real channel\'s kind opt-out', { skip }, async () => {
+  // Step 2 against the REGISTRY rather than a fake: the in-app channel excludes
+  // this kind on purpose (no mediator can top up a hot wallet), and a bug that
+  // dropped that opt-out would page the whole dispute roster with a funding
+  // problem. The fake-channel version above cannot catch that — it asserts the
+  // consumer honours whatever `kinds` it is handed, not what the real channel
+  // actually declares.
+  //
+  // Returns at step 2, so no fixture rows and no query.
+  const queue = queueDouble()
+
+  await deliverAlert(deps({ queue }), jobFor(gasSeedRef, 'in_app'))
+
+  assert.deepStrictEqual(queue.notifications(), [], 'the roster must not be paged')
+  assert.strictEqual(log.warns.length, 1)
+  assert.match(log.warns[0].msg, /no longer accepts/)
+  assert.strictEqual(log.warns[0].obj.kind, 'gas-seed.low-balance')
 })

@@ -6,6 +6,7 @@ import {
   DEFAULT_ACCEPT_WINDOW_SECONDS,
   AMOUNT_RAW_PRECISION,
   POSTED_ESCROW_STATUSES,
+  ACTIVE_ESCROW_STATUSES,
 } from '../../src/constants/escrow'
 import { escrowStatusEnum } from '../../src/db/schema/escrow'
 
@@ -48,4 +49,11 @@ test('POSTED_ESCROW_STATUSES is exactly the DB enum minus draft', () => {
 test('POSTED_ESCROW_STATUSES excludes draft — the whole point of the filter', () => {
   assert.equal((POSTED_ESCROW_STATUSES as readonly string[]).includes('draft'), false)
   assert.equal(new Set(POSTED_ESCROW_STATUSES).size, POSTED_ESCROW_STATUSES.length)
+})
+
+test('ACTIVE_ESCROW_STATUSES is the funded-and-unsettled set, a subset of posted', () => {
+  assert.deepEqual([...ACTIVE_ESCROW_STATUSES], ['open', 'accepted', 'submitted'])
+  for (const status of ACTIVE_ESCROW_STATUSES) {
+    assert.ok((POSTED_ESCROW_STATUSES as readonly string[]).includes(status))
+  }
 })

@@ -1,11 +1,36 @@
 import { View, Linking, ScrollView, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { ExternalLink, AlertTriangle } from 'lucide-react-native'
-import { typography } from '@/theme/tokens'
+import {
+  APP_INFO,
+  SUPPORT_WALLET_GUIDE,
+  SUPPORT_WALLET_INTRO,
+  SUPPORT_WALLET_NETWORK_LABEL,
+  SUPPORT_WALLET_TROUBLESHOOTING,
+  type WalletGuideEntry,
+} from '@tenda/shared'
 import { ScreenContainer, Header, Text, AccordionItem } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { InfoCard, GuideStep } from '@/components/support'
-import { APP_INFO } from '@/lib/app-info'
+
+/** Per-wallet VISUALS + install links stay client-side; the copy is shared. */
+const WALLET_VISUALS: Record<
+  WalletGuideEntry['id'],
+  { colors: [string, string]; initial: string; installUrl?: string }
+> = {
+  phantom: { colors: ['#AB9FF2', '#6C50F5'], initial: 'P', installUrl: APP_INFO.wallets.phantom.playStore },
+  solflare: { colors: ['#FFA96B', '#FC6031'], initial: 'S', installUrl: APP_INFO.wallets.solflare.playStore },
+  walletconnect: { colors: ['#3B99FC', '#1A6DF0'], initial: 'W' },
+}
+
+/**
+ * Printed whenever the network CHANGES between entries, so the shared array
+ * must stay grouped — pinned by the shared content suite, which also pins EVM
+ * as the group that leads. The labels come from shared because the EVM one
+ * names the chains, and that list is derived from CHAIN_MANIFEST: typed here
+ * it was one of the two places that still said "Base & Celo" after 0G shipped.
+ */
+const NETWORK_LABEL: Record<WalletGuideEntry['network'], string> = SUPPORT_WALLET_NETWORK_LABEL
 
 export default function WalletGuideScreen() {
   const { theme } = useUnistyles()
@@ -15,76 +40,48 @@ export default function WalletGuideScreen() {
       <Header title="Wallet Setup" showBack />
 
       <ScrollView contentContainerStyle={s.scroll}>
-        <InfoCard
-          label="What is a crypto wallet?"
-          body="A wallet is an app that holds your digital money and lets you sign transactions. Tenda needs one to deliver escrow payouts directly to you on-chain."
-        />
+        <InfoCard label={SUPPORT_WALLET_INTRO.label} body={SUPPORT_WALLET_INTRO.body} />
 
-        {/* Phantom */}
-        <SectionLabel>Phantom (recommended)</SectionLabel>
-        <View
-          style={[
-            s.card,
-            { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default },
-          ]}
-        >
-          <WalletHeader
-            name="Phantom"
-            colors={['#AB9FF2', '#6C50F5']}
-            initial="P"
-            badge={{ label: 'Returns to Tenda automatically', tone: 'success' }}
-            installUrl={APP_INFO.wallets.phantom.playStore}
-          />
-          <GuideStep step={1} title="Install Phantom" description="Grab it from the App Store or Play Store, or from the Phantom website." />
-          <GuideStep
-            step={2}
-            title="Create or import a wallet"
-            description="Set a passcode. Write down your recovery phrase on paper and never screenshot it."
-            warning="Anyone with your recovery phrase can empty your wallet."
-          />
-          <GuideStep step={3} title="Come back to Tenda" description="Tap Connect Wallet, Wallet opens, you approve, and you're back here automatically." />
-        </View>
+        {SUPPORT_WALLET_GUIDE.map((wallet, index) => (
+          <View key={wallet.id}>
+            {(index === 0 || SUPPORT_WALLET_GUIDE[index - 1].network !== wallet.network) && (
+              <SectionLabel>{NETWORK_LABEL[wallet.network]}</SectionLabel>
+            )}
+            {wallet.note !== undefined && (
+              <View
+                style={[
+                  s.warnBanner,
+                  {
+                    backgroundColor: theme.colors.feedback.warning.surface,
+                    borderLeftColor: theme.colors.feedback.warning.base,
+                  },
+                ]}
+              >
+                <AlertTriangle size={16} color={theme.colors.feedback.warning.base} />
+                <Text style={[s.warnText, { color: theme.colors.feedback.warning.base }]}>{wallet.note}</Text>
+              </View>
+            )}
+            <View
+              style={[
+                s.card,
+                { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default },
+              ]}
+            >
+              <WalletHeader wallet={wallet} />
+              {wallet.steps.map((step, i) => (
+                <GuideStep
+                  key={step.title}
+                  step={i + 1}
+                  title={step.title}
+                  description={step.description}
+                  warning={step.warning}
+                  tip={step.tip}
+                />
+              ))}
+            </View>
+          </View>
+        ))}
 
-        {/* Solflare */}
-        <SectionLabel>Solflare</SectionLabel>
-        <View
-          style={[
-            s.warnBanner,
-            {
-              backgroundColor: theme.colors.feedback.warning.surface,
-              borderLeftColor: theme.colors.feedback.warning.base,
-            },
-          ]}
-        >
-          <AlertTriangle size={16} color={theme.colors.feedback.warning.base} />
-          <Text style={[s.warnText, { color: theme.colors.feedback.warning.base }]}>
-            Solflare doesn&apos;t auto-return you to Tenda on some devices. You may need to switch apps manually after connecting.
-          </Text>
-        </View>
-        <View
-          style={[
-            s.card,
-            { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default },
-          ]}
-        >
-          <WalletHeader
-            name="Solflare"
-            colors={['#FFA96B', '#FC6031']}
-            initial="S"
-            badge={{ label: 'Manual return required', tone: 'warning' }}
-            installUrl={APP_INFO.wallets.solflare.playStore}
-          />
-          <GuideStep step={1} title="Install Solflare" description="App Store, Play Store, or browser extension." />
-          <GuideStep
-            step={2}
-            title="Set up your wallet"
-            description="Create new or import. Save the recovery phrase offline."
-            tip="Use the hardware wallet option if you have a Ledger. Solflare supports it natively."
-          />
-          <GuideStep step={3} title="Return to Tenda manually" description="After approving in Solflare, switch back to Tenda by tapping the Tenda icon or your task switcher." />
-        </View>
-
-        {/* Troubleshooting */}
         <SectionLabel>Troubleshooting</SectionLabel>
         <View
           style={[
@@ -92,69 +89,55 @@ export default function WalletGuideScreen() {
             { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default, paddingHorizontal: 18 },
           ]}
         >
-          <AccordionItem title="Connection keeps failing">
-            <Text style={[s.body, { color: theme.colors.content.secondary }]}>
-              1. Make sure your wallet app is installed and fully set up.{'\n'}
-              2. If using Solflare, complete the seed phrase backup inside Solflare first.{'\n'}
-              3. Check your internet connection.{'\n'}
-              4. Close and reopen Tenda, then try again.
-            </Text>
-          </AccordionItem>
-          <AccordionItem title="I closed the wallet by mistake">
-            <Text style={[s.body, { color: theme.colors.content.secondary }]}>
-              Tap &quot;Try again&quot; on the error screen, then &quot;Connect Wallet&quot; to reopen the prompt.
-            </Text>
-          </AccordionItem>
-          <AccordionItem title="My wallet isn't listed" last>
-            <Text style={[s.body, { color: theme.colors.content.secondary }]}>
-              Tenda officially supports Phantom and Solflare. Other wallets that support the Solana Mobile Wallet Adapter may also work but are not tested yet.
-            </Text>
-          </AccordionItem>
+          {SUPPORT_WALLET_TROUBLESHOOTING.map((qa, i) => (
+            <AccordionItem
+              key={qa.question}
+              title={qa.question}
+              last={i === SUPPORT_WALLET_TROUBLESHOOTING.length - 1}
+            >
+              <Text style={[s.body, { color: theme.colors.content.secondary }]}>{qa.answer}</Text>
+            </AccordionItem>
+          ))}
         </View>
       </ScrollView>
     </ScreenContainer>
   )
 }
 
-interface WalletHeaderProps {
-  name: string
-  initial: string
-  colors: [string, string]
-  badge: { label: string; tone: 'success' | 'warning' }
-  installUrl: string
-}
-
-function WalletHeader({ name, initial, colors, badge, installUrl }: WalletHeaderProps) {
+function WalletHeader({ wallet }: { wallet: WalletGuideEntry }) {
   const { theme } = useUnistyles()
-  const badgeBg = badge.tone === 'warning'
+  const visuals = WALLET_VISUALS[wallet.id]
+  const badgeBg = wallet.badge.tone === 'warning'
     ? theme.colors.feedback.warning.surface
     : theme.colors.feedback.success.surface
-  const badgeFg = badge.tone === 'warning'
+  const badgeFg = wallet.badge.tone === 'warning'
     ? theme.colors.feedback.warning.base
     : theme.colors.feedback.success.base
   return (
     <View style={[s.walletHeader, { borderBottomColor: theme.colors.border.subtle }]}>
-      <View style={[s.walletLogo, { backgroundColor: colors[0] }]}>
-        <Text style={s.walletLogoText}>{initial}</Text>
+      <View style={[s.walletLogo, { backgroundColor: visuals.colors[0] }]}>
+        <Text style={s.walletLogoText}>{visuals.initial}</Text>
       </View>
       <View style={s.walletBody}>
-        <Text style={[s.walletName, { color: theme.colors.content.primary }]}>{name}</Text>
+        <Text style={[s.walletName, { color: theme.colors.content.primary }]}>{wallet.name}</Text>
         <View style={[s.walletBadge, { backgroundColor: badgeBg }]}>
           <View style={[s.walletBadgeDot, { backgroundColor: badgeFg }]} />
-          <Text style={[s.walletBadgeText, { color: badgeFg }]}>{badge.label}</Text>
+          <Text style={[s.walletBadgeText, { color: badgeFg }]}>{wallet.badge.label}</Text>
         </View>
       </View>
-      <Pressable
-        onPress={() => Linking.openURL(installUrl).catch(() => {})}
-        style={({ pressed }) => [
-          s.installBtn,
-          { borderColor: theme.colors.brand.primaryBorder },
-          pressed && { backgroundColor: theme.colors.brand.primarySurface },
-        ]}
-      >
-        <Text style={[s.installText, { color: theme.colors.brand.primary }]}>Install</Text>
-        <ExternalLink size={12} color={theme.colors.brand.primary} />
-      </Pressable>
+      {visuals.installUrl !== undefined && (
+        <Pressable
+          onPress={() => Linking.openURL(visuals.installUrl ?? '').catch(() => {})}
+          style={({ pressed }) => [
+            s.installBtn,
+            { borderColor: theme.colors.brand.primaryBorder },
+            pressed && { backgroundColor: theme.colors.brand.primarySurface },
+          ]}
+        >
+          <Text style={[s.installText, { color: theme.colors.brand.primary }]}>Install</Text>
+          <ExternalLink size={12} color={theme.colors.brand.primary} />
+        </Pressable>
+      )}
     </View>
   )
 }
@@ -254,6 +237,3 @@ const s = StyleSheet.create({
     paddingBottom: 16,
   },
 })
-
-// Suppress unused warning for typography import, kept for future tweaks.
-void typography

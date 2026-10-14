@@ -61,12 +61,15 @@ jest.mock('@/components/reputation', () => ({ RestrictionBanner: () => null }))
 jest.mock('@/components/onboarding/NudgeSheet', () => ({ NudgeSheet: () => null }))
 jest.mock('@/components/feedback/LoadingScreen', () => ({ LoadingScreen: () => null }))
 jest.mock('@/components/feedback', () => ({ TransactionMonitor: () => null }))
-jest.mock('@/components/escrow', () => ({ TxConfirmDialog: () => null, TX_PROGRESS_LABEL: { create: '' } }))
+jest.mock('@/components/escrow', () => ({ TxConfirmDialog: () => null }))
 jest.mock('@/components/moderation/ModerationBlockedDialog', () => ({ ModerationBlockedDialog: () => null }))
 jest.mock('@/stores/onboarding.store', () => ({
   useOnboardingStore: () => ({ dismissedNudges: { post: true } }),
 }))
+// Partial: the screen reads TX_PROGRESS_LABEL from shared since the copy
+// moved there (2026-08-15) — keep the real module underneath the two stubs.
 jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   coerceCityForCountry: (_c: string | null, city: string | null) => city,
   formatAssetAmount: () => '',
 }))

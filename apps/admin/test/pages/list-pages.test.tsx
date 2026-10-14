@@ -1,6 +1,7 @@
 import { test, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
-import type { PaginatedResponse, Announcement, AdminEscrowRow } from '@tenda/shared'
+import type { PaginatedResponse, AdminEscrowRow } from '@tenda/shared'
+import type { AnnouncementRow } from '@/api/client'
 import { renderPage } from '../test-utils'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
@@ -71,7 +72,7 @@ test('featured: header renders and slots load', async () => {
 })
 
 test('announcements: header renders and the list loads', async () => {
-  vi.mocked(adminApi.announcements.list).mockResolvedValue(paginated<Announcement>([]))
+  vi.mocked(adminApi.announcements.list).mockResolvedValue(paginated<AnnouncementRow>([]))
   renderPage(<AnnouncementsPage />)
   expect(await screen.findByRole('heading', { name: 'Announcements' })).toBeInTheDocument()
   await waitFor(() => expect(adminApi.announcements.list).toHaveBeenCalled())

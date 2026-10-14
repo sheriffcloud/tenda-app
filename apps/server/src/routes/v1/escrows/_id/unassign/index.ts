@@ -13,10 +13,10 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { getPlatformConfig } from '@server/lib/platform'
-import { requireProfileComplete } from '@server/lib/guards'
+import { requireProfileComplete } from '@server/lib/http/guards'
 import { assertCanTransact } from '@server/lib/auth/resolver'
-import { guardTransition } from '@server/lib/escrow-routes'
-import { buildEscrowTx } from '@server/lib/escrow'
+import { guardTransition } from '@server/features/escrows/routes'
+import { buildEscrowTx, partyCaller } from '@server/lib/escrow'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>(
@@ -24,7 +24,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     { preHandler: [fastify.authenticate, requireProfileComplete] },
     async (request) => {
       const cfg = await getPlatformConfig(fastify.db)
-      const { escrow } = await guardTransition({
+      const { escrow, caller } = await guardTransition({
         db: fastify.db,
         escrow_id: request.params.id,
         user_id: request.user.id,
@@ -38,6 +38,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       const unsigned = await buildEscrowTx(fastify, escrow, {
         action: 'unassign',
         user_id: request.user.id,
+        caller: partyCaller(caller),
         payload: { escrow_id: escrow.id },
       })
       return { unsigned }

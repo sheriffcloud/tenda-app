@@ -1,5 +1,5 @@
 /**
- * lib/cloudinary — S5.12 signed upload constraints: per-type formats are
+ * features/uploads/cloudinary — S5.12 signed upload constraints: per-type formats are
  * part of the signature (alphabetical string-to-sign), size guards ride
  * along for the client. Scoped types (chat, dispute) derive a per-sender
  * folder from the scope id.
@@ -20,7 +20,7 @@ process.env.SOLANA_TREASURY_ADDRESS ??= '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5
 process.env.SOLANA_PROGRAM_ID ??= '7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes'
 process.env.API_BASE_URL ??= 'https://api.tenda.test'
 
-import { UPLOAD_CONSTRAINTS, generateUploadSignature } from '@server/lib/cloudinary'
+import { UPLOAD_CONSTRAINTS, generateUploadSignature } from '@server/features/uploads/cloudinary'
 
 test('signature covers allowed_formats + folder + timestamp in alphabetical order', () => {
   const sig = generateUploadSignature('avatar')

@@ -1,5 +1,5 @@
 /**
- * db/seed-v2.ts applySeed — registry facts UPSERT so a redeploy propagates on
+ * db/seed/seed-v2.ts applySeed — registry facts UPSERT so a redeploy propagates on
  * re-seed (the pre-fix DO NOTHING stranded a stale escrow address in the dev
  * registry after the Base Sepolia redeploy), and enablement reconciles to the
  * active set. DB-backed, gated on TEST_DATABASE_URL; restores the registry
@@ -12,7 +12,7 @@ import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { eq, inArray, notInArray } from 'drizzle-orm'
 import { assets, chains } from '@tenda/shared/db/schema/chains'
 import { TEST_DB_CONFIGURED, useSuiteLock } from '../helpers/test-app'
-import { applySeed, buildSeedRows } from '@server/db/seed-v2'
+import { applySeed, buildSeedRows } from '@server/db/seed/seed-v2'
 import type { ResolvedChainSecret } from '@server/chains/secrets'
 
 const skip = !TEST_DB_CONFIGURED

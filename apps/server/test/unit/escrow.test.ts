@@ -11,7 +11,6 @@ import {
   assertGigAsset,
   assertExchangeAsset,
   computeAcceptDeadline,
-  computeApprovalDeadline,
   computeCompletionDeadline,
   computeNetPayout,
   computePlatformFee,
@@ -357,11 +356,6 @@ test('computeCompletionDeadline: monotonic', () => {
   const d1 = computeCompletionDeadline({ accepted_at: T0, completion_duration_seconds: 100 })
   const d2 = computeCompletionDeadline({ accepted_at: T0, completion_duration_seconds: 101 })
   assert.ok(d2.getTime() > d1.getTime())
-})
-
-test('computeApprovalDeadline: zero-second window returns submitted_at', () => {
-  const d = computeApprovalDeadline({ submitted_at: T0, approval_window_seconds: 0 })
-  assert.strictEqual(d.getTime(), T0.getTime())
 })
 
 test('computeAcceptDeadline: 1-second precision preserved', () => {

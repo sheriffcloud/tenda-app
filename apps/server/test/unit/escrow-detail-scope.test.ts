@@ -1,5 +1,5 @@
 /**
- * The detail-route-specific read gates (`lib/escrow-detail-scope`): the admin
+ * The detail-route-specific read gates (`features/escrows/detail/scope`): the admin
  * rung on top of party membership, and the private-half projection.
  *
  * The two party rungs themselves are NOT tested here — they live in
@@ -13,9 +13,11 @@ import * as assert from 'node:assert'
 import {
   canViewHiddenEscrow,
   scopeEscrowPrivateFields,
+  scopeMySignerAddress,
   type DetailViewer,
-} from '@server/lib/escrow-detail-scope'
-import type { EscrowPartyColumns } from '@server/lib/escrow-party'
+  type EscrowSignerAddressColumns,
+} from '@server/features/escrows/detail/scope'
+import type { EscrowPartyColumns } from '@server/lib/escrow/party'
 
 const CREATOR = 'user-creator'
 const COUNTERPARTY = 'user-counterparty'
@@ -101,4 +103,53 @@ test('scopeEscrowPrivateFields: never mutates the caller input', () => {
 test('scopeEscrowPrivateFields: the disclosed result is a copy, not the input object', () => {
   const scoped = scopeEscrowPrivateFields(FIELDS, true)
   assert.notStrictEqual(scoped, FIELDS)
+})
+
+// ── scopeMySignerAddress (the viewer-relative bound wallet) ─────────────────
+
+function signerColumns(
+  overrides: Partial<EscrowSignerAddressColumns> = {},
+): EscrowSignerAddressColumns {
+  return {
+    creator_id: CREATOR,
+    counterparty_id: COUNTERPARTY,
+    assigned_counterparty_id: ASSIGNEE,
+    creator_address: 'CreatorWallet1',
+    counterparty_address: 'CpWallet1',
+    assigned_counterparty_address: 'AsgnWallet1',
+    ...overrides,
+  }
+}
+
+test('scopeMySignerAddress: each party sees ONLY their own bound wallet', () => {
+  assert.strictEqual(scopeMySignerAddress(signerColumns(), CREATOR), 'CreatorWallet1')
+  assert.strictEqual(scopeMySignerAddress(signerColumns(), COUNTERPARTY), 'CpWallet1')
+  // Pre-accept assignee (no counterparty yet) gets the wallet BAKED at create.
+  const preAccept = signerColumns({ counterparty_id: null, counterparty_address: null })
+  assert.strictEqual(scopeMySignerAddress(preAccept, ASSIGNEE), 'AsgnWallet1')
+})
+
+test('scopeMySignerAddress: strangers and anonymous readers get nothing at all', () => {
+  assert.strictEqual(scopeMySignerAddress(signerColumns(), STRANGER), null)
+  assert.strictEqual(scopeMySignerAddress(signerColumns(), null), null)
+})
+
+test('scopeMySignerAddress: precedence mirrors deriveCaller — accepted wallet wins for the worker', () => {
+  // Post-accept rows may keep assigned_counterparty_id populated; the same
+  // user must read their ACCEPT wallet, not the stale baked one.
+  const postAccept = signerColumns({ counterparty_id: ASSIGNEE })
+  assert.strictEqual(scopeMySignerAddress(postAccept, ASSIGNEE), 'CpWallet1')
+})
+
+test('scopeMySignerAddress: null columns answer null — unknown is never guessed', () => {
+  // Drafts and pre-column escrows: the truthful answer is "not recorded",
+  // never a projection from the CURRENT linked set (which can differ from
+  // what was actually baked/signed).
+  const unstamped = signerColumns({
+    creator_address: null,
+    counterparty_address: null,
+    assigned_counterparty_address: null,
+  })
+  assert.strictEqual(scopeMySignerAddress(unstamped, CREATOR), null)
+  assert.strictEqual(scopeMySignerAddress(unstamped, COUNTERPARTY), null)
 })

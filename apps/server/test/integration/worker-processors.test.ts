@@ -3,18 +3,20 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
-import { device_tokens, notifications } from '@tenda/shared/db/schema'
+import { device_tokens, escrows, notifications } from '@tenda/shared/db/schema'
 import { NOTIFICATION_BODY_MAX } from '@tenda/shared'
-import { buildProcessors, removeTokens } from '@server/workers/processors'
-import type { DevicePlatform } from '@server/lib/push-services'
+import { buildProcessors, removeTokens } from '@server/queue/workers/processors'
+import type { DevicePlatform } from '@server/features/notifications/push-services'
 import type { PushService } from '@server/chains/types'
 import type { JobPayload } from '@server/plugins/queue'
-import { channelName } from '@server/lib/ws'
+import { channelName } from '@server/realtime/ws'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import { restoreFetch, stubExpoPush } from '../helpers/fetch-stub'
+import { DRAFT_RETENTION_DAYS_DEFAULT } from '@server/features/escrows/creation/staleDrafts'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
+  createEscrow,
   createUser,
 } from '../helpers/test-app'
 
@@ -284,4 +286,24 @@ test('an over-long body is clamped to the column cap (no numeric/length overflow
   const rows = await app.db.select().from(notifications).where(eq(notifications.user_id, u.row.id))
   assert.strictEqual(rows.length, 1)
   assert.strictEqual(rows[0].body.length, NOTIFICATION_BODY_MAX)
+})
+
+test('prune-stale-drafts: the processor applies the configured retention to the real table', { skip }, async () => {
+  // Through buildProcessors, so the whole chain is exercised: the job name's
+  // binding, the config value it reads, and the sweep it hands that to.
+  const app = getApp()
+  const creator = await createUser(app)
+  const DAY = 24 * 3_600_000
+  const aged = (days: number): Date => new Date(Date.now() - days * DAY)
+  // Idle time decides (`updated_at`), so both rows are untouched since they were made.
+  const idle = aged(DRAFT_RETENTION_DAYS_DEFAULT + 1)
+  const touched = aged(DRAFT_RETENTION_DAYS_DEFAULT - 1)
+  await createEscrow(app, { creator_id: creator.row.id, status: 'draft', created_at: idle, updated_at: idle })
+  const recent = await createEscrow(app, { creator_id: creator.row.id, status: 'draft', created_at: touched, updated_at: touched })
+
+  const result = await buildProcessors(app)['prune-stale-drafts']({ tick_id: 'test' })
+
+  assert.deepStrictEqual(result, { pruned: 1 })
+  const left = await app.db.select({ id: escrows.id }).from(escrows).where(eq(escrows.creator_id, creator.row.id))
+  assert.deepStrictEqual(left.map((r) => r.id), [recent.id])
 })

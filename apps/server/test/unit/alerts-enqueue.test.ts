@@ -1,5 +1,5 @@
 /**
- * features/alerts/enqueue-alert — the producer.
+ * features/alerts/pipeline/enqueue-alert — the producer.
  *
  * Three things this file is actually pinning, none of which are "the function
  * runs":
@@ -29,10 +29,10 @@ import {
 } from '@server/features/alerts'
 import type { AlertChannel, AlertKind, AlertRefOf } from '@server/features/alerts'
 import { DEFAULT_JOB_OPTIONS } from '@server/plugins/queue'
-import { INTERNAL_EVENT_BY_WIRE } from '@server/lib/escrow-events'
-import type { InternalEscrowEvent } from '@server/lib/escrow-events'
+import { INTERNAL_EVENT_BY_WIRE } from '@server/features/escrows/events'
+import type { InternalEscrowEvent } from '@server/features/escrows/events'
 import { ESCROW_EVENTS } from '@server/chains/types'
-import { slackEnvKey } from '@server/lib/slack'
+import { slackEnvKey } from '@server/features/alerts/slack'
 import { queueDouble } from '../helpers/queue-double'
 import { alertLogSpy } from '../helpers/alert-log'
 import { republishEvent } from '../helpers/republish-event'
@@ -80,9 +80,94 @@ const disputeRef: AlertRefOf<'dispute.raised'> = {
  * covering exactly the one already asserted above. This shape fails to COMPILE
  * until a new kind supplies a fixture.
  */
+const gasSeedRef: AlertRefOf<'gas-seed.low-balance'> = {
+  kind: 'gas-seed.low-balance',
+  chain_id: 'eip155:16602',
+}
+
 const REF_FIXTURES: { [K in AlertKind]: AlertRefOf<K> } = {
   'dispute.raised': disputeRef,
+  'gas-seed.low-balance': gasSeedRef,
 }
+
+/**
+ * Sets one Slack webhook var for the duration of `run`, restoring whatever was
+ * there. `enqueueAlert` reads `process.env` (it takes no env, unlike the
+ * consumer), so a per-kind assertion about the PRODUCER has to move the real
+ * thing — and has to put it back, or every later test in this file inherits it.
+ */
+async function withSlackWebhook(
+  destination: Parameters<typeof slackEnvKey>[0],
+  value: string | undefined,
+  run: () => Promise<void>,
+): Promise<void> {
+  const key = slackEnvKey(destination)
+  const before = process.env[key]
+  if (value === undefined) delete process.env[key]
+  else process.env[key] = value
+  try {
+    await run()
+  } finally {
+    if (before === undefined) delete process.env[key]
+    else process.env[key] = before
+  }
+}
+
+const A_WEBHOOK = 'https://hooks.slack.test/services/T/B/x'
+
+// ---------- 0. the producer asks about the REF'S OWN kind ----------------------------
+//
+// `enqueueToChannel` calls `channel.configured(ref.kind)`. Nothing else in this
+// file could tell that apart from a hardcoded `'dispute.raised'`: every other
+// ref here is a dispute, so the literal and the field agree. MEASURED — with the
+// call site hardcoded, all 193 alert tests passed.
+//
+// These two go through the REAL registry and the REAL Slack channel, in both
+// directions, because one direction alone is satisfiable by a constant:
+// "unset room enqueues nothing" also passes if the producer never enqueues, and
+// "set room enqueues one" also passes if it ignores configuration entirely.
+
+test('a gas-seed alert is NOT enqueued when only the disputes room is configured', async () => {
+  await withSlackWebhook('ops', undefined, async () => {
+    await withSlackWebhook('disputes', A_WEBHOOK, async () => {
+      const queue = queueDouble()
+      const log = alertLogSpy()
+
+      await enqueueAlert(queue, gasSeedRef, log)
+
+      assert.deepStrictEqual(
+        queue.alerts().map((job) => job.payload.channel),
+        [],
+        'the disputes webhook must not vouch for the operators room',
+      )
+      assert.ok(
+        log.warns.some((entry) => /reached no channel/.test(entry.msg)),
+        'the one outcome this feature exists to make loud',
+      )
+    })
+  })
+})
+
+test('a gas-seed alert IS enqueued once the operators room is configured', async () => {
+  await withSlackWebhook('disputes', undefined, async () => {
+    await withSlackWebhook('ops', A_WEBHOOK, async () => {
+      const queue = queueDouble()
+      const log = alertLogSpy()
+
+      await enqueueAlert(queue, gasSeedRef, log)
+
+      // Derived, not written down: `channelsFor` is what decides which channels
+      // accept this kind, and the in-app bell deliberately does not.
+      assert.deepStrictEqual(
+        queue.alerts().map((job) => job.payload.channel),
+        channelsFor(gasSeedRef.kind)
+          .filter((channel) => channel.configured(gasSeedRef.kind))
+          .map((channel) => channel.name),
+      )
+      assert.strictEqual(queue.alerts().length, 1, 'exactly the Slack job')
+    })
+  })
+})
 
 // ---------- 1. which events raise an alert -------------------------------------------
 
@@ -105,10 +190,12 @@ test('the ref carries the EVENT ids, not defaults', () => {
   const a = alertRefForEscrowEvent(republishEvent('DisputeRaised'))
   const b = alertRefForEscrowEvent(republishEvent('DisputeRaised'))
 
-  assert.notStrictEqual(a, null)
-  assert.notStrictEqual(b, null)
-  assert.notStrictEqual(a?.escrow_id, b?.escrow_id)
-  assert.notStrictEqual(a?.tx_ref, b?.tx_ref)
+  // `assert.ok` narrows the union `AlertRef` became once a second kind existed;
+  // it also pins that this event maps to THIS kind, which the ids below assume.
+  assert.ok(a?.kind === 'dispute.raised')
+  assert.ok(b?.kind === 'dispute.raised')
+  assert.notStrictEqual(a.escrow_id, b.escrow_id)
+  assert.notStrictEqual(a.tx_ref, b.tx_ref)
 })
 
 /**
@@ -409,13 +496,12 @@ test('the DEFAULT selector is the real registry', async () => {
   //
   // The expectation stays DERIVED from the registry rather than written down,
   // so this keeps holding as channels are added.
-  const key = slackEnvKey('disputes')
-  const before = process.env[key]
-  process.env[key] = 'https://hooks.slack.test/services/T/B/x'
-  try {
+  await withSlackWebhook('disputes', A_WEBHOOK, async () => {
     const queue = queueDouble()
     const log = alertLogSpy()
-    const expected = channelsFor(disputeRef.kind).filter((channel) => channel.configured())
+    const expected = channelsFor(disputeRef.kind).filter((channel) =>
+      channel.configured(disputeRef.kind),
+    )
 
     // If this ever trips, the registry changed under the line above: point it at
     // whatever env makes a currently-registered channel configured, or this test
@@ -428,10 +514,7 @@ test('the DEFAULT selector is the real registry', async () => {
       queue.alerts().map((job) => job.payload.channel),
       expected.map((channel) => channel.name),
     )
-  } finally {
-    if (before === undefined) delete process.env[key]
-    else process.env[key] = before
-  }
+  })
 })
 
 test('the producer never delivers inline — it only enqueues', async () => {

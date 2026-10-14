@@ -173,7 +173,7 @@ const s = StyleSheet.create({
     maxWidth: 280,
   },
   meta: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 11,
     lineHeight: 14,
     letterSpacing: 0.22,

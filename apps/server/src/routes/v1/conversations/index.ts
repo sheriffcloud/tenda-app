@@ -1,16 +1,44 @@
 import { FastifyPluginAsync } from 'fastify'
-import { and, eq, or, ne, desc, inArray, isNull, sql } from 'drizzle-orm'
+import { and, eq, or, ne, desc, inArray, isNull, isNotNull, lt, sql, type SQL } from 'drizzle-orm'
 import { conversations, messages, users } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, INBOX_PAGE_SIZE } from '@tenda/shared'
 import type { ConversationsContract, ApiError, Conversation } from '@tenda/shared'
-import { isPostgresUniqueViolation } from '@server/lib/db'
-import { messagePreview } from '@server/lib/chat'
+import { isPostgresUniqueViolation } from '@server/lib/errors/pg'
+import { messagePreview } from '@server/lib/http/chat'
 import { AppError, requireBody } from '@server/lib/errors'
+import { clampLimit } from '@server/lib/http/pagination'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 type ListRoute       = ConversationsContract['list']
 type FindOrCreateRoute = ConversationsContract['findOrCreate']
 
-const CONVERSATIONS_LIMIT = 50
+/**
+ * The rows AFTER a cursor, in the inbox's order: `last_message_at DESC` (rows
+ * with no message yet sort FIRST, Postgres' default for DESC), then `id DESC`.
+ *
+ * Both halves are needed. Several conversations can share a `last_message_at`,
+ * so the timestamp alone skips or repeats rows at a page boundary; and the
+ * column is NULLABLE, so a plain `<` would drop the whole not-yet-messaged group
+ * (NULL < x is never true) and, from inside that group, never reach the rest.
+ *
+ * The cursor's timestamp arrives as TEXT and is cast back in SQL. Round-tripping
+ * it through a JS Date would cut it to milliseconds while the column holds
+ * microseconds, and a sibling that differs only below the millisecond would fall
+ * on the wrong side of the comparison and never be returned.
+ */
+function afterCursor(cursor: { id: string; last_message_at_text: string | null }): SQL | undefined {
+  if (cursor.last_message_at_text === null) {
+    return or(
+      and(isNull(conversations.last_message_at), lt(conversations.id, cursor.id)),
+      isNotNull(conversations.last_message_at),
+    )
+  }
+  const at = sql`${cursor.last_message_at_text}::timestamptz`
+  return or(
+    sql`${conversations.last_message_at} < ${at}`,
+    and(sql`${conversations.last_message_at} = ${at}`, lt(conversations.id, cursor.id)),
+  )
+}
 
 /** Sort two UUIDs so user_a_id < user_b_id (canonical order). */
 function canonicalPair(a: string, b: string): [string, string] {
@@ -19,15 +47,42 @@ function canonicalPair(a: string, b: string): [string, string] {
 
 const conversationsRoute: FastifyPluginAsync = async (fastify) => {
   // GET /v1/conversations, list conversations for the authenticated user
+  //   ?before_id=<id of the last conversation you hold>&limit=<page size>
+  // With neither, the newest INBOX_PAGE_SIZE, exactly as before; a
+  // client that never pages is unaffected. A full page may be followed by more.
   fastify.get<{
+    Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
   }>(
     '/',
     { preHandler: [fastify.authenticate] },
     async (request, _reply) => {
       const userId = request.user.id
+      const { before_id, limit } = request.query ?? {}
+      const pageSize = clampLimit(Number(limit) || INBOX_PAGE_SIZE)
 
-      // 1. Fetch conversations, bounded to CONVERSATIONS_LIMIT rows
+      // The cursor must be one of the CALLER's conversations: anything else is
+      // "not found" rather than a timestamp read off someone else's chat. A
+      // CLOSED one is fine — it can drop out of the list between two pages and
+      // still be the place the client stopped at.
+      let after: SQL | undefined
+      if (before_id) {
+        if (!isUuidLike(before_id)) {
+          throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'before_id must be a conversation id')
+        }
+        const [cursor] = await fastify.db
+          .select({ id: conversations.id, last_message_at_text: sql<string | null>`${conversations.last_message_at}::text` })
+          .from(conversations)
+          .where(and(
+            eq(conversations.id, before_id),
+            or(eq(conversations.user_a_id, userId), eq(conversations.user_b_id, userId)),
+          ))
+          .limit(1)
+        if (cursor === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Conversation not found')
+        after = afterCursor(cursor)
+      }
+
+      // 1. Fetch one page of conversations
       const rows = await fastify.db
         .select({
           id:              conversations.id,
@@ -44,10 +99,11 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
           and(
             or(eq(conversations.user_a_id, userId), eq(conversations.user_b_id, userId)),
             eq(conversations.status, 'active'),
+            after,
           )
         )
-        .orderBy(desc(conversations.last_message_at))
-        .limit(CONVERSATIONS_LIMIT)
+        .orderBy(desc(conversations.last_message_at), desc(conversations.id))
+        .limit(pageSize)
 
       if (rows.length === 0) return []
 
@@ -55,9 +111,6 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
       const otherIds = rows.map((r) => r.user_a_id === userId ? r.user_b_id : r.user_a_id)
 
       // Queries 2–4 are independent reads, run in parallel.
-      // @scalability: CONVERSATIONS_LIMIT caps at 50. Add cursor pagination
-      // (before_id querystring + WHERE last_message_at < cursor) when users
-      // with large conversation histories become a support complaint.
       const [otherUsers, unreadRows, lastMsgRows] = await Promise.all([
         // 2. All other-user profiles in one IN query
         fastify.db
@@ -107,7 +160,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
           ...conv,
           closed_at:       conv.closed_at?.toISOString() ?? null,
           last_message_at: conv.last_message_at?.toISOString() ?? null,
-          created_at:      conv.created_at?.toISOString() ?? null,
+          created_at:      conv.created_at.toISOString(),
           other_user: {
             id:         other?.id ?? otherId,
             first_name: other?.first_name ?? null,
@@ -217,7 +270,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
         ...existing,
         closed_at:       existing.closed_at?.toISOString() ?? null,
         last_message_at: existing.last_message_at?.toISOString() ?? null,
-        created_at:      existing.created_at?.toISOString() ?? null,
+        created_at:      existing.created_at.toISOString(),
         other_user: {
           id:         targetUser.id,
           first_name: targetUser.first_name,

@@ -1,5 +1,5 @@
 /**
- * lib/auth/oidc — OIDC id_token verification. Uses a locally-generated RSA
+ * features/auth/strategies/oidc — OIDC id_token verification. Uses a locally-generated RSA
  * keypair + createLocalJWKSet so the tests drive the REAL jose signature +
  * claim verification (not a mock): valid token, expired, wrong audience,
  * wrong issuer, bad signature, missing sub, and email_verified coercion.
@@ -9,7 +9,7 @@ import { test, before } from 'node:test'
 import * as assert from 'node:assert'
 import { generateKeyPair, exportJWK, SignJWT, createLocalJWKSet, type JWTVerifyGetKey } from 'jose'
 import { AppError } from '@server/lib/errors'
-import { createOidcVerifier, GOOGLE_ISSUERS } from '@server/lib/auth/oidc'
+import { createOidcVerifier, GOOGLE_ISSUERS } from '@server/features/auth/strategies/oidc'
 
 const ISS = 'https://accounts.google.com'
 const AUD = 'client-abc.apps.googleusercontent.com'

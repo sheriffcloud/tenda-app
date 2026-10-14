@@ -20,6 +20,13 @@
  * Reachability is TRANSITIVE, not a direct-import check: a helper legitimately
  * reached through another helper is wired in, and failing it would be a false
  * alarm that trains people to delete the guard.
+ *
+ * THE OTHER DIRECTION lives in test/integration/api-routes-drift.test.ts (#115):
+ * this file says every module beside an index is REGISTERED; that one says every
+ * module is registered at the URL it claims — including the webhooks, ops and
+ * admin paths no client contract describes. Two guards, one subject, and they
+ * are named here because the repo already has evidence that someone writes a
+ * second guard on this subject without finding the first.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
@@ -85,7 +92,15 @@ test('every file beside a routes index.ts is reachable from it', () => {
   for (const dir of dirs) {
     const files = new Set(
       readdirSync(dir, { withFileTypes: true })
-        .filter((e) => e.isFile() && e.name.endsWith('.ts') && e.name !== 'index.ts')
+        // `.d.ts` is excluded rather than tolerated: it would arrive as a stem
+        // called `foo.d` and demand an import specifier nobody would write.
+        // None exists under src/routes today; this keeps a future one from
+        // being reported as an orphan, which is the false alarm the header
+        // above says trains people to delete the guard.
+        .filter(
+          (e) =>
+            e.isFile() && e.name.endsWith('.ts') && !e.name.endsWith('.d.ts') && e.name !== 'index.ts',
+        )
         .map((e) => e.name.slice(0, -3)),
     )
     if (files.size === 0) continue

@@ -8,6 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { REPEATABLES, WORKER_CONCURRENCY } from '@server/plugins/workers'
+import { RECONCILE_INTERVAL_MS } from '@server/queue/jobs/reconcile-escrows'
 import type { JobName } from '@server/plugins/queue'
 
 const byName = new Map(REPEATABLES.map((r) => [r.name as string, r]))
@@ -31,6 +32,15 @@ const EVENT_DRIVEN: Partial<Record<JobName, string>> = {
   alerts: 'enqueued by the escrow fan-out when a dispute is raised on-chain',
   'fanout-subscribers':
     'enqueued by the escrow fan-out on escrow.created, one job per new gig',
+  // Demand-driven by definition (#53c-1): a user asks for their gas seed and
+  // the endpoint enqueues the transfer. Scheduling it would be the automatic
+  // send this feature exists to replace.
+  'gas-seed': 'enqueued by POST /v1/wallet/gas-seed when a user claims their seed',
+  // Enqueued by the broadcast job once a transfer exists to ask about (#58).
+  // NOT scheduled, deliberately: a repeatable would have to scan for submitted
+  // grants, and the job that created one already knows which. Its own retries
+  // are what turn "the chain has not answered" into waiting.
+  'gas-seed-confirm': 'enqueued by the gas-seed broadcast job once a transfer is recorded',
 }
 
 test('the schedule contains exactly the known periodic jobs, each once', () => {
@@ -38,9 +48,13 @@ test('the schedule contains exactly the known periodic jobs, each once', () => {
     'expire-applications',
     'expire-escrows',
     'expire-fiat-quotes',
+    'gas-seed-balance-check',
+    'prune-auth-otps',
     'prune-notifications',
+    'prune-stale-drafts',
     'reconcile',
     'reconcile-fiat',
+    'sweep-escrows',
     'update-price-stats',
   ]
   assert.deepStrictEqual([...byName.keys()].sort(), expected)
@@ -52,9 +66,23 @@ test('cadences: expiries every 60s, reconciles every 5min, price stats nightly',
   assert.strictEqual(byName.get('expire-applications')?.every_ms, 60_000)
   assert.strictEqual(byName.get('expire-fiat-quotes')?.every_ms, 60_000)
   assert.strictEqual(byName.get('reconcile')?.every_ms, 5 * 60_000)
+  // The SAME constant the Agent API document states the sweep cadence from —
+  // a schedule edited here alone would leave the document promising a cadence
+  // the deployment no longer runs at.
+  assert.strictEqual(byName.get('reconcile')?.every_ms, RECONCILE_INTERVAL_MS)
   assert.strictEqual(byName.get('reconcile-fiat')?.every_ms, 5 * 60_000)
   assert.strictEqual(byName.get('update-price-stats')?.every_ms, 24 * 3_600_000)
+  // #43 sweeps deliberately slower than the notices it follows: nothing becomes
+  // sweepable inside a minute (a creator gets a day of first refusal), and every
+  // tick that finds work spends real gas.
+  assert.strictEqual(byName.get('sweep-escrows')?.every_ms, 15 * 60_000)
   assert.strictEqual(byName.get('prune-notifications')?.every_ms, 24 * 3_600_000)
+  assert.strictEqual(byName.get('prune-stale-drafts')?.every_ms, 24 * 3_600_000)
+  assert.strictEqual(byName.get('prune-auth-otps')?.every_ms, 24 * 3_600_000)
+  // #53b watches the gas-seed hot wallets. Brisk on purpose and cheap to be so:
+  // a tick is one RPC read per seeded chain, and how often an OPERATOR hears
+  // about a low wallet is set by the alert's chain-keyed dedup, not by this.
+  assert.strictEqual(byName.get('gas-seed-balance-check')?.every_ms, 15 * 60_000)
 })
 
 test('every repeatable has a positive interval and an object payload', () => {

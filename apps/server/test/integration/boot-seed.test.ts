@@ -1,5 +1,5 @@
 /**
- * lib/boot-seed/ — opt-in boot-time registry seed (SEED_ON_BOOT=true).
+ * lib/boot/seed/ — opt-in boot-time registry seed (SEED_ON_BOOT=true).
  *
  * Mirrors boot-migrate's shape: flag-gated (unset = never connects, proven with
  * a dead-port URL), advisory-locked, and DB-backed cases gated on
@@ -20,9 +20,9 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { eq } from 'drizzle-orm'
 import { assets, chains } from '@tenda/shared/db/schema'
 import { TEST_DB_CONFIGURED, useSuiteLock } from '../helpers/test-app'
-import { seedOnBoot, lockForRetirement, NO_CHAINS_CONFIGURED } from '@server/lib/boot-seed'
+import { seedOnBoot, lockForRetirement, NO_CHAINS_CONFIGURED } from '@server/lib/boot/seed'
 import { getChainSecrets, resetChainSecretsCache } from '@server/chains/secrets'
-import { buildSeedRows } from '@server/db/seed-v2'
+import { buildSeedRows } from '@server/db/seed/seed-v2'
 
 const skip = !TEST_DB_CONFIGURED
 

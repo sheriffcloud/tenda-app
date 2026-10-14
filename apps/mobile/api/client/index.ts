@@ -1,47 +1,16 @@
 /**
- * The typed API client, composed from one module per domain.
+ * The typed API client for this app.
  *
- * It was a single 355-line file, already over the size budget before approval
- * mode added six endpoints to it. Splitting by domain keeps each module the
- * size of the surface it describes, and the barrel means every existing
- * `from '@/api/client'` import kept working unchanged.
+ * The endpoint DESCRIPTIONS live once in `@tenda/shared/api/client` (#42);
+ * what is app-specific is the transport underneath — `../request` — which
+ * resolves the base URL and reads the JWT the way this platform needs. Wiring
+ * the two together is all that belongs here.
  *
- * The HTTP core (base URL, bearer, timeout, error envelope) stays in
- * ../request — these modules only describe endpoints.
+ * Every existing `from '@/api/client'` import keeps working unchanged.
  */
-import { authApi } from './auth'
-import { escrowsApi } from './escrows'
-import { applicationsApi, gigsApi } from './gigs'
-import { disputesApi, exchangeApi } from './exchange'
-import { usersApi } from './users'
-import { fiatApi } from './fiat'
-import { conversationsApi, notificationsApi, subscriptionsApi } from './messaging'
-import {
-  blockchainApi,
-  moderationApi,
-  platformApi,
-  reportsApi,
-  uploadApi,
-} from './platform'
+import { createApiClient } from '@tenda/shared'
+import { request } from '../request'
 
-export { ApiClientError } from '../request'
-export { MODERATION_TIMEOUT_MS, TX_BUILD_TIMEOUT_MS } from './timeouts'
+export { MODERATION_TIMEOUT_MS, TX_BUILD_TIMEOUT_MS } from '@tenda/shared'
 
-export const api = {
-  auth: authApi,
-  escrows: escrowsApi,
-  gigs: gigsApi,
-  applications: applicationsApi,
-  disputes: disputesApi,
-  exchange: exchangeApi,
-  users: usersApi,
-  upload: uploadApi,
-  moderation: moderationApi,
-  fiat: fiatApi,
-  blockchain: blockchainApi,
-  platform: platformApi,
-  conversations: conversationsApi,
-  notifications: notificationsApi,
-  subscriptions: subscriptionsApi,
-  reports: reportsApi,
-}
+export const api = createApiClient(request)

@@ -17,7 +17,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { conversations } from '@tenda/shared/db/schema'
-import { drizzleWsAuthStore } from '@server/lib/ws'
+import { drizzleWsAuthStore } from '@server/realtime/ws'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,

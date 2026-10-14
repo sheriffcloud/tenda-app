@@ -12,7 +12,7 @@ import {
   displayAmount,
   type ChatTransport,
 } from '@server/features/moderation/providers/openrouter'
-import type { ModerationInput, PriceStats } from '@server/features/moderation/types'
+import type { ModerationInput, PriceStats } from '@server/features/moderation/core/types'
 
 const INPUT: ModerationInput = {
   title: 'Fix my sink', description: 'basic plumbing', category: 'service',

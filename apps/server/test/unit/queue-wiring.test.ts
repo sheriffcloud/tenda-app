@@ -6,10 +6,12 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
+import { GAS_SEED_UNRESOLVED_AFTER_MS } from '@tenda/shared'
 import {
   DEFAULT_JOB_OPTIONS,
   QUEUE_PREFIX,
   VERIFY_TX_JOB_OPTIONS,
+  GAS_SEED_CONFIRM_JOB_OPTIONS,
   queueConnectionOptions,
   queueName,
   queueOptions,
@@ -47,5 +49,32 @@ test('verify-tx failures are removable so reconciliation can reuse the job id', 
   assert.strictEqual(
     queueOptions(connection, 'notifications').defaultJobOptions,
     DEFAULT_JOB_OPTIONS,
+  )
+
+  // The gas-seed confirmation needs a budget that OUTLASTS its own give-up
+  // window, or the run that would mark a grant `unresolved` never happens and
+  // the row sits in `submitted` forever. Asserted against the default rather
+  // than a literal, so raising the default cannot silently make this a no-op.
+  const confirm = queueOptions(connection, 'gas-seed-confirm').defaultJobOptions
+  assert.strictEqual(confirm, GAS_SEED_CONFIRM_JOB_OPTIONS)
+  assert.ok(
+    GAS_SEED_CONFIRM_JOB_OPTIONS.attempts > DEFAULT_JOB_OPTIONS.attempts,
+    'confirmation must retry longer than an ordinary job',
+  )
+  // The exponential curve has to reach past the window, and the arithmetic is
+  // easy to get wrong by one doubling — which would make this assertion pass a
+  // budget that genuinely falls short.
+  //
+  // BullMQ waits `delay * 2^(attemptsMade - 1)` before each RETRY, and the first
+  // attempt is immediate. So `attempts` attempts means `attempts - 1` waits, of
+  // delay * 2^0 … 2^(attempts-2), summing to delay * (2^(attempts-1) - 1).
+  // Using 2^attempts - 1 overstates the reach by a factor of two: at 14 attempts
+  // it would claim 9.1h while the real schedule stops at 4.55h — short of the
+  // window, so no run would ever cross it and mark a grant unresolved.
+  const { attempts, backoff } = GAS_SEED_CONFIRM_JOB_OPTIONS
+  const reach = backoff.delay * (2 ** (attempts - 1) - 1)
+  assert.ok(
+    reach > GAS_SEED_UNRESOLVED_AFTER_MS,
+    `retries reach ${reach}ms but grants are given up on at ${GAS_SEED_UNRESOLVED_AFTER_MS}ms`,
   )
 })

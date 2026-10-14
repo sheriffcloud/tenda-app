@@ -134,7 +134,7 @@ const s = StyleSheet.create({
   },
   rowLabel: { fontSize: 13, lineHeight: 18, flexShrink: 0 },
   rowValue: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 13.5,
     lineHeight: 18,
     fontWeight: '600',

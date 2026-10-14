@@ -25,10 +25,6 @@ jest.mock('@/components/ui/Text', () => {
   const { Text } = require('react-native')
   return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
 })
-jest.mock('@/components/ui/SectionLabel', () => {
-  const { Text } = require('react-native')
-  return { SectionLabel: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
-})
 
 const INSTANT = 'First come, first served'
 const APPROVAL = 'I approve the worker'
@@ -47,6 +43,18 @@ test('both modes are offered, each with the consequence that decides between the
   // Approval is the pricier option — an extra transaction and a delay — so it
   // must not be chosen without that being said.
   expect(screen.getByText(/extra transaction/i)).toBeTruthy()
+})
+
+test('the picker supplies no heading of its own', () => {
+  // It used to render "Who can take this gig" while its only caller,
+  // GigDeliveryStep, was already rendering "Who can take it" directly above —
+  // two near-identical headings stacked on the poster. The step owns the
+  // heading for every section it composes; re-adding one here reinstates the
+  // duplicate, which is invisible in a test that only renders the picker
+  // unless it is asserted.
+  setup()
+
+  expect(screen.queryByText(/who can take/i)).toBeNull()
 })
 
 test('choosing approval reports true', () => {

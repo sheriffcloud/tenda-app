@@ -1,5 +1,5 @@
 /**
- * lib/slack — the generic Slack delivery module (transport / destinations /
+ * features/alerts/slack — the generic Slack delivery module (transport / destinations /
  * format). Purpose-agnostic by design, so this file must stay free of dispute
  * specifics too; the dispute channel's own copy is tested with that feature.
  *
@@ -27,7 +27,7 @@ import {
   slackLink,
   SLACK_TEXT_MAX,
   type SlackMessage,
-} from '@server/lib/slack'
+} from '@server/features/alerts/slack'
 import { AppError } from '@server/lib/errors'
 import { restoreFetch, stubFetch, type CapturedRequest } from '../helpers/fetch-stub'
 

@@ -10,7 +10,7 @@ import {
   cacheKey,
   inputHash,
   normalizeForKeywords,
-} from '@server/features/moderation/normalize'
+} from '@server/features/moderation/core/normalize'
 import { screenKeywords } from '@server/features/moderation/providers/keyword'
 import {
   inProcessVerdictCache,
@@ -18,7 +18,7 @@ import {
   moderateGig,
   type ModerationDeps,
   type ModerationStore,
-} from '@server/features/moderation/service'
+} from '@server/features/moderation/core/service'
 import {
   rawPercentile,
   rollupGroup,
@@ -32,7 +32,7 @@ import type {
   ModerationProvider,
   PriceStats,
   Verdict,
-} from '@server/features/moderation/types'
+} from '@server/features/moderation/core/types'
 
 function input(over: Partial<ModerationInput> = {}): ModerationInput {
   return {

@@ -1,12 +1,22 @@
-import { SUPPORTED_CURRENCIES } from '@/data/currencies'
-import { APP_INFO, LANDING_CHAINS } from '@/content'
+import {
+  APP_INFO,
+  CHAIN_STRENGTHS_PROSE,
+  DISPLAY_CURRENCY_COUNT,
+  MAINNET_STATUS_CLAUSE,
+  TRADE_COUNTRIES_PROSE,
+  TRADE_CURRENCIES_PROSE,
+  SUPPORTED_CURRENCIES,
+  TRADE_MARKET_COUNT,
+} from '@/content'
 import type { FaqCategory } from '../types'
 
+/**
+ * Q.15 — reach. Both halves are derived: chains from CHAIN_MANIFEST, markets
+ * from the payout registry (see content/markets.ts for why the two currency
+ * counts are NOT interchangeable).
+ */
 export const COVERAGE_CATEGORY: FaqCategory = {
-  num: '05',
-  slug: 'coverage',
   title: 'Coverage & access',
-  caption: '1 question',
   questions: [
     {
       id: 'Q.15',
@@ -14,18 +24,23 @@ export const COVERAGE_CATEGORY: FaqCategory = {
       answer: (
         <>
           <p>
-            Tenda runs the same escrow contract on {APP_INFO.chains.networksLine} — pick the
-            chain your money already lives on.{' '}
-            {LANDING_CHAINS.map((c) => c.name).join(', ')} each bring something different:
-            Solana&apos;s sub-second settlement, Base&apos;s USDC rails, Celo&apos;s
-            stablecoin-paid gas. More chains are on the way.
+            One escrow contract, built for {APP_INFO.chains.networksLine} —{' '}
+            {MAINNET_STATUS_CLAUSE}. Each brings something different:{' '}
+            {CHAIN_STRENGTHS_PROSE}.
           </p>
           <p>
-            On the geographic side, Tenda is global by default — the contracts run wherever the
-            chains do. Local-fiat exchange is currently live across{' '}
-            {SUPPORTED_CURRENCIES.length} corridors:{' '}
-            <code className="font-mono">{SUPPORTED_CURRENCIES.join(' · ')}</code>. New corridors
-            unlock as we add fiat partners and as buyers and sellers meet there.
+            Gig work is global by default — the contracts run wherever the chains do, and a gig
+            escrowed in USDC needs nothing from your local banking system.
+          </p>
+          <p>
+            Cashing out to local money is narrower, and worth being exact about. Exchange offers
+            can be denominated in{' '}
+            <code className="font-mono">{TRADE_CURRENCIES_PROSE}</code> — {TRADE_MARKET_COUNT}{' '}
+            markets: {TRADE_COUNTRIES_PROSE}. Separately, you can view your balance in any of{' '}
+            {DISPLAY_CURRENCY_COUNT} currencies (
+            <code className="font-mono">{SUPPORTED_CURRENCIES.join(' · ')}</code>), which is a
+            display setting rather than a market you can trade into. New markets open as we clear
+            each one and as buyers and sellers show up there.
           </p>
         </>
       ),

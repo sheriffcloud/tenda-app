@@ -27,7 +27,7 @@ import {
   describeBlockedDisable,
   unacknowledgedDisables,
   DISABLE_OVERRIDE,
-} from '@server/lib/boot-seed'
+} from '@server/lib/boot/seed'
 
 const counts = (o: Record<string, number>) => new Map(Object.entries(o))
 

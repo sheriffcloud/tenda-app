@@ -61,11 +61,11 @@ export const disputes = pgTable(
     // pool (POST /admin/disputes/:id/claim) before mediating in its thread.
     // Null = unclaimed. Cleared by release; survives resolution for audit.
     assigned_to: uuid('assigned_to').references(() => users.id, { onDelete: 'restrict' }),
-    assigned_at: timestamp('assigned_at'),
+    assigned_at: timestamp('assigned_at', { withTimezone: true }),
     winner: disputeWinnerEnum('winner'),
     resolved_by: uuid('resolved_by').references(() => users.id, { onDelete: 'restrict' }),
-    resolved_at: timestamp('resolved_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    resolved_at: timestamp('resolved_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     // The unclaimed pool — the admin nav badge polls it every 30s per open tab
@@ -136,8 +136,8 @@ export const dispute_resolutions = pgTable(
     rejected_by: uuid('rejected_by').references(() => users.id, { onDelete: 'restrict' }),
     /** On-chain ref that confirmed the resolution; set by the apply path. */
     resolved_tx_ref: text('resolved_tx_ref'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -178,7 +178,7 @@ export const dispute_messages = pgTable(
     // precision 3 (ms): the client's ?after cursor is this value round-
     // tripped through toISOString(), which carries milliseconds only —
     // µs-precision storage would re-include boundary rows on every poll.
-    created_at: timestamp('created_at', { precision: 3 }).notNull().defaultNow(),
+    created_at: timestamp('created_at', { precision: 3, withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('dispute_messages_dispute_idx').on(t.dispute_id, t.created_at)],
 )
@@ -197,12 +197,12 @@ export const featured_slots = pgTable(
     escrow_id: uuid('escrow_id')
       .notNull()
       .references(() => escrows.id, { onDelete: 'cascade' }),
-    starts_at: timestamp('starts_at').notNull(),
-    ends_at: timestamp('ends_at').notNull(),
+    starts_at: timestamp('starts_at', { withTimezone: true }).notNull(),
+    ends_at: timestamp('ends_at', { withTimezone: true }).notNull(),
     /** Lower renders first within the rail. */
     position: integer('position').notNull().default(0),
     created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('featured_slots_window_idx').on(t.starts_at, t.ends_at),
@@ -220,7 +220,7 @@ export const dispute_reads = pgTable(
     user_id: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    last_read_at: timestamp('last_read_at').notNull().defaultNow(),
+    last_read_at: timestamp('last_read_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.dispute_id, t.user_id] })],
 )
@@ -240,7 +240,7 @@ export const reviews = pgTable(
       .references(() => users.id, { onDelete: 'restrict' }),
     score: integer('score').notNull(),
     comment: text('comment'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     unique('reviews_escrow_reviewer_uq').on(t.escrow_id, t.reviewer_id),
@@ -259,9 +259,6 @@ export const platform_config = pgTable(
     grace_period_seconds: integer('grace_period_seconds')
       .notNull()
       .default(PLATFORM_CONFIG_DEFAULTS.grace_period_seconds),
-    approval_window_seconds: integer('approval_window_seconds')
-      .notNull()
-      .default(PLATFORM_CONFIG_DEFAULTS.approval_window_seconds),
     default_sponsored_tx_count: integer('default_sponsored_tx_count')
       .notNull()
       .default(PLATFORM_CONFIG_DEFAULTS.default_sponsored_tx_count),
@@ -298,9 +295,6 @@ export const platform_config = pgTable(
       'platform_config_max_pending_gigs_range_chk',
       sql`${t.max_pending_gigs} BETWEEN 1 AND ${sql.raw(String(MAX_PENDING_GIGS_CEILING))}`,
     ),
-    // Mirrors the bound BOTH contracts enforce, so a value the chain would
-    // revert can never be stored — the column is the source the create route
-    // stamps onto the escrow.
     // Same reasoning as max_pending_gigs: 0 would lock every worker out of
     // applying, and the ceiling keeps a typo from disabling the cap.
     check(
@@ -311,6 +305,9 @@ export const platform_config = pgTable(
       'platform_config_application_ttl_range_chk',
       sql`${t.application_ttl_seconds} BETWEEN ${sql.raw(String(MIN_APPLICATION_TTL_SECONDS))} AND ${sql.raw(String(MAX_APPLICATION_TTL_SECONDS))}`,
     ),
+    // Mirrors the bound BOTH contracts enforce, so a value the chain would
+    // revert can never be stored — the column is the source the create route
+    // stamps onto the escrow.
     check(
       'platform_config_unassign_window_range_chk',
       sql`${t.unassign_window_seconds} BETWEEN ${sql.raw(String(ESCROW_LIMITS.minUnassignWindowSeconds))} AND ${sql.raw(String(ESCROW_LIMITS.maxUnassignWindowSeconds))}`,

@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native'
 import { PaymentInput } from '@/components/form/PaymentInput'
 import { DurationPicker } from '@/components/form/DurationPicker'
+import { hasGigBudget } from '@tenda/shared'
 import { FeeSummary } from '@/components/shared/FeeSummary'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { spacing } from '@/theme/tokens'
@@ -15,8 +16,9 @@ interface Props {
   onChainChange: (chainId: string) => void
   asset: string
   assetSymbol: string
-  paymentRaw: number
-  onPaymentChange: (amount: number) => void
+  /** Base-unit string; '' until a budget is set. */
+  paymentRaw: string
+  onPaymentChange: (raw: string) => void
   completionDuration: number
   onCompletionChange: (seconds: number) => void
   acceptDeadlineHours: number
@@ -44,11 +46,11 @@ export function GigPaymentStep(props: Props) {
       </View>
       <AcceptDeadlinePicker value={props.acceptDeadlineHours} onChange={props.onAcceptDeadlineChange} />
 
-      {props.paymentRaw > 0 ? (
+      {hasGigBudget(props.paymentRaw) ? (
         <>
           <SectionLabel>Cost breakdown</SectionLabel>
           <View style={s.padded}>
-            <FeeSummary asset={props.asset} principalRaw={String(props.paymentRaw)} />
+            <FeeSummary asset={props.asset} principalRaw={props.paymentRaw} />
           </View>
         </>
       ) : null}

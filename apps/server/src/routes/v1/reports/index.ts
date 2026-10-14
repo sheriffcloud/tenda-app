@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { reports, escrows, gig_details, messages, users, reviews } from '@tenda/shared/db/schema'
 import { ErrorCode, REPORT_CONTENT_TYPES, REPORT_REASONS } from '@tenda/shared'
 import type { ApiError, ReportContentType, ReportReason } from '@tenda/shared'
-import { isPostgresUniqueViolation } from '@server/lib/db'
+import { isPostgresUniqueViolation } from '@server/lib/errors/pg'
 import { AppError, requireBody } from '@server/lib/errors'
 
 const reportsRoute: FastifyPluginAsync = async (fastify) => {

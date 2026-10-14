@@ -7,6 +7,8 @@ import { SectionLabel } from './SectionLabel'
 export interface ChipOption<T extends string | number> {
   label: string
   value: T
+  /** Offered but not currently pickable (the Chip ignores presses). */
+  disabled?: boolean
 }
 
 /**
@@ -42,6 +44,7 @@ export function ChipGroup<T extends string | number>({
             label={opt.label}
             variant="form"
             selected={isSelected(opt.value)}
+            disabled={opt.disabled ?? false}
             onPress={() => onPress(opt.value)}
           />
         ))}

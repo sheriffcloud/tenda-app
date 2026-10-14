@@ -1,5 +1,5 @@
 /**
- * lib/ws — subprotocol auth parsing, channel parsing/authorization, and
+ * realtime/ws — subprotocol auth parsing, channel parsing/authorization, and
  * the in-process broadcaster (self-healing on dead sockets).
  */
 
@@ -15,7 +15,7 @@ import {
   parseSubprotocolAuth,
   type WsAuthStore,
   type WsSink,
-} from '@server/lib/ws'
+} from '@server/realtime/ws'
 
 // ---------- subprotocol parsing ----------------------------------------------
 

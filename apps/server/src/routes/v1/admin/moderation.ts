@@ -11,15 +11,19 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { desc, eq, sql } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
+import type { AdminContract, ApiError } from '@tenda/shared'
+import { toWire } from '@server/lib/http/wire'
 import { moderation_verdicts } from '@tenda/shared/db/schema/moderation'
 import { platform_config } from '@tenda/shared/db/schema/governance'
 import { AppError } from '@server/lib/errors'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/http/guards'
 
 const PAGE_SIZE = 50
 
+type ModerationContract = AdminContract['moderation']
+
 const route: FastifyPluginAsync = async (fastify) => {
-  fastify.get<{ Querystring: { decision?: string; page?: string } }>(
+  fastify.get<{ Querystring: { decision?: string; page?: string }; Reply: ModerationContract['verdicts']['response'] | ApiError }>(
     '/verdicts',
     { preHandler: [fastify.authenticate, requirePermission('moderation.read')] },
     async (request) => {
@@ -36,11 +40,11 @@ const route: FastifyPluginAsync = async (fastify) => {
         .orderBy(desc(moderation_verdicts.created_at))
         .limit(PAGE_SIZE)
         .offset(page * PAGE_SIZE)
-      return { verdicts: rows, page }
+      return { verdicts: rows.map(toWire), page }
     },
   )
 
-  fastify.post<{ Params: { id: string }; Body: { reason?: unknown } }>(
+  fastify.post<{ Params: { id: string }; Body: { reason?: unknown }; Reply: ModerationContract['override']['response'] | ApiError }>(
     '/verdicts/:id/override',
     { preHandler: [fastify.authenticate, requirePermission('moderation.override')] },
     async (request) => {

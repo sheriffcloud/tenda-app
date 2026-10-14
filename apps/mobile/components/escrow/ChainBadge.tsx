@@ -1,7 +1,7 @@
 import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
-import { chainLabel } from '@/lib/chains'
+import { chainLabel } from '@tenda/shared'
 
 /** Small chain marker: names the network an escrow/gig lives on. */
 export function ChainBadge({ chainId, style }: { chainId: string; style?: StyleProp<ViewStyle> }) {

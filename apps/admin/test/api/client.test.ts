@@ -98,7 +98,7 @@ test('featured + platformConfig + announcements', async () => {
   expect(lastPath(del)).toBe('/v1/admin/featured/f1')
   await adminApi.platformConfig.get()
   expect(lastPath(get)).toBe('/v1/admin/platform-config')
-  await adminApi.platformConfig.update({ fee_bps: 250 })
+  await adminApi.platformConfig.update({ grace_period_seconds: 3_600 })
   expect(lastPath(patch)).toBe('/v1/admin/platform-config')
   await adminApi.announcements.list()
   expect(lastPath(get)).toBe('/v1/admin/announcements')

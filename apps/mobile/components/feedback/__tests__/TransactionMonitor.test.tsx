@@ -55,6 +55,12 @@ const mockPendingSubscribers = new Set<() => void>()
 const mockAbortPending = jest.fn()
 jest.mock('@/wallet', () => ({
   getTransactionStatus: (...a: unknown[]) => mockGetTransactionStatus(...a),
+}))
+// The guarded-request registry moved to @tenda/shared (2026-08-15). Partial
+// mock: real module for everything else (copy tables, classifiers), test
+// doubles ONLY for the registry the Cancel button rides.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   getEvmTransactionStatus: (...a: unknown[]) => mockGetEvmTransactionStatus(...a),
   abortPendingWalletRequest: () => mockAbortPending(),
   hasPendingWalletRequest: () => mockHasPending,

@@ -2,7 +2,7 @@
  * "Has this user got a name?" — asked in three places, and it has to answer the
  * same way in all three (#47).
  *
- *   requireProfileComplete   lib/guards.ts       gates posting and accepting
+ *   requireProfileComplete   lib/http/guards.ts       gates posting and accepting
  *   profile_complete         GET/PATCH users/me  drives mobile's redirect
  *   the stored value         PATCH write paths   what the other two read
  *

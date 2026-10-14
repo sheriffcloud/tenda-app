@@ -44,7 +44,7 @@ export const moderation_verdicts = pgTable(
     model: text('model'),
     cost_usd: numeric('cost_usd', { precision: 10, scale: 6 }),
     latency_ms: integer('latency_ms'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('moderation_verdicts_subject_idx').on(t.subject_kind, t.subject_id),
@@ -62,7 +62,7 @@ export const category_price_stats = pgTable(
     p50_amount_raw: numeric('p50_amount_raw', { precision: 78, scale: 0 }),
     p90_amount_raw: numeric('p90_amount_raw', { precision: 78, scale: 0 }),
     sample_size: integer('sample_size').notNull(),
-    updated_at: timestamp('updated_at').notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.category, t.country, t.asset] })],
 )
@@ -76,5 +76,5 @@ export const moderation_overrides = pgTable('moderation_overrides', {
   value: text('value').notNull(),
   reason: text('reason'),
   created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
-  created_at: timestamp('created_at').notNull().defaultNow(),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })

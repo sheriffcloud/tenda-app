@@ -16,8 +16,8 @@ import {
   type FiatDeps,
   type FiatEvent,
 } from '@server/features/fiat-rails/service'
-import { pickCandidates, supportsRequest } from '@server/features/fiat-rails/routing'
-import { inMemoryQuoteCache, type QuoteCache } from '@server/features/fiat-rails/quote-cache'
+import { pickCandidates, supportsRequest } from '@server/features/fiat-rails/core/routing'
+import { inMemoryQuoteCache, type QuoteCache } from '@server/features/fiat-rails/core/quote-cache'
 import { PAYOUT_CURRENCIES, CHAIN_MANIFEST, exchangeAssetsByChain, EXCHANGE_MAX_FIAT_AMOUNT, P2P_PROVIDER_ID } from '@tenda/shared'
 import {
   p2pInternalProvider,
@@ -29,16 +29,16 @@ import {
   type ProviderHttp,
 } from '@server/features/fiat-rails/providers/licensed-http'
 import { YELLOWCARD_SPEC } from '@server/features/fiat-rails/providers/specs'
-import { mapWebhookOutcome } from '@server/features/fiat-rails/webhooks'
-import { reconcileFiatIntentsHandler } from '@server/jobs/reconcile-fiat-intents'
-import { expireFiatQuotesHandler } from '@server/jobs/expire-fiat-quotes'
+import { mapWebhookOutcome } from '@server/features/fiat-rails/http/webhooks'
+import { reconcileFiatIntentsHandler } from '@server/queue/jobs/reconcile-fiat-intents'
+import { expireFiatQuotesHandler } from '@server/queue/jobs/expire-fiat-quotes'
 import type {
   FiatProvider,
   FiatIntentRow,
   FiatIntentStatus,
   QuoteRequest,
-} from '@server/features/fiat-rails/types'
-import type { FiatStore, NewFiatIntent, IntentPatch } from '@server/features/fiat-rails/store'
+} from '@server/features/fiat-rails/core/types'
+import type { FiatStore, NewFiatIntent, IntentPatch } from '@server/features/fiat-rails/core/store'
 import { AppError } from '@server/lib/errors'
 
 const NOW = new Date('2026-06-01T12:00:00Z')
@@ -351,6 +351,27 @@ test('initiate: KYC url parks the intent on awaiting_provider', async () => {
   assert.strictEqual(out.kyc_url, 'https://kyc.example')
 })
 
+// NOT ADDED HERE, deliberately: the sweep (#105) listed service/intents.ts:86
+// — "bank_account_id required for offramp" — as an unexecuted refusal. It is
+// not. The case below at 'initiate offramp guards: ... missing bank' already
+// runs it, which was MEASURED: deleting that guard fails that case. The sweep's
+// line-attribution heuristic had blamed a nearby uncovered line on this throw.
+// See docs/server_refusal_sweep.md, "measurement correction".
+
+test('initiate guards: a provider that vanished between quote and initiate is 503 (#105 T1)', async () => {
+  // The quote froze `provider: 'a'`, then the registry stopped offering it — a
+  // real state across a deploy or a provider being disabled mid-flight. The
+  // intent must refuse rather than dereference undefined.
+  const { deps } = makeDeps([fakeProvider('a')])
+  const intent_id = await quotedIntent(deps)
+  deps.providers.delete('a')
+  await assert.rejects(
+    initiateIntent(deps, 'user-1', intent_id, {}),
+    (e: unknown) =>
+      e instanceof AppError && e.statusCode === 503 && /provider no longer available/.test(e.message),
+  )
+})
+
 test('initiate guards: a wrong-owner peek is 404 and does NOT burn the quote', async () => {
   const { deps, cache } = makeDeps([fakeProvider('a')])
   const intent_id = await quotedIntent(deps)
@@ -641,6 +662,20 @@ test('p2p quote: onramp returns the matched offer terms; no match -> 503', async
     dryBook.quote({ ...ONRAMP_INPUT, asset: 'SOL_DEVNET', asset_decimals: 9 }),
     (e: unknown) => e instanceof AppError && e.statusCode === 503,
   )
+})
+
+test('p2p quote: a non-usable mid rate is 503, not a NaN quote (#105 T1)', async () => {
+  // `midRate` promises a number and the spread multiplies it, so a NaN or a
+  // non-positive rate would travel into `fiat_amount` and be persisted as a
+  // corrupt quote. The guard existed and nothing ran it.
+  for (const mid of [Number.NaN, Number.POSITIVE_INFINITY, 0, -1]) {
+    const { provider } = p2p({ mid })
+    await assert.rejects(
+      provider.quote({ ...ONRAMP_INPUT, direction: 'offramp', fiat_amount: null, asset: 'SOL_DEVNET', asset_decimals: 9 }),
+      (e: unknown) => e instanceof AppError && e.statusCode === 503 && /no exchange rate available/.test(e.message),
+      `mid=${String(mid)}`,
+    )
+  }
 })
 
 test('p2p quote: offramp marks the mid-rate down by the spread', async () => {

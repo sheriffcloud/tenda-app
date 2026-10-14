@@ -1,0 +1,18 @@
+{
+  "//": "Scoped coverage gate for the public agent card (#84). The repo-wide gate in .c8rc.json sits at 81/82/80/81; raising that globally is a separate decision that would fail on unrelated files, so this asserts the house bar (>90) on the code this work owns — the same shape as .c8rc.contracts.json (#89) and .c8rc.gas-seed-alert.json (#53b). It matters more here than for most features: the URL this route serves is committed ON-CHAIN as an ERC-8004 `agentURI`, so a regression is not merely a bug, it is a signed pointer that has stopped resolving correctly. Run via `pnpm test:coverage:agent-card`, which needs TEST_DATABASE_URL — without it the integration half SKIPS and this gate fails loudly rather than reporting a hollow figure.",
+  "all": true,
+  "src": ["src"],
+  "include": [
+    "src/features/agent-card/**/*.ts",
+    "src/routes/well-known/agents/**/*.ts"
+  ],
+  "exclude": ["src/**/*.d.ts"],
+  "reporter": ["text"],
+  "report-dir": "coverage/agent-card",
+  "clean": true,
+  "check-coverage": true,
+  "lines": 90,
+  "branches": 90,
+  "functions": 90,
+  "statements": 90
+}

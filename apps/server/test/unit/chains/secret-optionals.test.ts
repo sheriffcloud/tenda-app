@@ -14,23 +14,23 @@ function solanaEnv(): NodeJS.ProcessEnv {
 
 function evmEnv(): NodeJS.ProcessEnv {
   return {
-    CHAIN_EIP155_8453_RPC_URL: 'https://primary.example',
-    CHAIN_EIP155_8453_ESCROW_ADDR: EVM,
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM,
+    CHAIN_EIP155_84532_RPC_URL: 'https://primary.example',
+    CHAIN_EIP155_84532_ESCROW_ADDR: EVM,
+    CHAIN_EIP155_84532_TREASURY_ADDR: EVM,
   }
 }
 
 test('EVM reads an optional secondary RPC URL', () => {
   const base = loadChainSecrets({
     ...evmEnv(),
-    CHAIN_EIP155_8453_RPC_URL_FALLBACK: 'https://fallback.example',
-  }).get('eip155:8453')
+    CHAIN_EIP155_84532_RPC_URL_FALLBACK: 'https://fallback.example',
+  }).get('eip155:84532')
   assert.ok(base && base.namespace === 'eip155')
   assert.equal(base.rpcUrlFallback, 'https://fallback.example')
 })
 
 test('an absent EVM fallback remains undefined', () => {
-  const base = loadChainSecrets(evmEnv()).get('eip155:8453')
+  const base = loadChainSecrets(evmEnv()).get('eip155:84532')
   assert.ok(base && base.namespace === 'eip155')
   assert.equal(base.rpcUrlFallback, undefined)
 })
@@ -52,8 +52,8 @@ test('an absent Solana fallback remains undefined', () => {
 
 test('a malformed EVM fallback is a named boot error', () => {
   assert.throws(
-    () => loadChainSecrets({ ...evmEnv(), CHAIN_EIP155_8453_RPC_URL_FALLBACK: 'not a url' }),
-    /malformed value\(s\) for CHAIN_EIP155_8453_RPC_URL_FALLBACK/,
+    () => loadChainSecrets({ ...evmEnv(), CHAIN_EIP155_84532_RPC_URL_FALLBACK: 'not a url' }),
+    /malformed value\(s\) for CHAIN_EIP155_84532_RPC_URL_FALLBACK/,
   )
 })
 
@@ -72,9 +72,9 @@ test('dispute authority resolves independently for Solana and EVM', () => {
     ...solanaEnv(),
     CHAIN_SOLANA_DEVNET_DISPUTE_ADMIN_ADDR: SOL,
   })
-  const evm = loadChainSecrets({ ...evmEnv(), CHAIN_EIP155_8453_DISPUTE_ADMIN_ADDR: EVM })
+  const evm = loadChainSecrets({ ...evmEnv(), CHAIN_EIP155_84532_DISPUTE_ADMIN_ADDR: EVM })
   assert.equal(solana.get('solana:devnet')?.disputeAdmin, SOL)
-  assert.equal(evm.get('eip155:8453')?.disputeAdmin, EVM)
+  assert.equal(evm.get('eip155:84532')?.disputeAdmin, EVM)
 })
 
 test('dispute authority is optional and validates its namespace format', () => {

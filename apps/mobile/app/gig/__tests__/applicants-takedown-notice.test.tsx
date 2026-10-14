@@ -17,7 +17,6 @@
  * blank space above the list on every gig that was perfectly fine — a
  * regression paid by the common case to serve the rare one.
  */
-/* eslint-disable @typescript-eslint/no-require-imports, import/first -- Jest factories load dependencies after hoisting. */
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import type { GigDetail } from '@tenda/shared'
 import { gigDetail, CREATOR_ID } from '@/components/gig/__fixtures__/gig-detail'
@@ -90,6 +89,9 @@ jest.mock('@/components/gig/gig-applications', () => {
   }
 })
 jest.mock('@/components/feedback', () => ({ TransactionMonitor: () => null }))
+// The signer preview pulls the wallet adapter stack (ESM) into Jest; it has
+// its own suite, and this file is about the takedown notice.
+jest.mock('@/components/wallet/SigningWalletRow', () => ({ SigningWalletRow: () => null }))
 jest.mock('@/hooks/useEscrowActions', () => ({
   useEscrowActions: () => ({
     busyAction: null,

@@ -2,8 +2,8 @@ import { StyleProp, ImageStyle } from 'react-native'
 import { Image } from 'expo-image'
 import { useIsDark } from '@/lib/theme'
 
-const LOGO_LIGHT = require('@/assets/images/logo.png')
-const LOGO_DARK = require('@/assets/images/logo_white.png')
+const LOGO_LIGHT = require('@/assets/images/logo_dark.png')
+const LOGO_DARK = require('@/assets/images/logo.png')
 
 interface BrandLogoProps {
   size?: number

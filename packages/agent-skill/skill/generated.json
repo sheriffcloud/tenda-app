@@ -1,0 +1,17 @@
+{
+  "api_version": "2.1.0",
+  "scheme": "tenda-escrow-create",
+  "x402_version": 1,
+  "payment_header": "x-payment",
+  "settlement_header": "x-payment-response",
+  "routes": {
+    "openapiDocument": "/v1/openapi.json",
+    "platformChains": "/v1/platform/chains",
+    "authNonce": "/v1/auth/nonce",
+    "agentRegister": "/v1/agent/register",
+    "agentTasks": "/v1/agent/tasks",
+    "agentTasksValidate": "/v1/agent/tasks/validate",
+    "gigGet": "/v1/gigs/:id"
+  },
+  "auth_message_template": "Tenda wants you to sign in with your wallet:\n{address}\n\nChain: {chain_id}\nURI: {api_base_url}\nNonce: {nonce}\nIssued At: {issued_at}"
+}

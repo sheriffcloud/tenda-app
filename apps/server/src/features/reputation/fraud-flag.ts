@@ -15,7 +15,7 @@ import { and, inArray, isNotNull, sql } from 'drizzle-orm'
 import { escrows, TERMINAL_ESCROW_STATUSES } from '@tenda/shared/db/schema/escrow'
 import type { DisputeRateMetric } from '@tenda/shared'
 import type { AppDatabase } from '@server/plugins/db'
-import { isEscrowParty } from '@server/lib/escrow-party'
+import { isEscrowParty } from '@server/lib/escrow/party'
 import {
   DISPUTE_RATE_FLAG_THRESHOLD_BPS,
   DISPUTE_RATE_MIN_ENGAGEMENTS,

@@ -14,8 +14,8 @@
  * pays for it. The `AlertJob` import below depends on that.
  */
 
-import type { VerifyTxJobPayload } from '@server/jobs/verify-tx'
-import type { OtpMessage } from '@server/lib/otp'
+import type { VerifyTxJobPayload } from '@server/queue/jobs/verify-tx'
+import type { OtpMessage } from '@server/features/auth/otp'
 // TYPE-ONLY, and it must stay that way: features/alerts/types/channel.ts
 // imports `QueueService` back from this module's barrel, so the two reference
 // each other. Both directions are erased today (verified in the emitted JS —
@@ -27,6 +27,10 @@ import type { OtpMessage } from '@server/lib/otp'
 // run through the file containing the plugin body, and now runs through a file
 // whose emitted JS is empty.
 import type { AlertJob } from '@server/features/alerts'
+// Type-only, like the two above. The gas seed is a removable feature
+// (features/gas-seed/index.ts carries the recipe) and this is one of the three
+// lines that removal deletes.
+import type { GasSeedClaimJob } from '@server/features/gas-seed'
 
 /**
  * Every queue this app runs — DERIVED from `JobPayload`, never hand-listed.
@@ -75,7 +79,15 @@ export interface JobPayload {
   'expire-applications': {
     tick_id: string
   }
-  /** Imported from `jobs/verify-tx.ts` so producer + handler share one shape. */
+  /**
+   * #43: release funds stranded in an escrow whose creator never came back to
+   * refund themselves. Same tick-id-only shape as the other repeatables — the
+   * handler derives its eligibility window from its injected clock.
+   */
+  'sweep-escrows': {
+    tick_id: string
+  }
+  /** Imported from `queue/jobs/verify-tx.ts` so producer + handler share one shape. */
   'verify-tx': VerifyTxJobPayload
   reconcile: {
     /**
@@ -99,6 +111,10 @@ export interface JobPayload {
   'update-price-stats': { tick_id: string }
   /** Daily retention sweep of stale personal notifications, tick id for correlation. */
   'prune-notifications': { tick_id: string }
+  /** Daily discard of unfunded drafts past DRAFT_RETENTION_DAYS, tick id for correlation. */
+  'prune-stale-drafts': { tick_id: string }
+  /** Daily delete of one-time codes older than the OTP send limits can count, tick id for correlation. */
+  'prune-auth-otps': { tick_id: string }
   /**
    * Expand a new gig into one notification per matching subscriber.
    *
@@ -119,5 +135,35 @@ export interface JobPayload {
    * fan-out is per channel rather than one job that loops them.
    */
   alerts: AlertJob
+  /**
+   * #53c-1: sign and broadcast one gas seed a user CLAIMED. Carries the pair
+   * that identifies the grant and nothing else — the amount and the destination
+   * wallet are read from the `gas_grants` row inside the handler, because the
+   * row records what the user was actually promised and config may have moved
+   * since.
+   */
+  'gas-seed': GasSeedClaimJob
+  /**
+   * #58: ask the chain what became of a broadcast seed, and record the answer.
+   *
+   * A SEPARATE queue from `gas-seed` rather than more work inside it, and that
+   * separation is the fix rather than a tidying. Confirmation is unbounded in
+   * time — an EVM transfer can mine hours later — so a handler that both
+   * broadcast and confirmed had to either hold a worker slot for the duration or
+   * give up and GUESS an outcome. It guessed, twice, and both guesses lost
+   * money. Split, "not confirmed yet" is a RetryableError and the queue's
+   * backoff is the waiting.
+   *
+   * Same payload as the broadcast job: the grant's key, and nothing that could
+   * go stale between the two.
+   */
+  'gas-seed-confirm': GasSeedClaimJob
+  /**
+   * #53b: read every gas-seed hot wallet and alert on the ones running low.
+   * Tick id only, like the other repeatables — the handler derives its work
+   * list from the `chains` rows, because a chain that stopped carrying a seed
+   * between two ticks has no wallet to warn about.
+   */
+  'gas-seed-balance-check': { tick_id: string }
 }
 

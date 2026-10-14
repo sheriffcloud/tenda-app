@@ -1,38 +1,76 @@
-import { ErrorCode, isCloudinaryUrl, isProofType, PROOF_TYPES, type ProofType } from '@tenda/shared'
+/**
+ * SHAPE validation for a proof-upload batch, both classes: a FILE proof
+ * (image/video/document) is a Cloudinary url owned by the uploader, a DATA
+ * proof (geotag/text/structured) is a parsed payload. Exactly one of the two
+ * per proof — the other must be absent, refused rather than silently dropped.
+ *
+ * Pure and gig-blind on purpose: checks that need the gig's declared params
+ * (geotag radius, structured fields) live in checkDataProofsAgainstGig, which
+ * runs inside the route's transaction where the gig row is loaded.
+ */
+import {
+  ErrorCode,
+  isCloudinaryUrl,
+  isDataProofType,
+  isProofType,
+  parseProofPayload,
+  PROOF_TYPES,
+  type ProofPayload,
+  type ProofType,
+} from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 
 export interface EscrowProofUploadInput {
-  url: string
   type: string
+  url?: string | null
+  payload?: unknown
 }
 
-export interface ValidatedEscrowProofUploadInput extends EscrowProofUploadInput {
+export interface ValidatedEscrowProofUpload {
   type: ProofType
+  url: string | null
+  payload: ProofPayload | null
 }
 
-/** Validate proof type, host, uploader ownership, and optional batch size. */
+function fail(message: string): never {
+  throw new AppError(400, ErrorCode.VALIDATION_ERROR, message)
+}
+
+/**
+ * Validate proof shape, class, host, and uploader ownership; returns the
+ * NORMALISED batch (payload text trimmed etc.) rather than asserting in
+ * place, because normalisation rewrites values.
+ */
 export function validateEscrowProofUploads(
   proofs: EscrowProofUploadInput[],
   userId: string,
   maxCount?: number,
-): asserts proofs is ValidatedEscrowProofUploadInput[] {
+): ValidatedEscrowProofUpload[] {
   if (maxCount !== undefined && proofs.length > maxCount) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR,
-      `Too many proofs, maximum ${maxCount} allowed per submission`)
+    fail(`Too many proofs, maximum ${maxCount} allowed per submission`)
   }
   const expectedFolder = `/tenda/proofs/${userId}/`
-  for (const proof of proofs) {
+  return proofs.map((proof) => {
     if (!isProofType(proof.type)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR,
-        `Proof type must be one of: ${PROOF_TYPES.join(', ')}`)
+      fail(`Proof type must be one of: ${PROOF_TYPES.join(', ')}`)
     }
-    if (!isCloudinaryUrl(proof.url)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR,
-        'All proof URLs must be hosted on Cloudinary (https://res.cloudinary.com/)')
+    if (isDataProofType(proof.type)) {
+      if (proof.url != null) {
+        fail(`A ${proof.type} proof carries a payload, not a url`)
+      }
+      const parsed = parseProofPayload(proof.type, proof.payload)
+      if (parsed.error !== undefined) fail(parsed.error)
+      return { type: proof.type, url: null, payload: parsed.payload }
+    }
+    if (proof.payload != null) {
+      fail(`A ${proof.type} proof carries a url, not a payload`)
+    }
+    if (typeof proof.url !== 'string' || !isCloudinaryUrl(proof.url)) {
+      fail('All proof URLs must be hosted on Cloudinary (https://res.cloudinary.com/)')
     }
     if (!proof.url.includes(expectedFolder)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR,
-        'Proof URL was not uploaded by the submitting user')
+      fail('Proof URL was not uploaded by the submitting user')
     }
-  }
+    return { type: proof.type, url: proof.url, payload: null }
+  })
 }

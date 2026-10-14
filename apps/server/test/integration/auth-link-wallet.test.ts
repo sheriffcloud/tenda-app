@@ -12,7 +12,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { and, eq } from 'drizzle-orm'
-import { user_wallets } from '@tenda/shared/db/schema/identity'
+import { user_identities, user_wallets } from '@tenda/shared/db/schema/identity'
+import { gas_grants } from '@tenda/shared/db/schema/gas-seed'
 import { walletFixture } from '../helpers/fixtures'
 import {
   TEST_DB_CONFIGURED,
@@ -201,4 +202,38 @@ test('link-wallet: re-linking a LEGACY mixed-case wallet (any case) is rejected 
     .select().from(user_wallets)
     .where(and(eq(user_wallets.user_id, u.row.id), eq(user_wallets.chain_ns, 'eip155')))
   assert.strictEqual(rows.length, 1) // still just the one legacy row
+})
+
+test('link-wallet NO LONGER seeds gas — the claim replaced it (#53c-2)', { skip }, async () => {
+  // This case used to pin the auto-send trigger's fire-and-forget contract: a
+  // phone-verified user linking a wallet fired `fireRetroactiveGasSeed`, and a
+  // synchronous throw inside it turned a successful link into a 500.
+  //
+  // That path is GONE. The seed is claimed, not sent, so what needs pinning
+  // now is the opposite fact: linking a wallet as a fully eligible user grants
+  // NOTHING. If some future change reintroduces an automatic send, this fails —
+  // which is the only way the removal stays removed.
+  const app = getApp()
+  const u = await createUser(app)
+  await app.db.insert(user_identities).values({
+    user_id: u.row.id,
+    kind: 'phone',
+    // Derived from the user id, the way `makeTransactable` derives its wallet
+    // address — unique per user without borrowing the address counter.
+    identifier: `+234${u.row.id.replace(/\D/g, '').slice(0, 10)}`,
+    verified_at: new Date(),
+  })
+
+  const address = freshAddress()
+  const res = await link(app, u.token, address)
+  assert.strictEqual(res.statusCode, 200, res.body)
+
+  const rows = await app.db
+    .select({ address: user_wallets.address })
+    .from(user_wallets)
+    .where(and(eq(user_wallets.user_id, u.row.id), eq(user_wallets.chain_ns, 'solana')))
+  assert.deepStrictEqual(rows, [{ address }], 'the wallet is linked')
+
+  const grants = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, u.row.id))
+  assert.deepStrictEqual(grants, [], 'linking a wallet must not grant gas — it is claimed now')
 })

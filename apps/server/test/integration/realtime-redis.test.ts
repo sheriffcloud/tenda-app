@@ -7,7 +7,7 @@ import {
   REALTIME_MAX_MESSAGE_BYTES,
 } from '@server/realtime'
 import type { RealtimeEnvelope } from '@server/realtime'
-import { REALTIME_REDIS_TOPIC } from '@server/realtime/redis-realtime-transport'
+import { REALTIME_REDIS_TOPIC } from '@server/realtime/publisher/redis-realtime-transport'
 
 const redisUrl = process.env.REDIS_URL
 const realtimeRedisTest = redisUrl === undefined ? test.skip : test

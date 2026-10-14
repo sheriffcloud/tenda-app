@@ -7,8 +7,8 @@
  */
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
-import { api, ApiClientError } from '@/api/client'
-import { ErrorCode } from '@tenda/shared'
+import { api } from '@/api/client'
+import { ApiClientError, ErrorCode } from '@tenda/shared'
 import type { EscrowTxType } from '@tenda/shared'
 
 const STORAGE_KEY        = 'tenda_pending_sync'
@@ -184,8 +184,14 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
         })
         get().remove(entry.id)
       } catch (err) {
-        // 409 DUPLICATE_SIGNATURE = already recorded, treat as success.
-        if (err instanceof ApiClientError && err.statusCode === 409 && err.error === ErrorCode.DUPLICATE_SIGNATURE) {
+        // DEFENSIVE: the current v2 client-ping never 409s a duplicate --
+        // tx_attempts inserts with onConflictDoNothing and replays answer 202
+        // {recorded:false} (server routes/v1/blockchain/transaction.ts). The
+        // branch stays because DUPLICATE_SIGNATURE is still in the contract
+        // enum: if a server reintroduces it, "already recorded" must read as
+        // success. Matched on `code` -- `error` is the HTTP label
+        // ('Conflict') and can never equal an ErrorCode.
+        if (err instanceof ApiClientError && err.statusCode === 409 && err.code === ErrorCode.DUPLICATE_SIGNATURE) {
           get().remove(entry.id)
           continue
         }

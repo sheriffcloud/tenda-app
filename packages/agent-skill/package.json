@@ -1,0 +1,31 @@
+{
+  "name": "@tenda/agent-skill",
+  "version": "0.1.0",
+  "description": "An agent skill for hiring a human on Tenda through the public agent API. Install with: npx @tenda/agent-skill install",
+  "license": "BUSL-1.1",
+  "bin": {
+    "tenda-agent-skill": "bin/cli.cjs"
+  },
+  "files": [
+    "bin",
+    "skill"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build:skill": "ts-node src/build.ts",
+    "check:skill": "ts-node src/build.ts --check",
+    "type-check": "tsc --noEmit",
+    "test": "tsc -p tsconfig.json --noEmit && node --test -r ts-node/register \"test/**/*.test.ts\"",
+    "test:coverage": "c8 node --test -r ts-node/register \"test/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@tenda/api-doc": "workspace:*",
+    "@tenda/shared": "workspace:*",
+    "@types/node": "^24.10.13",
+    "c8": "^10.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3"
+  }
+}

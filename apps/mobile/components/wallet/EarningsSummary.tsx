@@ -2,9 +2,17 @@ import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui'
+import { formatAmountOrUnknown } from '@tenda/shared'
 
 /** Two lifetime stat cards (USDC earned / spent) under the wallet hero. */
-export function EarningsSummary({ earnedUsdc, spentUsdc }: { earnedUsdc: number; spentUsdc: number }) {
+/** null = no metadata for the summary's asset, so no figure can be shown. */
+export function EarningsSummary({
+  earnedUsdc,
+  spentUsdc,
+}: {
+  earnedUsdc: number | null
+  spentUsdc: number | null
+}) {
   const { theme } = useUnistyles()
   return (
     <View style={s.earnings}>
@@ -15,7 +23,7 @@ export function EarningsSummary({ earnedUsdc, spentUsdc }: { earnedUsdc: number;
             EARNED
           </Text>
         </View>
-        <Text style={[s.statValue, { color: theme.colors.numeric.positive }]}>+ {earnedUsdc.toFixed(2)}</Text>
+        <Text style={[s.statValue, { color: theme.colors.numeric.positive }]}>+ {formatAmountOrUnknown(earnedUsdc, (v) => v.toFixed(2))}</Text>
         <Text style={[s.statUnit, { color: theme.colors.content.tertiary }]}>USDC · lifetime</Text>
       </View>
       <View style={[s.statCard, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default }]}>
@@ -25,7 +33,7 @@ export function EarningsSummary({ earnedUsdc, spentUsdc }: { earnedUsdc: number;
             SPENT
           </Text>
         </View>
-        <Text style={[s.statValue, { color: theme.colors.numeric.negative }]}>− {spentUsdc.toFixed(2)}</Text>
+        <Text style={[s.statValue, { color: theme.colors.numeric.negative }]}>− {formatAmountOrUnknown(spentUsdc, (v) => v.toFixed(2))}</Text>
         <Text style={[s.statUnit, { color: theme.colors.content.tertiary }]}>USDC · lifetime</Text>
       </View>
     </View>
@@ -38,7 +46,7 @@ const s = StyleSheet.create({
   statLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statDot: { width: 6, height: 6, borderRadius: 3 },
   statLabel: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',
@@ -47,12 +55,12 @@ const s = StyleSheet.create({
     includeFontPadding: false,
   },
   statValue: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 20,
     lineHeight: 24,
     fontWeight: '700',
     letterSpacing: -0.4,
     marginTop: 6,
   },
-  statUnit: { fontFamily: typography.fonts.mono, fontSize: 10, lineHeight: 13, marginTop: 2 },
+  statUnit: { fontFamily: typography.fonts.mono.regular, fontSize: 10, lineHeight: 13, marginTop: 2 },
 })

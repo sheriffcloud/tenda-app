@@ -8,8 +8,8 @@ import react from '@vitejs/plugin-react'
 Object.assign(process.env, { NODE_ENV: 'test' })
 
 // jsdom renders React 19 *client* components only. App Router server
-// components / async pages are out of scope here (Playwright in Phase 2);
-// see TEST_PLAN.md "Admin RSC limit".
+// components / async pages are out of scope here — they are covered by the
+// Playwright e2e suite instead.
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -37,10 +37,10 @@ export default defineConfig({
         // Vendored shadcn hook (upstream-maintained, not our logic).
         'hooks/use-mobile.ts',
       ],
-      // Plan target is line 90 / branch 85 (TEST_PLAN.md). Achieved: lines
-      // 98 / branch 85 / stmts 98. `functions` is floored at 85, not 90: the
-      // metric counts every inline JSX arrow (onChange state-setters) as a
-      // function, so it lags line coverage — the plan's documented caveat.
+      // Target is line 90 / branch 85. Achieved: lines 98 / branch 85 /
+      // stmts 98. `functions` is floored at 85, not 90: the metric counts
+      // every inline JSX arrow (onChange state-setters) as a function, so it
+      // lags line coverage.
       thresholds: { lines: 90, branches: 85, functions: 85, statements: 90 },
     },
   },

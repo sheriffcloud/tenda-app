@@ -21,17 +21,18 @@ export type { FeeArgs } from './fees'
 export {
   computeAcceptDeadline,
   computeCompletionDeadline,
-  computeApprovalDeadline,
 } from './deadlines'
 export type {
   AcceptDeadlineArgs,
   CompletionDeadlineArgs,
-  ApprovalDeadlineArgs,
 } from './deadlines'
 
 export { assertGigAsset, assertExchangeAsset } from './validation'
 
 export { assertNotTakenDown, takedownActionFor } from './takedown'
+export { assertChainNotPaused } from './chain-pause'
 
 export { buildEscrowTx } from './build-tx'
 export type { BuildEscrowTxDeps } from './build-tx'
+
+export { assertCallerWallet, assertSignerLinked, partyCaller, readSignerPreference } from './signer'

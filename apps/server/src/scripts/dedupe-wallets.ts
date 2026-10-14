@@ -19,7 +19,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { and, eq } from 'drizzle-orm'
 import * as schema from '@tenda/shared/db/schema'
 import { user_wallets } from '@tenda/shared/db/schema'
-import { planWalletDedupe, type WalletRow } from '@server/lib/auth/wallet-dedupe'
+import { planWalletDedupe, type WalletRow } from '@server/features/auth/wallets/wallet-dedupe'
 
 async function main(): Promise<void> {
   const apply = process.argv.slice(2).includes('--apply')

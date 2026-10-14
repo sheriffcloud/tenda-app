@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! State-transition instructions that move escrow.status forward.
 //!
 //! - `accept` / `decline` / `submit` move state only (no funds).

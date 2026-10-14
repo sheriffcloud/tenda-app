@@ -1,7 +1,16 @@
+/**
+ * The opaque cursor GET /v1/gigs pages with — encode, decode, and refuse.
+ *
+ * NOT a route — a sibling of index.ts, which is the only file @fastify/autoload
+ * registers from this directory (see the note atop list-filters.ts). Said here
+ * because the header is the only place a reader can tell: a bare file in a route
+ * directory is indistinguishable from a route until you read its exports, and
+ * `list-filters.ts` and `public-feed.ts` beside it both say it.
+ */
 import { Buffer } from 'node:buffer'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 
 export interface GigFeedCursor {
   created_at: Date

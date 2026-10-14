@@ -1,16 +1,54 @@
 /**
  * Exchange READ surface (post-cutover). P2P exchanges are escrows with
  * kind='exchange' — creation and transitions go through /v1/escrows.
- * This file types the order-book browse surface: /v1/exchange (listing,
- * gated by advanced_mode_enabled per decision #14) and /v1/exchange/:id,
- * both served from escrows ⨝ exchange_details.
+ * This file types the order-book browse surface: /v1/exchange and
+ * /v1/exchange/:id, both served from escrows ⨝ exchange_details and both
+ * ANONYMOUS since #179. The old note here said the listing was "gated by
+ * advanced_mode_enabled", which was wrong in both halves even before that:
+ * that flag has only ever gated offer CREATION, and the listing's gate was
+ * plain authentication.
  */
 import type { Dispute, EscrowProof, EscrowStatus } from './escrow'
 import type { Review } from './review'
-import type { UserRef } from './user'
+import type { User, UserRef } from './user'
 import type { PayoutRailKind } from '../fiat/payout/types'
 
 // ── Wire projections ──────────────────────────────────────────────────
+
+/**
+ * Who posted an offer, as a STRANGER may see them (#175).
+ *
+ * Not `UserRef`. That type carries `first_name`, `last_name` and `avatar_url`,
+ * and an exchange row pairs whoever posted it with the money they are moving
+ * and a clock — a full legal name and a face beside that is a targeting list,
+ * which is how P2P fraud actually approaches a seller. `UserRef` stays exactly
+ * as it is for `/v1/gigs`, where publishing the poster IS the product and the
+ * feed is deliberately indexable; the money-movement pairing is what makes
+ * exchange different.
+ *
+ * `full_name` and `avatar_url` are null until the viewer is a SETTLED party —
+ * the same line `payout_account` already sits behind on the detail route, and
+ * for the same stated reason: a pending assignee has not accepted, so the
+ * seller's identity is not theirs to read yet.
+ *
+ * WHAT THIS DOES NOT DO, so nobody reads it as more than it is: `id` is still
+ * here — the profile link and the chat href are built from it — and
+ * `GET /v1/users/:id` is anonymous and answers with the name and the face. So
+ * this withholds the PAIRING from a feed, not the identity from a determined
+ * reader: re-pairing costs one attributable request per row instead of none.
+ * That is a real raise in cost and it is not a seal. `#180` holds the decision.
+ */
+export type ExchangePartyRef = Pick<
+  User,
+  'id' | 'review_score' | 'is_seeker' | 'is_agent' | 'country'
+> & {
+  /** "Wisdom A." — `abbreviatedName`, or '' for a party with no profile name. */
+  display_name: string
+  /** Null unless the viewer is a SETTLED party to THIS escrow. */
+  full_name: string | null
+  /** Null unless the viewer is a SETTLED party to THIS escrow. */
+  avatar_url: string | null
+}
 
 /** Order-book listing item: escrows ⨝ exchange_details. */
 export interface ExchangeSummary {
@@ -27,15 +65,15 @@ export interface ExchangeSummary {
   rate: string
   payment_window_seconds: number
   accept_deadline: string | null
-  created_at: string | null
-  creator: UserRef
+  created_at: string
+  creator: ExchangePartyRef
 }
 
 /**
  * The seller's payout account, as revealed to an accepted buyer so they can
  * pay the fiat off-platform. Carries the FULL account_number (unlike the
  * owner-facing masked BankAccountSummary) — a matched buyer needs it to
- * transfer. Server exposes it ONLY to the offer's parties; null otherwise.
+ * transfer. Server exposes it ONLY to the offer's settled parties; null otherwise.
  */
 export interface ExchangePayoutAccount {
   kind: PayoutRailKind
@@ -56,6 +94,8 @@ export interface ExchangeDetail extends ExchangeSummary {
   is_seeker: boolean
   /** Buyer's fiat receipt — PARTIES ONLY, `null` to everyone else incl. admins. */
   payment_proof_url: string | null
+  /** Viewer-relative bound wallet — same meaning and scoping as GigDetail's. */
+  my_signer_address: string | null
   dispute_bond_raw: string
   completion_deadline: string | null
   submitted_at: string | null
@@ -93,7 +133,7 @@ export interface ExchangeDetail extends ExchangeSummary {
   dispute: Dispute | null
   /** Public: the same rows a profile serves. Reputation is public by design. */
   reviews: Review[]
-  /** Seller's payout account — present only for the offer's parties. */
+  /** Seller's payout account — present only for the offer's settled parties. */
   payout_account: ExchangePayoutAccount | null
 }
 

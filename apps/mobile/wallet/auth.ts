@@ -17,11 +17,10 @@
  * this path and is no longer sent.
  */
 
-import { buildAuthMessage, apiConfig, type VerifyResponse } from '@tenda/shared'
+import { buildAuthMessage, apiConfig, type VerifyResponse, type WalletAccount } from '@tenda/shared'
 import { api } from '@/api/client'
 import { getEnv } from '@/lib/env'
 import { WALLET_CHAINS } from '@/wallet/config'
-import type { SpikeAccount } from '@/wallet/types'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
 /**
@@ -30,7 +29,7 @@ import type { WalletAdapter } from '@/wallet/adapters/types'
  * arbitrary current chain, the signature is namespace-scoped, and the server
  * only verifies against registered chains).
  */
-function authMessageFor(account: SpikeAccount, nonce: string): string {
+function authMessageFor(account: WalletAccount, nonce: string): string {
   return buildAuthMessage({
     address: account.address,
     chain_id: WALLET_CHAINS[account.namespace],
@@ -41,7 +40,7 @@ function authMessageFor(account: SpikeAccount, nonce: string): string {
 
 export interface WalletSignInResult {
   auth: VerifyResponse
-  account: SpikeAccount
+  account: WalletAccount
 }
 
 /**
@@ -75,7 +74,7 @@ export async function signInWithWallet(
  * any existing wallet session so the user can pick a DIFFERENT account than the
  * one already on their JWT. Returns the linked account, or null on decline.
  */
-export async function linkWalletWith(adapter: WalletAdapter): Promise<SpikeAccount | null> {
+export async function linkWalletWith(adapter: WalletAdapter): Promise<WalletAccount | null> {
   const { nonce } = await api.auth.nonce()
   const result = await adapter.authenticate((account) => authMessageFor(account, nonce), {
     forceFresh: true,

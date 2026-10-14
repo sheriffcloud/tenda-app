@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { ArrowDown } from 'lucide-react-native'
-import { formatAssetAmount } from '@tenda/shared'
+import { formatAssetAmount, formatFiat, formatRate } from '@tenda/shared'
 import { radius, spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { ReviewRow } from '@/components/shared/ReviewRow'
@@ -10,7 +10,12 @@ interface Props {
   amountRaw: string
   assetId: string
   fiatTotal: number
-  currencySymbol: string
+  /**
+   * The payout CURRENCY CODE, not its symbol. `formatFiat`/`formatRate` own
+   * symbol placement and the locale — the euro suffixes its symbol and groups
+   * with '.', which a hand-rolled `${symbol}${value}` cannot express.
+   */
+  currency: string
   rate: number
   assetSymbol: string
   payoutLabel: string
@@ -18,7 +23,6 @@ interface Props {
 
 export function OfferReviewCard(props: Props) {
   const { theme } = useUnistyles()
-  const fiat = `${props.currencySymbol}${props.fiatTotal.toLocaleString('en-US')}`
 
   return (
     <View style={[s.card, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default }]}>
@@ -27,10 +31,12 @@ export function OfferReviewCard(props: Props) {
       <View style={[s.arrow, { backgroundColor: theme.colors.brand.primarySurface }]}>
         <ArrowDown size={16} color={theme.colors.brand.primary} />
       </View>
-      <Text variant="heading" color={theme.colors.brand.primary}>{fiat}</Text>
+      <Text variant="heading" color={theme.colors.brand.primary}>
+          {formatFiat(props.fiatTotal, props.currency)}
+        </Text>
       <View style={[s.divider, { backgroundColor: theme.colors.border.subtle }]} />
       <View style={s.rows}>
-        <ReviewRow label="Your rate" value={`${props.currencySymbol}${props.rate.toLocaleString('en-US')} / ${props.assetSymbol}`} />
+        <ReviewRow label="Your rate" value={`${formatRate(props.rate, props.currency)} / ${props.assetSymbol}`} />
         <ReviewRow label="Payout to" value={props.payoutLabel} />
       </View>
     </View>

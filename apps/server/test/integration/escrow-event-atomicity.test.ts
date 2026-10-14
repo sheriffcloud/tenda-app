@@ -17,7 +17,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema/escrow'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
-import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
+import { drizzleEscrowEventStore } from '@server/features/escrows/events'
 import { TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED

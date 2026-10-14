@@ -21,7 +21,7 @@ import { evmAdapter, type EvmAdapterDeps } from '@server/chains/evm'
 import type { ResolvedChainSecret, EvmChainSecret } from '@server/chains/secrets'
 import type { ContractRegistry } from '@server/chains/contracts'
 import type { ChainAdapter, ChainId, ChainRegistry } from '@server/chains/types'
-import { deriveChainNamespace, verifyWalletSignature } from '@server/lib/wallet-signature'
+import { deriveChainNamespace, verifyWalletSignature } from '@server/lib/chain/wallet-signature'
 
 /**
  * Per-chain dependency factory. The plugin implements this (it owns DB access

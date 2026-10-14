@@ -14,6 +14,8 @@
 
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { AppDatabase } from '../plugins/db'
+import type { SessionClient } from '@tenda/shared'
+import type { TokenScope } from '../features/auth/session/scope'
 // `UserRole` is intentionally NOT imported here. v1's enum and v2's
 // `user_role_v2` enum differ (v2 renames 'dispute_resolver' → 'dispute_admin'
 // + new values). Until #34 cutover removes the v1 schema, JWT.role is typed
@@ -22,8 +24,8 @@ import type { AppDatabase } from '../plugins/db'
 import type { QueueService } from '../plugins/queue'
 import type { ChainRegistry } from '../chains/types'
 import type { ContractRegistry } from '../chains/contracts'
-import type { WsBroadcaster } from '../lib/ws'
-import type { QuoteCache } from '../features/fiat-rails/quote-cache'
+import type { WsBroadcaster } from '../realtime/ws'
+import type { QuoteCache } from '../features/fiat-rails/core/quote-cache'
 import type { RealtimePublisher } from '../realtime'
 
 declare module 'fastify' {
@@ -82,10 +84,32 @@ declare module '@fastify/jwt' {
     payload: {
       id: string
       role: string
+      /**
+       * Which client minted this session ('mobile' | 'web'), when it said so.
+       * Optional because web says nothing, older app builds say nothing, and
+       * every token issued before #53c-1 says nothing — a required field here
+       * would invalidate every live session on deploy.
+       *
+       * A generic session fact (see shared constants/session.ts), NOT a
+       * gas-seed hook: it survives the removal of any feature that reads it.
+       */
+      client?: SessionClient
+      /**
+       * Restricts what this token may reach (`features/auth/session/scope.ts`). Present ONLY
+       * on a demo session; absent means unrestricted, so every token minted
+       * before this claim existed keeps working exactly as it did.
+       *
+       * Unlike `client` above — which a caller supplies by header and which its
+       * own docblock calls "NOT a security boundary on its own" — this is
+       * asserted by the server and signed, so `authenticate` may trust it.
+       */
+      scope?: TokenScope
     }
     user: {
       id: string
       role: string
+      client?: SessionClient
+      scope?: TokenScope
     }
   }
 }

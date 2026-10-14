@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! `resolve_dispute_{sol,spl}` — `dispute_admin` distributes vault per winner.
 //!
 //! Vault holds principal + dispute_bond at this point. Distribution:
@@ -151,7 +152,11 @@ fn compute_distribution(
 
     match winner {
         DisputeWinner::Creator => {
-            let bond_refund_to = if raiser == escrow.creator { Some(escrow.creator) } else { None };
+            let bond_refund_to = if raiser == escrow.creator {
+                Some(escrow.creator)
+            } else {
+                None
+            };
             let (bond_to_creator, bond_to_counterparty) = if raiser == escrow.creator {
                 (bond, 0)
             } else {
@@ -173,7 +178,11 @@ fn compute_distribution(
                 .amount
                 .checked_sub(fee)
                 .ok_or(TendaError::ArithmeticUnderflow)?;
-            let bond_refund_to = if raiser == counterparty { Some(counterparty) } else { None };
+            let bond_refund_to = if raiser == counterparty {
+                Some(counterparty)
+            } else {
+                None
+            };
             let (bond_to_creator, bond_to_counterparty) = if raiser == counterparty {
                 (0, bond)
             } else {
@@ -219,16 +228,13 @@ fn compute_distribution(
     }
 }
 
-pub fn handler_sol(
-    ctx: Context<ResolveSol>,
-    winner: DisputeWinner,
-    raiser: Pubkey,
-) -> Result<()> {
+pub fn handler_sol(ctx: Context<ResolveSol>, winner: DisputeWinner, raiser: Pubkey) -> Result<()> {
     let escrow = &ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Disputed, TendaError::InvalidEscrowStatus);
-    let counterparty = escrow
-        .counterparty
-        .ok_or(TendaError::NotCounterparty)?;
+    require!(
+        escrow.status == EscrowStatus::Disputed,
+        TendaError::InvalidEscrowStatus
+    );
+    let counterparty = escrow.counterparty.ok_or(TendaError::NotCounterparty)?;
     require_keys_eq!(
         ctx.accounts.counterparty.key(),
         counterparty,
@@ -239,7 +245,13 @@ pub fn handler_sol(
         TendaError::NotDisputeParty
     );
 
-    let dist = compute_distribution(escrow, &ctx.accounts.platform_state, winner, raiser, counterparty)?;
+    let dist = compute_distribution(
+        escrow,
+        &ctx.accounts.platform_state,
+        winner,
+        raiser,
+        counterparty,
+    )?;
 
     let creator_total = dist
         .creator_payout
@@ -299,16 +311,13 @@ pub fn handler_sol(
     Ok(())
 }
 
-pub fn handler_spl(
-    ctx: Context<ResolveSpl>,
-    winner: DisputeWinner,
-    raiser: Pubkey,
-) -> Result<()> {
+pub fn handler_spl(ctx: Context<ResolveSpl>, winner: DisputeWinner, raiser: Pubkey) -> Result<()> {
     let escrow = &ctx.accounts.escrow;
-    require!(escrow.status == EscrowStatus::Disputed, TendaError::InvalidEscrowStatus);
-    let counterparty = escrow
-        .counterparty
-        .ok_or(TendaError::NotCounterparty)?;
+    require!(
+        escrow.status == EscrowStatus::Disputed,
+        TendaError::InvalidEscrowStatus
+    );
+    let counterparty = escrow.counterparty.ok_or(TendaError::NotCounterparty)?;
     require_keys_eq!(
         ctx.accounts.counterparty_token_account.owner,
         counterparty,
@@ -319,7 +328,13 @@ pub fn handler_spl(
         TendaError::NotDisputeParty
     );
 
-    let dist = compute_distribution(escrow, &ctx.accounts.platform_state, winner, raiser, counterparty)?;
+    let dist = compute_distribution(
+        escrow,
+        &ctx.accounts.platform_state,
+        winner,
+        raiser,
+        counterparty,
+    )?;
 
     let escrow_id = escrow.escrow_id;
     let bump = escrow.bump;

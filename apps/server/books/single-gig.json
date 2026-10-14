@@ -1,0 +1,16 @@
+[
+  {
+    "title": "Photograph today's pump prices at a filling station in Surulere",
+    "description": "Go to any filling station in Surulere and photograph the price board showing today's rate per litre. One clear photo is enough. The PMS (petrol) and diesel numbers must be readable without zooming — stand close enough that the digits fill a good part of the frame, and avoid shooting into the sun or through a windscreen. Take it at the station so the geotag matches; a photo taken elsewhere and uploaded later will be rejected. If the board is blank or the station is closed, photograph it anyway and say so — that is still a useful answer and it still gets paid. Do not photograph attendants or customers.",
+    "category": "errand",
+    "country": "NG",
+    "city": "Lagos",
+    "remote": false,
+    "proof_requirements": [
+      "image"
+    ],
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  }
+]

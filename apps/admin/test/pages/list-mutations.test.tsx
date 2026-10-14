@@ -1,9 +1,10 @@
 import { test, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { Announcement, AdminEscrowRow, FeaturedSlotRow } from '@tenda/shared'
+import type { AdminEscrowRow, FeaturedSlotRow } from '@tenda/shared'
 import { renderPage } from '../test-utils'
-import { adminApi, type FiatIntentRow, type FiatProviderRow, type ModerationVerdictRow } from '@/api/client'
+import { adminApi } from '@/api/client'
+import { announcementRow, intentRow, providerRow, verdictRow } from '../fixtures'
 import EscrowsPage from '@/app/(dashboard)/escrows/page'
 import FeaturedPage from '@/app/(dashboard)/featured/page'
 import AnnouncementsPage from '@/app/(dashboard)/announcements/page'
@@ -76,9 +77,7 @@ test('featured: Remove deletes the slot', async () => {
 })
 
 // ── announcements: publish + toggle + delete ───────────────────────────────
-const announcement = {
-  id: 'a1', title: 'Heads up', body: 'Maintenance', priority: 1, is_active: true, expires_at: null,
-} as Announcement
+const announcement = announcementRow({ id: 'a1', title: 'Heads up', body: 'Maintenance', priority: 1, is_active: true, expires_at: null })
 
 test('announcements: Publish creates with trimmed fields', async () => {
   vi.mocked(adminApi.announcements.list).mockResolvedValue(paginated([]))
@@ -105,14 +104,11 @@ test('announcements: toggling active updates and Delete removes', async () => {
 })
 
 // ── moderation: override ───────────────────────────────────────────────────
-const verdict = {
-  id: 'm1', subject_kind: 'gig', subject_id: 'g1', decision: 'block', reasons: ['spam'],
-  provider: 'openrouter', model: 'gpt', cost_usd: '0.01', latency_ms: 120, created_at: '2026-06-10T00:00:00.000Z',
-} as ModerationVerdictRow
+const verdict = verdictRow({ id: 'm1', subject_kind: 'gig_published', subject_id: 'g1', decision: 'block', reasons: ['spam'], provider: 'claude', model: 'gpt', cost_usd: '0.01', latency_ms: 120 })
 
 test('moderation: a verdict can be overridden with a reason', async () => {
   vi.mocked(adminApi.moderation.verdicts).mockResolvedValue({ verdicts: [verdict], page: 0 })
-  vi.mocked(adminApi.moderation.override).mockResolvedValue(undefined)
+  vi.mocked(adminApi.moderation.override).mockResolvedValue({ override_id: 'o1', original_id: 'm1' })
   renderPage(<ModerationPage />)
   await userEvent.click(await screen.findByRole('button', { name: 'Override' }))
   const dialog = await screen.findByRole('dialog')
@@ -122,17 +118,13 @@ test('moderation: a verdict can be overridden with a reason', async () => {
 })
 
 // ── fiat: provider toggle + intent override ────────────────────────────────
-const provider = { id: 'yc', display_name: 'Yellow Card', priority: 1, is_enabled: true } as FiatProviderRow
-const intent = {
-  id: 'i1', direction: 'onramp', fiat_amount: '50000', fiat_currency: 'NGN',
-  asset_amount_raw: '30000000', asset: 'USDC_BASE', provider: 'yc', status: 'awaiting_provider',
-  created_at: '2026-06-10T00:00:00.000Z',
-} as FiatIntentRow
+const provider = providerRow({ id: 'yc', display_name: 'Yellow Card', priority: 1, is_enabled: true })
+const intent = intentRow({ id: 'i1', direction: 'onramp', fiat_amount: '50000', fiat_currency: 'NGN', asset_amount_raw: '30000000', asset: 'USDC_BASE', provider: 'yc', status: 'awaiting_provider' })
 
 test('fiat: toggling a provider calls updateProvider', async () => {
   vi.mocked(adminApi.fiat.intents).mockResolvedValue({ intents: [] })
   vi.mocked(adminApi.fiat.providers).mockResolvedValue({ providers: [provider] })
-  vi.mocked(adminApi.fiat.updateProvider).mockResolvedValue(provider)
+  vi.mocked(adminApi.fiat.updateProvider).mockResolvedValue({ provider })
   renderPage(<FiatPage />)
   await screen.findByText(/Yellow Card/)
   await userEvent.click(screen.getByRole('switch'))
@@ -142,7 +134,7 @@ test('fiat: toggling a provider calls updateProvider', async () => {
 test('fiat: force-settling a non-terminal intent needs a reason', async () => {
   vi.mocked(adminApi.fiat.intents).mockResolvedValue({ intents: [intent] })
   vi.mocked(adminApi.fiat.providers).mockResolvedValue({ providers: [] })
-  vi.mocked(adminApi.fiat.forceSettle).mockResolvedValue(undefined)
+  vi.mocked(adminApi.fiat.forceSettle).mockResolvedValue({ intent: { ...intent, status: 'settled' } })
   renderPage(<FiatPage />)
   await userEvent.click(await screen.findByRole('button', { name: 'Settle' }))
   const dialog = await screen.findByRole('dialog')

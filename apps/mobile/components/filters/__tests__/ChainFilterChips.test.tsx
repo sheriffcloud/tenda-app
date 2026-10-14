@@ -24,12 +24,14 @@ jest.mock('@/components/ui', () => {
 })
 
 import { ChainFilterChips } from '../ChainFilterChips'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const chain = (id: string, display_name: string): ChainRegistryEntry => ({
   id,
   namespace: id.startsWith('solana') ? 'solana' : 'eip155',
   display_name,
   escrow_address: '0xdead',
+  ...registryEntryDefaults(id),
   assets: [],
 })
 

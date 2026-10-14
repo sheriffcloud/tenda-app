@@ -1,5 +1,5 @@
 /**
- * #85 — grantAdminEmail (lib/admin-auth.ts), the core shared by the
+ * #85 — grantAdminEmail (features/auth/admin/admin-auth.ts), the core shared by the
  * `pnpm admin:grant-email` bootstrap script and the #87 provisioning
  * surface. Grants LOGIN only — never touches users.role.
  */
@@ -8,7 +8,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { admin_users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '../../src/lib/errors'
-import { grantAdminEmail, normalizeAdminEmail } from '../../src/lib/admin-auth'
+import { grantAdminEmail, normalizeAdminEmail } from '../../src/features/auth/admin/admin-auth'
 import { TEST_DB_CONFIGURED, useTestApp, createUser } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
@@ -95,4 +95,45 @@ test('grant: email already used by another admin → 409 EMAIL_IN_USE', { skip }
     (err: unknown) =>
       err instanceof AppError && err.statusCode === 409 && err.code === 'EMAIL_IN_USE',
   )
+})
+
+test('grantAdminEmail: a DB failure that is NOT the email collision is re-thrown as-is (#110)', { skip }, async () => {
+  // features/auth/admin/admin-auth.ts's bare `throw err`, the last line of its catch. The catch
+  // exists to turn ONE postgres error — the admin_users.email unique violation
+  // — into a 409 EMAIL_IN_USE, and everything else must pass through untouched.
+  //
+  // Reached deterministically, no race: `added_by` is a FK to users, so naming
+  // a user that does not exist makes the insert fail with a FOREIGN KEY
+  // violation. Not a unique violation, so `isPostgresUniqueViolation` says no
+  // and the rethrow runs.
+  //
+  // WHAT THIS PROTECTS. If the classifier ever widened — catching by SQLSTATE
+  // class, say — an unrelated database fault would be reported to an operator
+  // as "email already assigned to another admin", and they would go looking for
+  // a duplicate that does not exist.
+  const app = getApp()
+  const admin = await createUser(app, { role: 'super_admin' })
+
+  await assert.rejects(
+    () =>
+      grantAdminEmail(app.db, {
+        user_id: admin.row.id,
+        email: 'ops@tenda.test',
+        added_by: '00000000-0000-0000-0000-000000000000',
+      }),
+    (err: unknown) => {
+      // NOT an AppError: the point is that it was not classified at all.
+      assert.ok(!(err instanceof AppError), `expected the raw driver error, got ${String(err)}`)
+      // Drizzle wraps the driver error, so the words "foreign key" sit on the
+      // CAUSE and not on `message` — measured, having first asserted for them
+      // here and watched it fail. What the surface text does carry is the query
+      // that failed, which is enough to say the error arrived unclassified.
+      assert.match(String(err), /insert into "admin_users"/)
+      return true
+    },
+  )
+
+  // ...and nothing was written, so the failure is not half-applied.
+  const rows = await app.db.select().from(admin_users).where(eq(admin_users.user_id, admin.row.id))
+  assert.deepStrictEqual(rows, [])
 })

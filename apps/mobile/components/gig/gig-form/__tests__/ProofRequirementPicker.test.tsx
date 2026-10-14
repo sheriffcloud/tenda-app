@@ -11,7 +11,7 @@ import { PROOF_TYPES, PROOF_TYPE_LABEL, type ProofType } from '@tenda/shared'
 interface Captured {
   label: string
   hint?: string
-  options: { label: string; value: ProofType }[]
+  options: { label: string; value: ProofType; disabled?: boolean }[]
   isSelected: (value: ProofType) => boolean
   onPress: (value: ProofType) => void
 }
@@ -47,17 +47,34 @@ beforeEach(() => {
   captured = null
 })
 
-function setup(value: ProofType[] = []) {
+function setup(value: ProofType[] = [], remote = false) {
   const onChange = jest.fn()
-  const view = render(<ProofRequirementPicker value={value} onChange={onChange} />)
+  const view = render(<ProofRequirementPicker value={value} onChange={onChange} remote={remote} />)
   return { onChange, view }
 }
 
-test('offers every declared proof type, labelled', () => {
+test('offers the FULL vocabulary, data types included, all enabled', () => {
+  // #15 gave the data types their params + capture UI, so requiring one no
+  // longer strands the worker — every type is on offer.
   setup()
   for (const type of PROOF_TYPES) {
     expect(screen.getByText(PROOF_TYPE_LABEL[type])).toBeTruthy()
   }
+  expect(captured?.options.every((option) => option.disabled === false)).toBe(true)
+})
+
+test('a REMOTE gig disables geotag — unless already selected, so it can still be unpicked', () => {
+  // A remote gig has nowhere to check in; the server refuses the pair. But a
+  // disabled chip cannot be DESELECTED either, so an already-selected geotag
+  // stays pressable as the way out of the refused combination.
+  setup([], true)
+  const disabledTypes = captured?.options.filter((o) => o.disabled).map((o) => o.value)
+  expect(disabledTypes).toEqual(['geotag'])
+
+  const { onChange } = setup(['geotag'], true)
+  expect(captured?.options.find((o) => o.value === 'geotag')?.disabled).toBe(false)
+  captured?.onPress('geotag')
+  expect(onChange).toHaveBeenCalledWith([])
 })
 
 test('carries the label and the optional-requirement hint', () => {

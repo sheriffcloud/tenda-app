@@ -1,5 +1,5 @@
 import { DurationChips, type DurationOption } from '@/components/ui/DurationChips'
-import { ACCEPT_DEADLINE_OPTIONS } from './constants'
+import { ACCEPT_DEADLINE_OPTIONS } from '@tenda/shared'
 
 // The shared picker is unit-agnostic; gigs measure the accept window in hours.
 const OPTIONS: readonly DurationOption[] = ACCEPT_DEADLINE_OPTIONS.map((o) => ({

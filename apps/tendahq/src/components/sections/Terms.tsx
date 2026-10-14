@@ -10,11 +10,11 @@ function LegalSection({
   children: React.ReactNode
 }) {
   return (
-    <section className="grid gap-3 border-t border-[var(--border)] pt-8 first:border-t-0 first:pt-0 md:grid-cols-[220px_1fr] md:gap-8">
-      <h2 className="text-lg font-bold tracking-[-0.02em] text-[var(--heading)] sm:text-xl">
+    <section className="grid gap-3 border-t border-[var(--border-default)] pt-8 first:border-t-0 first:pt-0 md:grid-cols-[220px_1fr] md:gap-8">
+      <h2 className="text-lg font-bold tracking-[-0.02em] text-[var(--content-primary)] sm:text-xl">
         {title}
       </h2>
-      <div className="space-y-4 text-sm leading-7 text-[var(--text)] sm:text-base">
+      <div className="space-y-4 text-sm leading-7 text-[var(--content-secondary)] sm:text-base">
         {children}
       </div>
     </section>
@@ -25,19 +25,19 @@ export function Terms() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-20 sm:px-6 sm:py-24">
       <div className="mb-12 max-w-2xl">
-        <div className="mb-4 inline-flex rounded-full border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface)_92%,transparent)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">
+        <div className="mb-4 inline-flex rounded-full border border-[var(--border-default)] bg-[color-mix(in_oklab,var(--surface-card)_92%,transparent)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-primary)]">
           Legal
         </div>
 
-        <h1 className="text-4xl font-black tracking-[-0.04em] text-[var(--heading)] sm:text-5xl">
+        <h1 className="text-4xl font-black tracking-[-0.04em] text-[var(--content-primary)] sm:text-5xl">
           Terms of Service
         </h1>
 
-        <p className="mt-3 text-sm text-[var(--text-muted)]">
+        <p className="mt-3 text-sm text-[var(--content-tertiary)]">
           Effective: {EFFECTIVE_DATE}
         </p>
 
-        <p className="mt-6 text-base leading-7 text-[var(--text-muted)] sm:text-lg">
+        <p className="mt-6 text-base leading-7 text-[var(--content-tertiary)] sm:text-lg">
           These terms govern use of {APP_INFO.name}. They explain the platform model, responsibilities,
           and limitations around wallet-based, non-custodial gig transactions.
         </p>
@@ -92,7 +92,7 @@ export function Terms() {
 
         <LegalSection title="7. Prohibited Conduct">
           <p>You agree not to:</p>
-          <ul className="list-disc space-y-2 pl-5 text-[var(--text)] marker:text-[var(--primary)]">
+          <ul className="list-disc space-y-2 pl-5 text-[var(--content-secondary)] marker:text-[var(--brand-primary)]">
             <li>Post fraudulent or illegal gigs</li>
             <li>Submit false proof of work</li>
             <li>Manipulate, exploit, or abuse the smart contract or platform</li>
@@ -133,7 +133,7 @@ export function Terms() {
             Questions? Reach us on{' '}
             <a
               href={APP_INFO.twitterUrl}
-              className="font-medium text-[var(--primary)] no-underline hover:text-[var(--heading)]"
+              className="font-medium text-[var(--brand-primary)] no-underline hover:text-[var(--content-primary)]"
               target="_blank"
               rel="noreferrer"
             >
@@ -142,7 +142,7 @@ export function Terms() {
             or{' '}
             <a
               href={APP_INFO.telegramUrl}
-              className="font-medium text-[var(--primary)] no-underline hover:text-[var(--heading)]"
+              className="font-medium text-[var(--brand-primary)] no-underline hover:text-[var(--content-primary)]"
               target="_blank"
               rel="noreferrer"
             >

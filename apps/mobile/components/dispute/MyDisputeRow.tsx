@@ -1,12 +1,11 @@
 import { Pressable, View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { ChevronRight } from 'lucide-react-native'
-import { winnerLabel } from '@tenda/shared'
+import { winnerLabel, formatRelativeShort } from '@tenda/shared'
 import type { MyDisputeRow as MyDisputeRowData } from '@tenda/shared'
 import { Text } from '@/components/ui/Text'
 import { GigStatusBadge } from '@/components/gig/GigStatusBadge'
 import { ExchangeStatusBadge } from '@/components/exchange/ExchangeStatusBadge'
-import { formatRelativeShort } from '@/lib/date'
 import { spacing } from '@/theme/tokens'
 
 interface Props {

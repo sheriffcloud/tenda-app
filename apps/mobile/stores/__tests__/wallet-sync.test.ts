@@ -3,20 +3,13 @@ import type { LinkedWallet, MeResponse, MeUser } from '@tenda/shared'
 // ApiClientError is defined inside the factory (jest hoists mocks above imports);
 // isRetriableMeError's `instanceof` matches because both resolve to this class.
 jest.mock('@/api/client', () => {
-  class ApiClientError extends Error {
-    statusCode: number
-    code?: string
-    constructor(statusCode: number, _error = '', message = '', code?: string) {
-      super(message)
-      this.statusCode = statusCode
-      this.code = code
-    }
-  }
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  const { ApiClientError } = jest.requireActual('@tenda/shared')
   return { ApiClientError, api: {} }
 })
 
 import { reconcileWalletState, isRetriableMeError, type WalletSlice } from '@/stores/wallet-sync'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 
 const EVM = '0xAbC0000000000000000000000000000000000001'
 const SOL = 'So1anaAddr11111111111111111111111111111111'

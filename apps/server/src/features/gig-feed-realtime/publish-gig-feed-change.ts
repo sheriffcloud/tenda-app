@@ -3,7 +3,7 @@ import { and, eq, gt, isNull, or, sql } from 'drizzle-orm'
 import { GIG_FEED_CHANNEL, type GigUnavailableCause } from '@tenda/shared'
 import { escrows } from '@tenda/shared/db/schema/escrow'
 import type { FastifyInstance } from 'fastify'
-import { loadPublicGigSummary } from '@server/lib/gig-read'
+import { loadPublicGigSummary } from '@server/features/gigs/gig-read'
 
 export type GigFeedChange = 'available' | GigUnavailableCause
 

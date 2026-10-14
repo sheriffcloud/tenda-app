@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DisputeMessage, DisputeThreadResponse } from '@tenda/shared'
+import {
+  classifyDisputeSendError,
+  type DisputeMessage,
+  type DisputeSendResult,
+  type DisputeThreadResponse,
+  type UploadedAttachment,
+} from '@tenda/shared'
 import { api } from '@/api/client'
-import type { UploadedAttachment } from '@/lib/attachments'
-import { classifyDisputeSendError, type DisputeSendResult } from '@/lib/dispute-send-error'
 
 const POLL_INTERVAL_MS = 4_000
 const POLL_IDLE_MS = 10_000

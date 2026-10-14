@@ -1,11 +1,11 @@
 /**
- * lib/env.ts — the two rules every env reader agrees on: blank means absent,
+ * config/env.ts — the two rules every env reader agrees on: blank means absent,
  * and a URL from env must be genuinely absolute. The URL cases that matter are
  * the ones plain `new URL()` accepts; this helper exists to reject those.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { isAbsoluteUrl, optionalEnv, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
+import { isAbsoluteUrl, optionalEnv, positiveIntegerEnv, positiveIntegerProblem, stripTrailingSlash, urlEnvProblems } from '@server/config/env'
 
 const HTTPS = ['https'] as const
 const HTTP_S = ['https', 'http'] as const
@@ -115,3 +115,29 @@ test('stripTrailingSlash removes exactly one trailing slash', () => {
   assert.strictEqual(stripTrailingSlash('https://admin.tenda.app//'), 'https://admin.tenda.app/')
   assert.strictEqual(stripTrailingSlash(''), '')
 })
+
+// ---------- positive-integer vars (moved here from config.ts at #147) ----------
+
+test('positiveIntegerEnv: the fallback when unset or blank, the value when a positive integer', () => {
+  assert.strictEqual(positiveIntegerEnv('N', 20, {}), 20)
+  assert.strictEqual(positiveIntegerEnv('N', 20, { N: '   ' }), 20)
+  assert.strictEqual(positiveIntegerEnv('N', 20, { N: '7' }), 7)
+  assert.strictEqual(positiveIntegerEnv('N', 20, { N: ' 42 ' }), 42)
+})
+
+test('positiveIntegerEnv: a set-but-malformed value answers the fallback — refusing it is positiveIntegerProblem\'s job', () => {
+  // '1e3' is NOT here: Number('1e3') is 1000, a safe positive integer, and the
+  // helper has always accepted it — pinned below so the boundary is on record.
+  for (const bad of ['0', '-1', '2.5', 'many', String(Number.MAX_SAFE_INTEGER + 2)]) {
+    assert.strictEqual(positiveIntegerEnv('N', 20, { N: bad }), 20, bad)
+    assert.deepStrictEqual(positiveIntegerProblem('N', { N: bad }), ['N must be a positive integer'], bad)
+  }
+})
+
+test('positiveIntegerProblem: nothing to report when unset, blank or well-formed', () => {
+  assert.strictEqual(positiveIntegerEnv('N', 20, { N: '1e3' }), 1000)
+  assert.deepStrictEqual(positiveIntegerProblem('N', {}), [])
+  assert.deepStrictEqual(positiveIntegerProblem('N', { N: '' }), [])
+  assert.deepStrictEqual(positiveIntegerProblem('N', { N: '3' }), [])
+})
+

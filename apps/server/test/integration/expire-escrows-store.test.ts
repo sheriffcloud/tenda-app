@@ -1,5 +1,5 @@
 /**
- * jobs/expire-escrows — the REAL Drizzle queries against Postgres.
+ * queue/jobs/expire-escrows — the REAL Drizzle queries against Postgres.
  *
  * test/unit/expire-escrows.test.ts drives the handler through a fake store, so
  * it verifies the windowing and idempotency logic but never executes SQL. That
@@ -9,7 +9,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { drizzleExpireEscrowsStore, EXPIRE_BATCH_LIMIT } from '@server/jobs/expire-escrows'
+import { drizzleExpireEscrowsStore, EXPIRE_BATCH_LIMIT } from '@server/queue/jobs/expire-escrows'
 import {
   TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow,
   type TestUser,

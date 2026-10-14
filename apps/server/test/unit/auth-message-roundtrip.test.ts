@@ -7,7 +7,7 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { buildAuthMessage } from '@tenda/shared'
-import { parseAuthMessage } from '@server/lib/auth-message'
+import { parseAuthMessage } from '@server/features/auth/session/auth-message'
 
 const INPUT = {
   address: '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5dVDU1',

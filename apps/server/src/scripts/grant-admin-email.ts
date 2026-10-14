@@ -23,7 +23,7 @@
  * with. added_by stays NULL here to mark ops (non-dashboard) grants.
  */
 import 'dotenv/config'
-import { grantAdminEmail, resolveAdminCandidates } from '@server/lib/admin-auth'
+import { grantAdminEmail, resolveAdminCandidates } from '@server/features/auth/admin/admin-auth'
 import { confirm, describeCandidate, parseYesFlag, withDb } from '@server/scripts/_admin-cli'
 
 async function main(): Promise<void> {

@@ -20,9 +20,9 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@sol
 import { discriminatorFor, type InstructionName } from '@tenda/shared/idl'
 import { AppError } from '@server/lib/errors'
 import { solanaAdapter, verifyEd25519 } from '@server/chains/solana'
-import { ataProvisioningIx } from '@server/chains/solana/builder-internals'
+import { ataProvisioningIx } from '@server/chains/solana/build/builder-internals'
 import { escrowPdaFromUuid, platformPda, tokenVaultPda, vaultPda } from '@server/chains/solana/pdas'
-import { uuidToBytes, bytesToUuid } from '@server/chains/ids'
+import { uuidToBytes, bytesToUuid } from '@server/chains/shared/ids'
 import type { UnsignedTx } from '@server/chains/types'
 import {
   COUNTERPARTY,
@@ -82,6 +82,7 @@ function makeAdapter(rpc: FakeSolanaRpc, resolvedUserIds: string[] = []) {
 function decodeUnsigned(unsigned: UnsignedTx): {
   programId: string
   discriminator: Buffer
+  args: Buffer
   keys: string[]
   payer: string
   instructionCount: number
@@ -108,6 +109,7 @@ function decodeUnsigned(unsigned: UnsignedTx): {
   return {
     programId: keys[main.programIdIndex],
     discriminator: Buffer.from(main.data.slice(0, 8)),
+    args: Buffer.from(main.data.slice(8)),
     keys: main.accountKeyIndexes.map((i) => keys[i]),
     payer: keys[0],
     instructionCount: ixs.length,
@@ -239,6 +241,29 @@ test('buildTx acceptEscrow: escrow + platform PDAs, signer wallet', async () => 
     platformPda().toBase58(),
   ])
   assert.strictEqual(d.payer, COUNTERPARTY.toBase58())
+})
+
+test('buildTx: a BOUND transition is built for the CHAIN address, never the primary guess', async () => {
+  // The signer contract's core promise. user-creator's primary resolves to
+  // CREATOR, but the on-chain counterparty is COUNTERPARTY — the tx must be
+  // payable only by the wallet the chain bound at accept. Reverting the
+  // builder to resolveWalletAddress(user_id) fails this (payer = CREATOR).
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { submitted: {} } })
+  const a = makeAdapter(rpc)
+  const unsigned = await a.buildTx({
+    action: 'claimStalledPayment',
+    user_id: 'user-creator', // primary would resolve to CREATOR
+    caller: 'counterparty',
+    payload: { escrow_id: ESCROW_UUID },
+  })
+  const d = decodeUnsigned(unsigned)
+  assert.strictEqual(d.payer, COUNTERPARTY.toBase58())
+  // …and the requirement is REPORTED on the wire for the client to enforce.
+  assert.strictEqual(unsigned.kind, 'solana-tx')
+  if (unsigned.kind === 'solana-tx') {
+    assert.strictEqual(unsigned.signer_address, COUNTERPARTY.toBase58())
+  }
 })
 
 test('buildTx: a transition on a SUPERSEDED program\'s escrow is refused, not built', async () => {
@@ -958,6 +983,26 @@ test('buildTx assignAccept: creator signs, worker rides as an ARGUMENT not an ac
   assert.ok(!d.keys.includes(COUNTERPARTY.toBase58()), 'worker must not be an account')
   // …but their wallet must still have been resolved, to ride as an argument.
   assert.ok(resolved.includes('user-counterparty'))
+})
+
+test('buildTx assignAccept: an application-chosen worker_address is baked VERBATIM, resolver never asked', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { open: {} }, counterparty: null })
+  const resolved: string[] = []
+  const a = makeAdapter(rpc, resolved)
+  // Distinct from every fixture wallet: proves the ARGUMENT is the choice.
+  const chosen = WALLETS['user-admin']
+  const unsigned = await a.buildTx({
+    action: 'assignAccept',
+    user_id: 'user-creator',
+    payload: { escrow_id: ESCROW_UUID, worker_user_id: 'user-counterparty', worker_address: chosen },
+  })
+  const d = decodeUnsigned(unsigned)
+  expectDiscriminator(d.discriminator, 'assignAccept')
+  // The instruction argument IS the chosen wallet (32 bytes after the tag)…
+  assert.deepStrictEqual(Array.from(d.args.subarray(0, 32)), Array.from(bs58.decode(chosen)))
+  // …and the primary-first resolver was never consulted for the worker.
+  assert.ok(!resolved.includes('user-counterparty'), 'resolver must not run when the choice rides the payload')
 })
 
 test('buildTx assignAccept: a worker with no wallet on this chain fails cleanly', async () => {

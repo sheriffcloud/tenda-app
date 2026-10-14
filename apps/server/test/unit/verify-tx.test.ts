@@ -1,5 +1,5 @@
 /**
- * jobs/verify-tx — the full Stage-2 pipeline: dedup → adapter verify →
+ * queue/jobs/verify-tx — the full Stage-2 pipeline: dedup → adapter verify →
  * status-guarded application → attempt stamping → best-effort republish.
  * Offline: fake adapter registry + in-memory stores.
  */
@@ -13,14 +13,14 @@ import {
   type VerifyTxDeps,
   type VerifyTxJobPayload,
   type VerifyTxStore,
-} from '@server/jobs/verify-tx'
+} from '@server/queue/jobs/verify-tx'
 import type {
   ChainAdapter,
   ChainRegistry,
   DecodedEvent,
   VerifiedTx,
 } from '@server/chains/types'
-import type { EscrowEventStore, EscrowPatch } from '@server/lib/escrow-events'
+import type { EscrowEventStore, EscrowPatch } from '@server/features/escrows/events'
 import type { EscrowStatus } from '@server/lib/escrow'
 import { TEST_ESCROW_PROGRAM } from '../helpers/fixtures'
 
@@ -93,6 +93,8 @@ function makeDeps(opts: {
     namespace: 'solana',
     chain_id: 'solana:devnet',
     escrowAddress: 'FakeProgram1111111111111111111111111111111',
+    approvalWindowSeconds: async () => 86_400,
+    getFees: async () => ({ fee_bps: 250, seeker_fee_bps: 100 }),
     async buildTx() {
       throw new Error('not used')
     },

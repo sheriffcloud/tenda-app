@@ -9,7 +9,13 @@ interface AnnouncementCardProps {
   announcement: AnnouncementWire
 }
 
-/** A pinned, informational broadcast banner (no read state — persistent notice). */
+/**
+ * A pinned, informational broadcast banner. No PER-CARD read state: the whole
+ * pinned set is cleared at once by mark-all-read, which advances the viewer's
+ * `announcements_read_at` cursor, and the server then stops serving them. So
+ * the card never renders a read/unread distinction — everything it is handed
+ * is unread by construction.
+ */
 export function AnnouncementCard({ announcement }: AnnouncementCardProps) {
   const { theme } = useUnistyles()
 

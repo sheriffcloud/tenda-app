@@ -5,9 +5,9 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { uuidParamGuard } from '@server/lib/guards'
+import { uuidParamGuard } from '@server/lib/http/guards'
 import { buildFiatDeps, cancelIntent } from '@server/features/fiat-rails'
-import { requireFiatRails } from '@server/lib/fiat-routes'
+import { requireFiatRails } from '@server/features/fiat-rails/http/fiat-routes'
 
 const route: FastifyPluginAsync = async (fastify) => {
   // Malformed `:id` reaches postgres as a uuid comparison and throws;

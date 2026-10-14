@@ -13,7 +13,7 @@ import { ESCROW_IDL, type TendaEscrow } from '@tenda/shared/idl'
 import type { SolanaRpc, SolanaTxResult } from '@server/chains/solana/rpc'
 import type { EscrowAccount, PlatformStateAccount } from '@server/chains/solana/pdas'
 import { PROGRAM_ID } from '@server/chains/solana/pdas'
-import { uuidToBytes } from '@server/chains/ids'
+import { uuidToBytes } from '@server/chains/shared/ids'
 
 /**
  * Encoding-only Program — the Connection is a placeholder that is never
@@ -115,7 +115,6 @@ export function platformStateFixture(
     seekerFeeBps: 100,
     approvalWindowSeconds: new BN(172_800),
     gracePeriodSeconds: new BN(3_600),
-    totalVolume: new BN(0),
     bump: 255,
     ...overrides,
   }

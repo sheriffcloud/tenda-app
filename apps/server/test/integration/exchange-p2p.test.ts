@@ -11,7 +11,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { and, eq } from 'drizzle-orm'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { escrows, exchange_details } from '@tenda/shared/db/schema'
 import { EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS } from '@tenda/shared'
 import { buildProviders } from '@server/features/fiat-rails'
@@ -21,10 +21,10 @@ import {
   TEST_ASSET,
   TEST_NATIVE_ASSET,
   useTestApp,
+  createTransactableUser,
   createUser,
   createEscrow,
   createBankAccount,
-  makeTransactable,
   attachExchangeDetails,
   authHeader,
   type TestUser,
@@ -46,6 +46,38 @@ function offerBody(escrow_id: string, overrides: Record<string, unknown> = {}) {
   return { escrow_id, fiat_amount: 15_000, fiat_currency: 'NGN', rate: 1_500, ...overrides }
 }
 
+/**
+ * A validation rail answers 400 AND names its own field.
+ *
+ * The message half is not decoration (#97, #98). `offerBody` carries no
+ * payout_account_id, so ANY request that gets past the rails falls through to
+ * "payout_account_id is required" — which is also a 400. Asserting the status
+ * alone therefore passes whether or not the rail fired, and that is MEASURED
+ * rather than suspected. NINE cases call this helper, covering five of the
+ * route's body guards. Eight mutations were run one at a time and each left
+ * every other case in this file green: the currency guard disabled outright
+ * (#97); five clauses deleted one by one (#98) — fiat_amount <= 0, rate <= 0,
+ * the window minimum, and the two upper bounds; and (#100) the escrow_id guard
+ * replaced by a fallback id, and the omitted-currency `?? ''` arm defaulted to
+ * a valid code. The message is what ties a case to the rail it names.
+ *
+ * `offerBody` is deliberately NOT given a payout account instead. That would
+ * make a validation request fail only for the reason it names, but it is called
+ * directly by five other tests (eight sites) — one of which exists to prove
+ * payout_account_id is REQUIRED, and would then have to delete the key the
+ * fixture had just handed it.
+ */
+async function assertRail(
+  post: (payload: Record<string, unknown>) => Promise<LightMyRequestResponse>,
+  escrow_id: string,
+  overrides: Record<string, unknown>,
+  field: RegExp,
+): Promise<void> {
+  const res = await post(offerBody(escrow_id, overrides))
+  assert.strictEqual(res.statusCode, 400)
+  assert.match(res.json().message, field)
+}
+
 test('POST /v1/exchange: validation — amount, rate, currency, window', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
@@ -53,13 +85,30 @@ test('POST /v1/exchange: validation — amount, rate, currency, window', { skip 
   const post = (payload: Record<string, unknown>) =>
     app.inject({ method: 'POST', url: '/v1/exchange', headers: authHeader(u.token), payload })
 
-  assert.strictEqual((await post(offerBody(escrow.id, { fiat_amount: -5 }))).statusCode, 400)
-  assert.strictEqual((await post(offerBody(escrow.id, { rate: 0 }))).statusCode, 400)
-  assert.strictEqual((await post(offerBody(escrow.id, { fiat_currency: 'XXX' }))).statusCode, 400)
-  assert.strictEqual(
-    (await post(offerBody(escrow.id, { payment_window_seconds: 60 }))).statusCode,
-    400,
-  )
+  await assertRail(post, escrow.id, { fiat_amount: -5 }, /fiat_amount/)
+  await assertRail(post, escrow.id, { rate: 0 }, /^rate must be/)
+  await assertRail(post, escrow.id, { fiat_currency: 'XXX' }, /fiat_currency/)
+  await assertRail(post, escrow.id, { payment_window_seconds: 60 }, /payment_window_seconds/)
+})
+
+test('POST /v1/exchange: the body rails — a missing escrow_id and a missing currency', { skip }, async () => {
+  // The two refusals #100 found with no test at all. Both are the FIRST thing
+  // their value meets, so neither can be reached by the cases above:
+  //   - escrow_id guards before any other field is read;
+  //   - fiat_currency is `String(body.fiat_currency ?? '').toUpperCase()`, so an
+  //     OMITTED currency takes the `?? ''` arm and lands on the same vocabulary
+  //     refusal an unlisted code gets. That arm was untaken — every existing
+  //     case sends a currency, valid or not.
+  const app = getApp()
+  const u = await createUser(app)
+  const escrow = await createEscrow(app, { creator_id: u.row.id, kind: 'exchange' })
+  const post = (payload: Record<string, unknown>) =>
+    app.inject({ method: 'POST', url: '/v1/exchange', headers: authHeader(u.token), payload })
+
+  // `undefined` is dropped by JSON serialisation, so the key is absent on the wire.
+  await assertRail(post, escrow.id, { escrow_id: undefined }, /escrow_id is required/)
+  await assertRail(post, escrow.id, { escrow_id: '' }, /escrow_id is required/)
+  await assertRail(post, escrow.id, { fiat_currency: undefined }, /fiat_currency must be one of/)
 })
 
 test('POST /v1/exchange: 403 non-creator, 409 gig escrow, 409 published', { skip }, async () => {
@@ -675,8 +724,7 @@ test('PATCH /users/me: advanced_mode_enabled toggles on and off; non-boolean 422
 
 test('p2p offramp: server-opened offers are publishable as-is (deadlines stamped)', { skip }, async () => {
   const app = getApp()
-  const seller = await createUser(app)
-  await makeTransactable(app, seller.row.id) // publish clears the 9D first-transaction gate
+  const seller = await createTransactableUser(app) // publish clears the 9D first-transaction gate
   const provider = p2pProvider(app)
 
   const before = Date.now()
@@ -833,8 +881,8 @@ test('POST /v1/exchange: absurd terms hit the validation rails, not the driver',
   const post = (payload: Record<string, unknown>) =>
     app.inject({ method: 'POST', url: '/v1/exchange', headers: authHeader(u.token), payload })
 
-  const hugeFiat = await post(offerBody(escrow.id, { fiat_amount: 1e18 }))
-  assert.strictEqual(hugeFiat.statusCode, 400)
-  const hugeRate = await post(offerBody(escrow.id, { rate: 1e12 }))
-  assert.strictEqual(hugeRate.statusCode, 400)
+  // The UPPER rails, the same shape as the lower ones above and just as unable
+  // to speak for themselves on status alone.
+  await assertRail(post, escrow.id, { fiat_amount: 1e18 }, /fiat_amount/)
+  await assertRail(post, escrow.id, { rate: 1e12 }, /^rate must be/)
 })

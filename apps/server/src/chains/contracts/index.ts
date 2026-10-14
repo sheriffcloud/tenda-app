@@ -4,7 +4,7 @@
  *
  * Named exports rather than `export *`: `export type` marks what is erased and
  * `export` what survives to runtime, and no `__exportStar` loop is emitted —
- * same convention as `lib/escrow-events`.
+ * same convention as `features/escrows/events`.
  */
 
 export { normalizeContractAddress } from './normalize'

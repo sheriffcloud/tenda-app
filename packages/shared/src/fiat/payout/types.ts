@@ -58,6 +58,26 @@ export interface PayoutRailSpec {
   /** Short label for the rail selector ('Bank account', 'Mobile money'). */
   label: string
   fields: PayoutFieldSpec[]
+  /**
+   * Canonical form of the account number, applied by the server BEFORE
+   * validating and storing.
+   *
+   * OPTIONAL, and the fallback is a trim — not identity. Every validator here
+   * trims before it checks, so a padded number is accepted by all of them; a
+   * rail that declared nothing would have had that padding stored, and the
+   * `(user_id, kind, bank_code, account_number)` uniqueness constraint reads
+   * two spellings of one account as two accounts. Trimming is therefore the
+   * server's default rather than each rail's business.
+   *
+   * Declare this only when a rail deliberately accepts more than one spelling
+   * of the same account and a trim is not enough to reconcile them. AE is the
+   * one: `requireIban` takes the grouped form people paste from their bank, so
+   * its canonical form strips INTERNAL spacing and upper-cases as well — with
+   * a plain trim, "AE07 0331 …" would still have stored spaced, masking to
+   * "•••  456" instead of "••• 3456". A validator that accepts several forms
+   * has to say which one is the account.
+   */
+  normalizeAccountNumber?(accountNumber: string): string
   /** Validate a candidate account; returns a human message, or null if valid. */
   validate(input: PayoutAccountInput): string | null
   /** Masked account number for display ('•••• 6789'). */

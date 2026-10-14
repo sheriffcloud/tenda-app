@@ -107,21 +107,6 @@ jest.mock('@/wallet/picker', () => {
   }
 })
 
-jest.mock('@/api/client', () => {
-  // Defined inside the factory so auth-flow's `instanceof ApiClientError`
-  // resolves to THIS class (the test imports it from the mocked module too).
-  class ApiClientError extends Error {
-    statusCode: number
-    code?: string
-    constructor(statusCode: number, error: string, message: string, code?: string) {
-      super(message)
-      this.statusCode = statusCode
-      this.code = code
-    }
-  }
-  return { ApiClientError }
-})
-
 jest.mock('@/stores/auth.store', () => {
   const state: { signInWithWallet: jest.Mock; profileComplete: boolean } = {
     signInWithWallet: jest.fn(),
@@ -134,8 +119,7 @@ jest.mock('@/stores/auth.store', () => {
 
 import ConnectWalletScreen from '@/app/(auth)/connect-wallet'
 import { useAuthStore } from '@/stores/auth.store'
-import { WalletError } from '@/wallet/errors'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError, WalletError } from '@tenda/shared'
 
 const authState = useAuthStore.getState()
 const signInMock = authState.signInWithWallet as jest.Mock

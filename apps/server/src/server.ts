@@ -3,8 +3,8 @@ import 'dotenv/config'
 import Fastify from 'fastify'
 import {app, options} from './app'
 import { loadConfig } from './config'
-import { migrateOnBoot } from './lib/boot-migrate'
-import { seedOnBoot } from './lib/boot-seed'
+import { migrateOnBoot } from './lib/boot/migrate'
+import { seedOnBoot } from './lib/boot/seed'
 import * as Sentry from "@sentry/node";
 
 const isDev = process.env.NODE_ENV !== 'production'

@@ -14,7 +14,7 @@ import type {
   RestrictionKind,
   StandingEventKind,
 } from '@tenda/shared/db/schema/reputation'
-import type { InternalEscrowEvent } from '@server/lib/escrow-events'
+import type { InternalEscrowEvent } from '@server/features/escrows/events'
 import {
   FRAUD_RESTRICTION_REASON,
   RESTRICTION_TIERS,

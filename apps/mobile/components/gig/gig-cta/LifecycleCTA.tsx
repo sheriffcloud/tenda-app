@@ -10,13 +10,11 @@
  */
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import type { EscrowTxType } from '@tenda/shared'
+import type { EscrowTxType, ActiveSheet, CtaWidth, LifecycleBranch } from '@tenda/shared'
 import { spacing, radius } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
 import { Text } from '@/components/ui/Text'
-import type { LifecycleBranch } from './branches'
-import type { ActiveSheet } from './types'
-import { widthProps, type CtaWidth } from './slots'
+import { widthProps } from './slots'
 
 interface Props {
   branch: LifecycleBranch

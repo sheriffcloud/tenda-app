@@ -9,9 +9,14 @@
  *   - `messages.gig_id` / `messages.offer_id` collapse into a single
  *     `escrow_id` — gigs and exchanges are both escrows in v2, and the
  *     chat context divider only needs one reference.
- *   - timestamps follow the v2 convention (no timezone flag), matching
- *     every other table in this schema, and `updated_at` columns gain the
- *     v2 `$onUpdate` auto-bump.
+ *   - timestamps are `timestamptz`, matching every other table in this
+ *     schema, and `updated_at` columns gain the v2 `$onUpdate` auto-bump.
+ *     They were NAIVE until 2026-08-25 (`0033_sloppy_boomerang`): a bare
+ *     `timestamp` carries no zone, so postgres.js parses it with
+ *     `new Date(str)` — local time in whichever process reads it — and the
+ *     DB session's zone had to match the API container's or every instant
+ *     silently shifted. `packages/shared/test/db/timestamptz.test.ts` is
+ *     what keeps a naive column from coming back.
  *
  * NOTE: after editing run `pnpm --filter @tenda/shared build` and
  * `pnpm db:generate` (migrations are generated, never hand-written).
@@ -57,9 +62,9 @@ export const conversations = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     status: conversationStatusEnum('status').notNull().default('active'),
     closed_by: uuid('closed_by').references(() => users.id),
-    closed_at: timestamp('closed_at'),
-    last_message_at: timestamp('last_message_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    closed_at: timestamp('closed_at', { withTimezone: true }),
+    last_message_at: timestamp('last_message_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     unique('conversations_user_pair_unique').on(t.user_a_id, t.user_b_id),
@@ -90,8 +95,8 @@ export const messages = pgTable(
     attachment_url: text('attachment_url'),
     attachment_type: text('attachment_type', { enum: ['image', 'file'] }),
     attachment_size: integer('attachment_size'),
-    read_at: timestamp('read_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    read_at: timestamp('read_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     // Composite index covers the paginated history query:
@@ -114,8 +119,8 @@ export const device_tokens = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     token: text('token').notNull(),
     platform: devicePlatformEnum('platform').notNull().default('expo'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -136,7 +141,7 @@ export const gig_subscriptions = pgTable(
     // '*' means any city/category (sentinel instead of NULL to enable UNIQUE constraint)
     city: text('city').notNull().default('*'),
     category: text('category').notNull().default('*'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     unique('gig_subscriptions_unique').on(t.user_id, t.city, t.category),
@@ -169,8 +174,8 @@ export const notifications = pgTable(
     body: varchar('body', { length: NOTIFICATION_BODY_MAX }).notNull(),
     // Deep-link params ({ screen, escrowId, kind, ... }); null = non-routable.
     data: jsonb('data').$type<Record<string, string>>(),
-    read_at: timestamp('read_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    read_at: timestamp('read_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     // Feed query: WHERE user_id = X ORDER BY created_at DESC (cursor-paginated).
@@ -197,12 +202,12 @@ export const announcements = pgTable(
     target_value: text('target_value'),
     is_active: boolean('is_active').notNull().default(true),
     // published_at: set when first made active (set once, never cleared).
-    published_at: timestamp('published_at'),
+    published_at: timestamp('published_at', { withTimezone: true }),
     // expires_at: null = never expires.
-    expires_at: timestamp('expires_at'),
+    expires_at: timestamp('expires_at', { withTimezone: true }),
     created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),

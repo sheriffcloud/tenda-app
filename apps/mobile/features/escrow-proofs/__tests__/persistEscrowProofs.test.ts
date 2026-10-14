@@ -1,5 +1,5 @@
-import { ErrorCode } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { ErrorCode, ApiClientError } from '@tenda/shared'
+import { api } from '@/api/client'
 import { persistEscrowProofs } from '../persistEscrowProofs'
 
 jest.mock('@/api/client', () => ({
@@ -14,7 +14,7 @@ beforeEach(() => jest.clearAllMocks())
 
 it('returns normally when proof persistence succeeds', async () => {
   jest.mocked(api.escrows.addProofs).mockResolvedValueOnce(proofs.map((proof) => ({
-    ...proof, id: 'proof-id', escrow_id: 'escrow-id', uploaded_at: new Date(),
+    ...proof, id: 'proof-id', escrow_id: 'escrow-id', payload: null, uploaded_at: new Date(),
   })))
   await expect(persistEscrowProofs('escrow-id', proofs)).resolves.toBeUndefined()
   expect(api.escrows.proofs).not.toHaveBeenCalled()
@@ -23,7 +23,7 @@ it('returns normally when proof persistence succeeds', async () => {
 it('reconciles a timeout when the server persisted every proof', async () => {
   jest.mocked(api.escrows.addProofs).mockRejectedValueOnce(timeout())
   jest.mocked(api.escrows.proofs).mockResolvedValueOnce(proofs.map((proof) => ({
-    ...proof, id: 'proof-id', escrow_id: 'escrow-id', uploaded_at: new Date(),
+    ...proof, id: 'proof-id', escrow_id: 'escrow-id', payload: null, uploaded_at: new Date(),
   })))
   await expect(persistEscrowProofs('escrow-id', proofs)).resolves.toBeUndefined()
 })

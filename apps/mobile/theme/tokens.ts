@@ -1,10 +1,23 @@
 type FontWeightToken = '400' | '500' | '600' | '700' | '800'
 
 export interface Tone {
+  /**
+   * Accent role: the tone as TEXT or an icon on a page ground, and as a
+   * decorative dot/indicator. Must stay legible against `surface.background`.
+   */
   base: string
   surface: string
   text: string
   border: string
+  /**
+   * Fill role: the background of a filled control that carries WHITE content
+   * (`brand.onPrimary`). Split from `base` for the same reason `brand.solid`
+   * is split from `brand.primary` — a fill under white text needs a low
+   * luminance, an accent on a dark ground needs a high one, and no single
+   * value satisfies both at 4.5:1. Defaults to `base` for tones that are
+   * never used as a white-text fill.
+   */
+  solid: string
 }
 
 export interface TextStyleToken {
@@ -32,12 +45,27 @@ export interface ColorScheme {
   }
 
   brand: {
+    /**
+     * Accent role: brand-coloured TEXT and ICONS on a page ground.
+     * In dark this must stay light enough to read on `surface.background`
+     * (#5E87E8 = 5.53:1). Do NOT use it as a fill behind `onPrimary` — see
+     * `solid`.
+     */
     primary: string
     primaryPressed: string
     primarySurface: string
     primaryBorder: string
+    /** Text/icon colour that sits ON `solid`. */
     onPrimary: string
     focusRing: string
+    /**
+     * Fill role: the background of a filled control that carries `onPrimary`.
+     * Split from `primary` because one colour cannot serve both roles — a fill
+     * under white text needs a LOW luminance while brand text on a dark ground
+     * needs a HIGH one, and against #0D1018 those bands do not overlap at
+     * 4.5:1. Dark #3E6BDB = 4.85:1 with white, 3.92:1 on the ground.
+     */
+    solid: string
   }
 
   content: {
@@ -106,12 +134,6 @@ export interface ColorScheme {
     digital: Tone
   }
 
-  accent: {
-    primary: string
-    primarySurface: string
-    primaryBorder: string
-  }
-
   numeric: {
     positive: string
     negative: string
@@ -119,11 +141,19 @@ export interface ColorScheme {
   }
 }
 
-const tone = (base: string, surface: string, text: string, border: string): Tone => ({
+const tone = (
+  base: string,
+  surface: string,
+  text: string,
+  border: string,
+  /** Omit when the tone is never a fill behind white content. */
+  solid: string = base,
+): Tone => ({
   base,
   surface,
   text,
   border,
+  solid,
 })
 
 export const colors: { light: ColorScheme; dark: ColorScheme } = {
@@ -150,12 +180,15 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
       primaryBorder: '#BFD0F2',
       onPrimary: '#FFFFFF',
       focusRing: 'rgba(46,91,214,0.34)',
+      // Light needs no split: #2E5BD6 is 5.86:1 under white AND 5.38:1 as text
+      // on the bone ground, so fill and accent can share one value here.
+      solid: '#2E5BD6',
     },
 
     content: {
       primary: '#141721',
       secondary: '#4E525B',
-      tertiary: '#8A8E98',
+      tertiary: '#646872',
       inverse: '#FFFFFF',
       link: '#2E5BD6',
       disabled: '#9AA3AF',
@@ -179,7 +212,7 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
       inputText: '#141721',
       inputPlaceholder: '#9BA0AA',
       inputLabel: '#4E525B',
-      inputHelp: '#8A8E98',
+      inputHelp: '#646872',
 
       selectedBackground: '#E8EEFB',
       selectedBorder: '#BFD0F2',
@@ -190,8 +223,8 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     },
 
     feedback: {
-      success: tone('#1F9D6B', '#E6F4ED', '#1F7A52', '#BEDECE'),
-      warning: tone('#C9780C', '#FBEFD9', '#8D5209', '#F2D7A6'),
+      success: tone('#197D55', '#E6F4ED', '#1F7A52', '#BEDECE', '#178055'),
+      warning: tone('#A0600A', '#FBEFD9', '#8D5209', '#F2D7A6'),
       danger: tone('#CB3A3A', '#F9E4E4', '#8B1F1F', '#E8B8B8'),
       info: tone('#2F6CC9', '#E6EEFB', '#1F4EA3', '#B7CBEE'),
     },
@@ -207,25 +240,19 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
 
     utility: {
       scrim: 'rgba(10,14,20,0.48)',
-      money: '#1F9D6B',
+      money: '#197D55',
     },
 
     category: {
       delivery: tone('#3B82F6', 'rgba(59,130,246,0.10)', '#2A4FAA', 'rgba(59,130,246,0.22)'),
       photo: tone('#8B5CF6', 'rgba(139,92,246,0.10)', '#5A389C', 'rgba(139,92,246,0.22)'),
-      errand: tone('#D98722', 'rgba(217,135,34,0.12)', '#8C5812', 'rgba(217,135,34,0.26)'),
+      errand: tone('#C47A1F', 'rgba(217,135,34,0.12)', '#8C5812', 'rgba(217,135,34,0.26)'),
       service: tone('#1F9D6B', 'rgba(31,157,107,0.10)', '#156E4A', 'rgba(31,157,107,0.22)'),
       digital: tone('#E0579D', 'rgba(224,87,157,0.10)', '#9A3E6C', 'rgba(224,87,157,0.22)'),
     },
 
-    accent: {
-      primary: '#E08A3C',
-      primarySurface: '#FCEFDF',
-      primaryBorder: '#F3D1A8',
-    },
-
     numeric: {
-      positive: '#1F9D6B',
+      positive: '#197D55',
       negative: '#CB3A3A',
       neutral: '#141721',
     },
@@ -254,12 +281,14 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
       primaryBorder: 'rgba(94,135,232,0.32)',
       onPrimary: '#FFFFFF',
       focusRing: 'rgba(94,135,232,0.42)',
+      // Darker than `primary` on purpose: white on #5E87E8 is only 3.44:1.
+      solid: '#3E6BDB',
     },
 
     content: {
       primary: '#F4F2ED',
       secondary: '#B6BAC5',
-      tertiary: '#7A8096',
+      tertiary: '#7F849A',
       inverse: '#0D1018',
       link: '#7FA7F0',
       disabled: '#66717F',
@@ -283,7 +312,7 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
       inputText: '#F4F2ED',
       inputPlaceholder: '#748091',
       inputLabel: '#B6BAC5',
-      inputHelp: '#7A8096',
+      inputHelp: '#7F849A',
 
       selectedBackground: 'rgba(94,135,232,0.14)',
       selectedBorder: 'rgba(94,135,232,0.32)',
@@ -294,9 +323,9 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     },
 
     feedback: {
-      success: tone('#3ACB8E', 'rgba(58,203,142,0.14)', '#7FE3B5', 'rgba(58,203,142,0.30)'),
+      success: tone('#3ACB8E', 'rgba(58,203,142,0.14)', '#7FE3B5', 'rgba(58,203,142,0.30)', '#178055'),
       warning: tone('#F0A365', 'rgba(240,163,101,0.14)', '#F5C999', 'rgba(240,163,101,0.30)'),
-      danger: tone('#F0706E', 'rgba(240,112,110,0.14)', '#F5A3A3', 'rgba(240,112,110,0.30)'),
+      danger: tone('#F0706E', 'rgba(240,112,110,0.14)', '#F5A3A3', 'rgba(240,112,110,0.30)', '#CE4442'),
       info: tone('#7FA7F0', 'rgba(127,167,240,0.14)', '#B3CBF5', 'rgba(127,167,240,0.30)'),
     },
 
@@ -320,12 +349,6 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
       errand: tone('#FBBF24', 'rgba(251,191,36,0.14)', '#FDE68A', 'rgba(251,191,36,0.32)'),
       service: tone('#34D399', 'rgba(52,211,153,0.14)', '#A7F3D0', 'rgba(52,211,153,0.32)'),
       digital: tone('#F472B6', 'rgba(244,114,182,0.14)', '#FBCFE8', 'rgba(244,114,182,0.32)'),
-    },
-
-    accent: {
-      primary: '#F0A365',
-      primarySurface: 'rgba(240,163,101,0.14)',
-      primaryBorder: 'rgba(240,163,101,0.32)',
     },
 
     numeric: {
@@ -356,10 +379,50 @@ export const radius = {
   md: 16,
   lg: 20,
   xl: 24,
-  control: 16,
+  /**
+   * The default control radius — chips, menus, the compact input, and every
+   * web control that is not a button or a text field (`rounded-control`).
+   * It was 16 while NOTHING on mobile read it: Button.tsx had 12/14
+   * literals and Input.tsx 14/12, so the one client that consumed the token
+   * drew every control 2–4px rounder than the phone. 12 is what the phone
+   * draws (#59b, 2026-09-02); the two tighter/looser cases have their own
+   * tokens below.
+   */
+  control: 12,
+  /** Input.tsx's inset field. The compact field is `control`. */
+  input: 14,
   card: 20,
   sheet: 24,
+  /**
+   * Buttons: 12 for sm/md, 14 for lg/xl. These were literals inside
+   * Button.tsx while every other radius was a token, so web and tendahq could
+   * only copy them by hand — and tendahq did. Read by Button.tsx and by the
+   * token generator (apps/web/scripts/gen-web-tokens).
+   */
+  button: 12,
+  buttonLg: 14,
   full: 9999,
+} as const
+
+/**
+ * Button geometry by size. These were locals in Button.tsx (HEIGHTS, PAD_X,
+ * LABEL_BY_SIZE, GHOST_HEIGHT) that web re-typed as Tailwind steps, and the
+ * copies drifted: web drew 20/24 side padding against the phone's 18/22 and a
+ * ghost at the size's height against the phone's fixed 44. Read by Button.tsx
+ * and by the token generator (apps/web/scripts/gen-web-tokens), the way the
+ * radii above are.
+ */
+export const buttonGeometry = {
+  height: { sm: 40, md: 48, lg: 52, xl: 56 },
+  padX: { sm: 14, md: 18, lg: 22, xl: 24 },
+  label: {
+    sm: { fontSize: 14, lineHeight: 18 },
+    md: { fontSize: 14, lineHeight: 18 },
+    lg: { fontSize: 15, lineHeight: 20 },
+    xl: { fontSize: 15, lineHeight: 20 },
+  },
+  /** A ghost button is a text action: one height whatever its size. */
+  ghostHeight: 44,
 } as const
 
 const fontWeights = {
@@ -382,7 +445,21 @@ const fonts = {
     semibold: 'Manrope_600SemiBold',
     bold: 'Manrope_700Bold',
   },
-  mono: 'JetBrainsMono',
+  /**
+   * Named per weight, like `display` and `body` above, because that is what RN
+   * actually resolves: `expo-font` registers each face under the KEY it is
+   * given, so a single 'JetBrainsMono' family name matched nothing at all and
+   * every numeric surface in the app silently rendered in the platform sans.
+   * A `fontWeight` beside these is advisory — the family carries the weight.
+   */
+  mono: {
+    regular: 'JetBrainsMono_400Regular',
+    medium: 'JetBrainsMono_500Medium',
+    semibold: 'JetBrainsMono_600SemiBold',
+    bold: 'JetBrainsMono_700Bold',
+    /** One site: the dispute/deadline banner clock. */
+    extrabold: 'JetBrainsMono_800ExtraBold',
+  },
 } as const
 
 export const typography = {
@@ -457,6 +534,20 @@ export const typography = {
       letterSpacing: 0.12,
     } satisfies TextStyleToken,
 
+    /**
+     * The section label — mono, uppercase in the component. These four
+     * numbers lived as literals in components/ui/Eyebrow.tsx, so web and
+     * tendahq could only copy them by hand (and did, three ways). A style
+     * here reaches all three apps through the token generator (#59c).
+     */
+    eyebrow: {
+      fontFamily: fonts.mono.semibold,
+      fontSize: 9.5,
+      lineHeight: 12,
+      fontWeight: fontWeights.semibold,
+      letterSpacing: 0.95,
+    } satisfies TextStyleToken,
+
     button: {
       fontFamily: fonts.body.semibold,
       fontSize: 15,
@@ -466,21 +557,21 @@ export const typography = {
     } satisfies TextStyleToken,
 
     mono: {
-      fontFamily: fonts.mono,
+      fontFamily: fonts.mono.medium,
       fontSize: 15,
       lineHeight: 20,
       fontWeight: fontWeights.medium,
     } satisfies TextStyleToken,
 
     monoMid: {
-      fontFamily: fonts.mono,
+      fontFamily: fonts.mono.semibold,
       fontSize: 22,
       lineHeight: 26,
       fontWeight: fontWeights.semibold,
     } satisfies TextStyleToken,
 
     monoLarge: {
-      fontFamily: fonts.mono,
+      fontFamily: fonts.mono.semibold,
       fontSize: 40,
       lineHeight: 44,
       fontWeight: fontWeights.semibold,
@@ -488,7 +579,7 @@ export const typography = {
     } satisfies TextStyleToken,
 
     monoSmall: {
-      fontFamily: fonts.mono,
+      fontFamily: fonts.mono.medium,
       fontSize: 12,
       lineHeight: 16,
       fontWeight: fontWeights.medium,

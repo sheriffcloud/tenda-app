@@ -3,7 +3,7 @@ import { and, eq, sql } from 'drizzle-orm'
 import { notifications } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { isUuidLike } from '@server/lib/uuid'
+import { isUuidLike } from '@server/lib/http/uuid'
 import type { NotificationsContract, ApiError } from '@tenda/shared'
 
 type MarkReadRoute = NotificationsContract['markRead']

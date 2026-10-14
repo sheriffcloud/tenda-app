@@ -5,6 +5,7 @@
  */
 
 import { sql } from 'drizzle-orm'
+import { DEFAULT_ACCEPT_WINDOW_SECONDS } from '../../../constants/escrow'
 import {
   boolean,
   check,
@@ -15,6 +16,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
@@ -77,11 +79,68 @@ export const escrows = pgTable(
      * chains/contracts/resolve.ts.
      */
     escrow_contract: text('escrow_contract'),
-    accept_deadline: timestamp('accept_deadline'),
+    /**
+     * The wallet that signed the on-chain create — chain-attested from the
+     * EscrowCreated event's `creator` field, write-once (the creator is
+     * immutable on-chain). NULL for drafts and for escrows created before
+     * this column existed. Feeds the detail wire's viewer-relative
+     * `my_signer_address` (each party sees only their own bound wallet).
+     */
+    creator_address: text('creator_address'),
+    /**
+     * The wallet bound as counterparty RIGHT NOW — installed and released by
+     * the exact events that manage `counterparty_id`, in the same atomic
+     * patch, so the two can never disagree: EscrowAccepted /
+     * CounterpartyAssigned install the event's wallet, AssignmentReleased
+     * clears it, a re-assign overwrites it. NULL whenever `counterparty_id`
+     * is NULL.
+     */
+    counterparty_address: text('counterparty_address'),
+    /**
+     * Direct-invite window: the assignee wallet BAKED into the create tx —
+     * the only wallet that can sign their accept/decline. Stamped at build
+     * time from the same primary-wallet resolution the builder uses (the EVM
+     * create event carries no assignee), then chain-attested from the Solana
+     * event where available; cleared by the same decline patch that clears
+     * `assigned_counterparty_id`.
+     */
+    assigned_counterparty_address: text('assigned_counterparty_address'),
+    /**
+     * How long the listing stays open for a counterparty to accept, as the
+     * CALLER authored it. Immutable once the draft exists.
+     *
+     * The duration is the durable fact; `accept_deadline` below is DERIVED from
+     * it at the moment a create transaction is built (#41). A draft can sit for
+     * days before it is published, so an absolute instant chosen at compose
+     * time is stale by then — both programs reject a create whose accept window
+     * has already closed. Recomputing from this makes that impossible rather
+     * than patching it afterwards.
+     *
+     * NOT NULL with a default so no row can lack one: rows written before this
+     * column existed are backfilled to exactly the window the old refresh path
+     * would have given them, and the server-opened offers in fiat-rails get the
+     * same documented default they already used.
+     */
+    accept_window_seconds: integer('accept_window_seconds')
+      .notNull()
+      .default(DEFAULT_ACCEPT_WINDOW_SECONDS),
+    /**
+     * DERIVED, never caller-authored: `<transaction build time> +
+     * accept_window_seconds` (#41). Read by the listing surfaces and the expiry
+     * job; encoded into the create tx as an absolute unix second, which is what
+     * both chains take.
+     *
+     * Re-derived when a build needs it, NOT on every build: a stored instant
+     * that still outlives a relay quote is reused as-is, because the agent's
+     * EIP-3009 create nonce is a hash over the params this value sits in — two
+     * builds of one task (the 402 and the payment) must agree on it. A lapsed
+     * one is redrawn, since both programs reject a create whose window closed.
+     */
+    accept_deadline: timestamp('accept_deadline', { withTimezone: true }),
     completion_duration_seconds: integer('completion_duration_seconds'),
-    completion_deadline: timestamp('completion_deadline'),
-    submitted_at: timestamp('submitted_at'),
-    approval_deadline: timestamp('approval_deadline'),
+    completion_deadline: timestamp('completion_deadline', { withTimezone: true }),
+    submitted_at: timestamp('submitted_at', { withTimezone: true }),
+    approval_deadline: timestamp('approval_deadline', { withTimezone: true }),
     dispute_bond_raw: numeric('dispute_bond_raw', { precision: 78, scale: 0 })
       .notNull()
       .default('0'),
@@ -110,7 +169,7 @@ export const escrows = pgTable(
      * Suppresses the abandonment strike and prompts the poster to unassign;
      * it does NOT move the escrow, which only the creator can do on-chain.
      */
-    assignment_released_at: timestamp('assignment_released_at'),
+    assignment_released_at: timestamp('assignment_released_at', { withTimezone: true }),
     /**
      * Mirror of the escrow's on-chain `unassign_window_seconds`, stamped at
      * create from `platform_config` and immutable thereafter — exactly like
@@ -128,8 +187,8 @@ export const escrows = pgTable(
     public_feed_revision: numeric('public_feed_revision', { precision: 78, scale: 0 })
       .notNull()
       .default('0'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -161,6 +220,11 @@ export const escrows = pgTable(
       sql`${t.creator_id} <> ${t.assigned_counterparty_id}`,
     ),
     check('escrows_amount_positive_chk', sql`${t.amount_raw} > 0`),
+    // The FK TARGET for the satellites' (escrow_id, kind) composite keys below:
+    // a satellite row can only exist beside an escrow of ITS kind. `id` alone is
+    // already unique, so this constraint adds no restriction of its own; it exists
+    // so the pair can be referenced.
+    unique('escrows_id_kind_uq').on(t.id, t.kind),
     foreignKey({
       name: 'escrows_asset_chain_fk',
       columns: [t.asset, t.chain_id],

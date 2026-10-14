@@ -21,9 +21,8 @@ jest.mock('@/api/client', () => ({
 import { api } from '@/api/client'
 import { WALLET_CHAINS } from '@/wallet/config'
 import { signInWithWallet, linkWalletWith } from '@/wallet/auth'
-import type { WalletAdapter, AuthenticateResult } from '@/wallet/adapters/types'
-import type { Namespace, SpikeAccount, SignMessageResult } from '@/wallet/types'
-import type { VerifyResponse } from '@tenda/shared'
+import type { WalletAdapter } from '@/wallet/adapters/types'
+import type { AuthenticateResult, ChainNamespace, WalletAccount, SignMessageResult, VerifyResponse } from '@tenda/shared'
 
 const nonceMock = api.auth.nonce as jest.Mock
 const verifyMock = api.auth.verify as jest.Mock
@@ -36,7 +35,7 @@ const VERIFY_RESPONSE: VerifyResponse = {
   is_new: false,
 }
 
-function accountFor(namespace: Namespace): SpikeAccount {
+function accountFor(namespace: ChainNamespace): WalletAccount {
   return namespace === 'solana'
     ? {
         namespace,
@@ -60,7 +59,7 @@ function accountFor(namespace: Namespace): SpikeAccount {
  * signature, or null to simulate a user decline.
  */
 function fakeAdapter(
-  account: SpikeAccount,
+  account: WalletAccount,
   behaviour: { decline?: boolean } = {},
 ): WalletAdapter & { lastOpts?: { forceFresh?: boolean } } {
   const adapter: WalletAdapter & { lastOpts?: { forceFresh?: boolean } } = {
@@ -72,14 +71,14 @@ function fakeAdapter(
     isInstalled: jest.fn(async () => true),
     connect: jest.fn(async () => account),
     signMessage: jest.fn(
-      async (_a: SpikeAccount, message: string): Promise<SignMessageResult> => ({
+      async (_a: WalletAccount, message: string): Promise<SignMessageResult> => ({
         signature: 'sig',
         message,
       }),
     ),
     authenticate: jest.fn(
       async (
-        buildMessage: (a: SpikeAccount) => string,
+        buildMessage: (a: WalletAccount) => string,
         opts?: { forceFresh?: boolean },
       ): Promise<AuthenticateResult | null> => {
         adapter.lastOpts = opts
@@ -100,7 +99,7 @@ beforeEach(() => {
 })
 
 describe('signInWithWallet', () => {
-  it.each<Namespace>(['solana', 'eip155'])(
+  it.each<ChainNamespace>(['solana', 'eip155'])(
     'signs in over the %s namespace via verify with the registered chain id',
     async (namespace) => {
       const account = accountFor(namespace)
@@ -156,7 +155,7 @@ describe('signInWithWallet', () => {
 })
 
 describe('linkWalletWith', () => {
-  it.each<Namespace>(['solana', 'eip155'])(
+  it.each<ChainNamespace>(['solana', 'eip155'])(
     'links a %s wallet with forceFresh and the registered chain id',
     async (namespace) => {
       const account = accountFor(namespace)

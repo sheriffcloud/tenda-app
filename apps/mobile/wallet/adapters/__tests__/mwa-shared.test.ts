@@ -25,7 +25,7 @@ import {
   isMwaSessionInterrupted,
   isMwaConnectionFailed,
 } from '../mwa-shared'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 
 // MWA error shapes. Classifiers read either name+message or name+code.
 const transientErr = {

@@ -1,7 +1,7 @@
 import { useTheme } from '@/theme/theme-context'
 import { cn } from '@/lib/cn'
-import wordmarkDark from '@/assets/tenda-wordmark.png'
-import wordmarkWhite from '@/assets/tenda-wordmark-white.png'
+import wordmarkDark from '@/assets/tenda-wordmark-dark.png'
+import wordmarkWhite from '@/assets/tenda-wordmark.png'
 
 interface Props {
   /** Rendered height in px (the wordmark is 1000×266). */

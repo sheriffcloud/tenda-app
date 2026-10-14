@@ -1,1 +1,0 @@
-ALTER TABLE "gig_details" ADD COLUMN "proof_requirements" "proof_type"[] DEFAULT ARRAY[]::proof_type[] NOT NULL;

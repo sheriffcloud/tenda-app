@@ -22,7 +22,7 @@ jest.mock('@/api/client', () => ({
 }))
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockToast(...a) }))
 
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { useAddPayoutAccount, defaultPayoutCountry } from '@/hooks/useAddPayoutAccount'
 
 const VALUE = { kind: 'bank' as const, bank_code: ' 058 ', account_number: ' 0123456789 ', account_name: ' Ada Lovelace ' }

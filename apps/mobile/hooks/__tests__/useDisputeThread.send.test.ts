@@ -27,7 +27,7 @@ jest.mock('@/api/client', () => {
   }
 })
 
-import { ApiClientError } from '@/api/request'
+import { ApiClientError } from '@tenda/shared'
 import { useDisputeThread } from '@/hooks/useDisputeThread'
 
 const thread: DisputeThreadResponse = {

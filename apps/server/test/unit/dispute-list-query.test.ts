@@ -16,7 +16,7 @@ import {
   narrowDisputeKind,
   narrowDisputeParty,
   narrowDisputeStatus,
-} from '@server/lib/disputes/list-query'
+} from '@server/features/disputes/list-query'
 
 /** Every narrower, paired with the vocabulary it is supposed to enforce. */
 const FILTERS = [

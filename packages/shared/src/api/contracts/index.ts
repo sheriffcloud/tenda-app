@@ -14,6 +14,8 @@ import type { ModerationContract } from './moderation.contract'
 import type { FiatContract } from './fiat.contract'
 import type { DisputesContract } from './disputes.contract'
 import type { ApplicationsContract } from './applications.contract'
+import type { AgentContract } from './agent.contract'
+import type { WalletContract } from './wallet.contract'
 
 export interface ApiContract {
   auth: AuthContract
@@ -21,6 +23,7 @@ export interface ApiContract {
   disputes: DisputesContract
   gigs: GigsContract
   applications: ApplicationsContract
+  agent: AgentContract
   users: UsersContract
   upload: UploadContract
   blockchain: BlockchainContract
@@ -32,6 +35,7 @@ export interface ApiContract {
   exchange: ExchangeContract
   moderation: ModerationContract
   fiat: FiatContract
+  wallet: WalletContract
 }
 
 export { parseWsServerFrame } from './parse-ws-server-frame'
@@ -64,14 +68,39 @@ export type {
   EscrowActionResponse,
   SubmitEscrowProofBody,
   AddEscrowProofsBody,
+  EscrowProofUpload,
   DisputeEscrowApiBody,
   ResolveEscrowApiBody,
+  SignerPreferenceBody,
   ClientPingBody,
   ClientPingResponse,
 } from './escrows.contract'
+export type {
+  EvmCreateParamsWire,
+  ReceiveAuthorizationTypedData,
+  EvmAuthorizationTerms,
+  SolanaTransactionTerms,
+  RelayTerms,
+  RelayPaymentRequired,
+  EvmAuthorizationPayment,
+  SolanaTransactionPayment,
+  RelayPaymentPayload,
+  RelaySettlementResponse,
+  FundEscrowResponse,
+} from './relay.contract'
 export type { GigsContract } from './gigs.contract'
+export type {
+  AgentContract,
+  AgentRegisterBody,
+  AgentRegisterResponse,
+  AgentTaskBody,
+  AgentTaskPaymentRequired,
+  AgentTaskCreated,
+  AgentTaskValidated,
+} from './agent.contract'
+export type { AdminContract, AdminPage } from './admin.contract'
 export type { DisputesContract } from './disputes.contract'
-export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse } from './users.contract'
+export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse, MyOverviewResponse, CompletedWorkCategory, CompletedWorkResponse } from './users.contract'
 export type { UploadContract, UploadSignatureBody } from './upload.contract'
 export type {
   BlockchainContract,
@@ -82,6 +111,15 @@ export type {
 export type { PlatformContract, PlatformConfig, ExchangeRates, ChainRegistryEntry } from './platform.contract'
 export type { ConversationsContract } from './conversations.contract'
 export type { NotificationsContract } from './notifications.contract'
+export type {
+  WalletContract,
+  GasSeedState,
+  GasSeedUnavailableReason,
+  GasSeedAvailability,
+  GasSeedAvailabilityResponse,
+  GasSeedClaimBody,
+  GasSeedClaimResponse,
+} from './wallet.contract'
 export type { SubscriptionsContract } from './subscriptions.contract'
 export type { ReportsContract } from './reports.contract'
 export type { ExchangeContract } from './exchange.contract'

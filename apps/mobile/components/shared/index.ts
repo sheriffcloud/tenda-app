@@ -1,5 +1,7 @@
 export { PersonCard } from './PersonCard'
 export { ProofsGrid } from './ProofsGrid'
+export { fileProofMediaItems } from './media/file-proofs'
+export { DataProofList } from './DataProofList'
 // MediaViewerModal pulls `expo-video` (native), and this barrel is imported
 // broadly — re-exporting the component here would drag expo-video into every
 // consumer (and every consumer's jest suite). Import it via its direct path

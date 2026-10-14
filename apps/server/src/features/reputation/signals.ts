@@ -9,7 +9,7 @@
  */
 
 import type { StandingEventKind } from '@tenda/shared/db/schema/reputation'
-import type { InternalEscrowEvent } from '@server/lib/escrow-events'
+import type { InternalEscrowEvent } from '@server/features/escrows/events'
 
 export interface EscrowParties {
   creator_id: string

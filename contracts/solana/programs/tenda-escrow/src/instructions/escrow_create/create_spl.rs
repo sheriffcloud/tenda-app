@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
 use crate::constants::{ESCROW_SEED, ESCROW_TOKEN_SEED};
@@ -45,9 +45,7 @@ pub struct CreateEscrowSpl<'info> {
     pub creator: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 pub fn handler(ctx: Context<CreateEscrowSpl>, args: CreateEscrowArgs) -> Result<()> {

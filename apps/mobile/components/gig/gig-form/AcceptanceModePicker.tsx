@@ -9,12 +9,16 @@
  * Direct invite is the third mode the contracts support, but it needs a
  * specific person's account and there is no way to name one from this form
  * yet, so it is not offered here.
+ *
+ * No heading of its own. `GigDeliveryStep` supplies the SectionLabel for every
+ * section it composes ("Who can take it", "Proof of completion", "Review") and
+ * this picker has exactly that one caller, so owning a second one only stacked
+ * two near-identical headings on the poster.
  */
 import { View, StyleSheet, Pressable } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing, radius } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { SectionLabel } from '@/components/ui/SectionLabel'
 
 interface Props {
   requiresApproval: boolean
@@ -38,36 +42,33 @@ export function AcceptanceModePicker({ requiresApproval, onChange }: Props) {
   const { theme } = useUnistyles()
 
   return (
-    <>
-      <SectionLabel>Who can take this gig</SectionLabel>
-      <View style={s.group}>
-        {OPTIONS.map((option) => {
-          const selected = option.value === requiresApproval
-          return (
-            <Pressable
-              key={String(option.value)}
-              onPress={() => onChange(option.value)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected }}
-              style={({ pressed }) => [
-                s.option,
-                {
-                  backgroundColor: theme.colors.surface.card,
-                  borderColor: selected ? theme.colors.brand.primary : theme.colors.border.default,
-                  borderWidth: selected ? 2 : 1,
-                },
-                pressed && !selected && { opacity: 0.7 },
-              ]}
-            >
-              <Text weight="semibold">{option.title}</Text>
-              <Text variant="caption" color={theme.colors.content.secondary}>
-                {option.body}
-              </Text>
-            </Pressable>
-          )
-        })}
-      </View>
-    </>
+    <View style={s.group}>
+      {OPTIONS.map((option) => {
+        const selected = option.value === requiresApproval
+        return (
+          <Pressable
+            key={String(option.value)}
+            onPress={() => onChange(option.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            style={({ pressed }) => [
+              s.option,
+              {
+                backgroundColor: theme.colors.surface.card,
+                borderColor: selected ? theme.colors.brand.primary : theme.colors.border.default,
+                borderWidth: selected ? 2 : 1,
+              },
+              pressed && !selected && { opacity: 0.7 },
+            ]}
+          >
+            <Text weight="semibold">{option.title}</Text>
+            <Text variant="caption" color={theme.colors.content.secondary}>
+              {option.body}
+            </Text>
+          </Pressable>
+        )
+      })}
+    </View>
   )
 }
 

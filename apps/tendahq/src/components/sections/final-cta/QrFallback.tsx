@@ -9,7 +9,7 @@ import { Pill } from '@/components/ui/Pill'
  */
 export function QrFallback() {
   return (
-    <div className="hidden items-center gap-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 lg:flex">
+    <div className="hidden items-center gap-4 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-card)] p-4 lg:flex">
       <DecorativeQr />
       <div className="flex min-w-0 flex-col gap-1">
         <p className="body-sm font-semibold text-[var(--content-primary)]">
@@ -19,7 +19,7 @@ export function QrFallback() {
           {QR_FALLBACK.body}{' '}
           <code className="mono-sm text-[var(--content-secondary)]">{QR_FALLBACK.destination}</code>
         </p>
-        <Pill tone="warning" size="sm" className="mt-1.5 self-start">
+        <Pill tone="warning" dot className="mt-1.5 self-start">
           {QR_FALLBACK.pendingLabel}
         </Pill>
       </div>
@@ -33,7 +33,7 @@ function DecorativeQr() {
   return (
     <svg
       viewBox="0 0 100 100"
-      className="h-[88px] w-[88px] shrink-0 rounded-md bg-[#F4F2ED] p-1"
+      className="h-[88px] w-[88px] shrink-0 rounded-[var(--radius-xs)] bg-[#F4F2ED] p-1"
       xmlns="http://www.w3.org/2000/svg"
       aria-label="Decorative QR pattern (preview)"
     >

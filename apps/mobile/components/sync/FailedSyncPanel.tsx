@@ -174,7 +174,7 @@ const s = StyleSheet.create({
     gap: 2,
   },
   sig: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 11.5,
     lineHeight: 14,
     letterSpacing: 0.115,

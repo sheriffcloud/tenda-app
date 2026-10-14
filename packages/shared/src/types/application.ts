@@ -17,14 +17,27 @@ export interface GigApplication {
   applicant_id: string
   /** Optional pitch, trimmed; null when the applicant sent none. */
   message: string | null
+  /**
+   * The wallet the applicant chose to work under — what an assignment will
+   * bake on-chain. Null only on applications that predate the choice (the
+   * assign then uses their primary). Worker-facing surfaces only; the
+   * poster's shortlist deliberately omits it (see GigApplicant).
+   */
+  wallet_address: string | null
   status: ApplicationStatus
   /** ISO-8601. After this the application is no longer assignable. */
   expires_at: string
   created_at: string
 }
 
-/** One row of the poster's shortlist. */
-export interface GigApplicant extends GigApplication {
+/**
+ * One row of the poster's shortlist.
+ *
+ * `wallet_address` is OMITTED on purpose: only the assigned worker's wallet
+ * ever needs to surface (and the chain publishes it then) — rival applicants'
+ * wallets are not the poster's to browse.
+ */
+export interface GigApplicant extends Omit<GigApplication, 'wallet_address'> {
   first_name: string
   last_name: string
   avatar_url: string | null
@@ -67,6 +80,13 @@ export type MyApplicationsQuery = {
 export interface ApplyToGigBody {
   /** Optional pitch; capped at APPLICATION_MESSAGE_MAX_LENGTH. */
   message?: string | null
+  /**
+   * The wallet to work under, on the gig's chain namespace. Must be one of
+   * the caller's verified wallets (422 ESCROW_WRONG_WALLET otherwise);
+   * absent = the caller's primary on that namespace. Either way the caller
+   * needs SOME wallet on the gig's chain — 403 WALLET_REQUIRED without one.
+   */
+  wallet_address?: string | null
 }
 
 /**
@@ -100,7 +120,8 @@ export interface GigViewerContext {
 
 /** Poster assigns a specific applicant; the tx is theirs to sign. */
 export interface AssignWorkerBody {
-  /** The applicant's user id — NOT their wallet; the adapter resolves that. */
+  /** The applicant's user id — NOT their wallet; the route resolves that from
+   *  the application's recorded choice (their primary for pre-choice rows). */
   worker_user_id: string
 }
 

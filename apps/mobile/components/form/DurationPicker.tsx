@@ -3,16 +3,16 @@ import { View, TextInput, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
+import {
+  DURATION_PRESETS,
+  DURATION_UNIT_SECONDS,
+  completionDurationProblem,
+  customDurationToSeconds,
+  durationRangeLabel,
+  type DurationUnit,
+} from '@tenda/shared'
 import { Text } from '@/components/ui/Text'
 import { Chip } from '@/components/ui/Chip'
-
-const PRESETS: { label: string; seconds: number }[] = [
-  { label: '1d',  seconds: 86_400 },
-  { label: '3d',  seconds: 259_200 },
-  { label: '7d',  seconds: 604_800 },
-  { label: '14d', seconds: 1_209_600 },
-  { label: '30d', seconds: 2_592_000 },
-]
 
 interface DurationPickerProps {
   label?: string
@@ -25,6 +25,12 @@ interface DurationPickerProps {
  * Completion window picker, same chip-row anatomy as the Accept deadline
  * picker in GigForm: form-variant chips (40h R12 --card with --line border).
  * "Custom" chip reveals a small numeric input + day/hour unit toggle.
+ *
+ * The presets and the seconds arithmetic are SHARED (`gig-duration`), not
+ * written here: web had the same code and the same hole — a custom window
+ * with no ceiling, so 91 days emitted a value the server refuses while the
+ * field said nothing. The over-limit value is still emitted exactly as typed;
+ * what changed is that the reader is told, here, what the window is.
  */
 export function DurationPicker({
   label = 'Completion window',
@@ -34,10 +40,22 @@ export function DurationPicker({
 }: DurationPickerProps) {
   const { theme } = useUnistyles()
 
-  const isPreset = PRESETS.some((p) => p.seconds === value)
-  const [customMode, setCustomMode] = useState(!isPreset && value > 0)
-  const [customNum, setCustomNum] = useState(isPreset ? '' : String(Math.round(value / 86_400)))
-  const [unit, setUnit] = useState<'hours' | 'days'>('days')
+  const isPreset = DURATION_PRESETS.some((p) => p.seconds === value)
+  // Seed from the value only when there IS a custom value. `String(Math.round(
+  // 0 / 86400))` is '0', so an unset field opened pre-filled with a zero it
+  // then objected to; and a custom window measured in HOURS rounded to '0'
+  // days, which is what a resumed 6-hour draft used to display.
+  const isCustom = !isPreset && value > 0
+  const initialUnit: DurationUnit =
+    isCustom && value % DURATION_UNIT_SECONDS.days !== 0 ? 'hours' : 'days'
+  const [unit, setUnit] = useState<DurationUnit>(initialUnit)
+  const [customNum, setCustomNum] = useState(
+    isCustom ? String(Math.round(value / DURATION_UNIT_SECONDS[initialUnit])) : '',
+  )
+  const [customMode, setCustomMode] = useState(isCustom)
+  // Only while the reader is in the custom field: a preset cannot be wrong,
+  // and an untouched field should not be scolded before it is filled in.
+  const problem = customMode && customNum !== '' ? completionDurationProblem(value) : null
 
   function selectPreset(seconds: number) {
     setCustomMode(false)
@@ -46,15 +64,15 @@ export function DurationPicker({
 
   function handleCustomChange(val: string) {
     setCustomNum(val)
-    const n = parseInt(val, 10)
-    if (n > 0) onChange(n * (unit === 'days' ? 86_400 : 3_600))
+    const seconds = customDurationToSeconds(val, unit)
+    if (seconds !== null) onChange(seconds)
   }
 
   function toggleUnit() {
-    const next = unit === 'days' ? 'hours' : 'days'
+    const next: DurationUnit = unit === 'days' ? 'hours' : 'days'
     setUnit(next)
-    const n = parseInt(customNum, 10)
-    if (n > 0) onChange(n * (next === 'days' ? 86_400 : 3_600))
+    const seconds = customDurationToSeconds(customNum, next)
+    if (seconds !== null) onChange(seconds)
   }
 
   return (
@@ -67,7 +85,7 @@ export function DurationPicker({
       ) : null}
 
       <View style={s.chipRow}>
-        {PRESETS.map((p) => (
+        {DURATION_PRESETS.map((p) => (
           <Chip
             key={p.seconds}
             label={p.label}
@@ -119,6 +137,16 @@ export function DurationPicker({
             </Text>
           </Pressable>
         </View>
+      )}
+
+      {customMode && (
+        <Text
+          size={12}
+          color={problem === null ? theme.colors.content.tertiary : theme.colors.feedback.danger.text}
+          accessibilityRole={problem === null ? undefined : 'alert'}
+        >
+          {problem ?? `Anything from ${durationRangeLabel()}.`}
+        </Text>
       )}
     </View>
   )

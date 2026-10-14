@@ -1,54 +1,25 @@
 import { View, StyleSheet } from 'react-native'
-import { MapPin, Clock, Calendar, Globe } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { formatDuration } from '@/lib/gig-display'
-import { formatFiat } from '@/lib/currency'
+import { getAssetMeta, amountRawToDisplay, formatAmountOrUnknown, formatFiat } from '@tenda/shared'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
-import { LOCATIONS, ASSET_META, amountRawToDisplay } from '@tenda/shared'
-import type { GigDetail, CountryCode, SupportedCurrency, EscrowStatus } from '@tenda/shared'
-import type { LucideIcon } from 'lucide-react-native'
-
-/**
- * Status-specific label for the single deadline row. The value itself comes
- * from computeRelevantDeadline upstream, which already picks the right
- * underlying deadline per status; this just names it so we never show both a
- * stale "Accept by" and a generic "Deadline". Statuses with no live deadline
- * are omitted (computeRelevantDeadline returns null → no row).
- */
-const DEADLINE_LABEL: Partial<Record<EscrowStatus, string>> = {
-  open: 'Accept by',
-  accepted: 'Deliver by',
-  submitted: 'Review by',
-}
+import { gigMetaRows, type GigMetaSource } from './gigMetaRows'
 
 interface Props {
-  gig: Pick<
-    GigDetail,
-    | 'city' | 'country' | 'remote'
-    | 'completion_duration_seconds'
-    | 'amount_raw' | 'asset' | 'status' | 'is_seeker'
-  >
+  gig: GigMetaSource
   deadlineLbl: string | null
-}
-
-interface Row {
-  Icon: LucideIcon
-  label: string
-  value: string
-  iconTint?: string
 }
 
 export function GigMetaInfo({ gig, deadlineLbl }: Props) {
   const { theme } = useUnistyles()
   const rates = useExchangeRateStore((s) => s.rates)
-  const currency = useSettingsStore((s) => s.currency) as SupportedCurrency
+  const currency = useSettingsStore((s) => s.currency)
   const rate = rates?.[currency] ?? null
 
-  const assetMeta = ASSET_META[gig.asset]
+  const assetMeta = getAssetMeta(gig.asset)
   const amount = amountRawToDisplay(gig.amount_raw, gig.asset)
   const symbol = assetMeta?.symbol ?? gig.asset
 
@@ -56,7 +27,9 @@ export function GigMetaInfo({ gig, deadlineLbl }: Props) {
   // meaningful for native-SOL gigs. Stable assets read as ≈ face value.
   const isSolAsset = symbol === 'SOL'
   const fiatAlt =
-    isSolAsset && rate !== null && rate > 0 ? `≈ ${formatFiat(amount * rate, currency)}` : null
+    amount !== null && isSolAsset && rate !== null && rate > 0
+      ? `≈ ${formatFiat(amount * rate, currency)}`
+      : null
 
   // Worker net-of-fee: the platform fee is deducted from the payout on
   // completion, so the worker actually receives amount − fee. Fee tier is the
@@ -68,38 +41,7 @@ export function GigMetaInfo({ gig, deadlineLbl }: Props) {
   // what flips draft → open).
   const escrowFunded = gig.status !== 'draft'
 
-  const rows: Row[] = []
-
-  if (gig.completion_duration_seconds !== null) {
-    rows.push({
-      Icon: Calendar,
-      label: 'Deliver within',
-      value: formatDuration(gig.completion_duration_seconds),
-    })
-  }
-
-  // Remote gigs carry no location (country/city are null); physical gigs always
-  // have both. So: "Remote" or the work location, "City, Country".
-  const workCountry = gig.country ? (LOCATIONS[gig.country as CountryCode]?.name ?? gig.country) : null
-  rows.push({
-    Icon: gig.remote ? Globe : MapPin,
-    label: 'Location',
-    value: gig.remote ? 'Remote' : ([gig.city, workCountry].filter(Boolean).join(', ') || '—'),
-    iconTint: gig.remote ? theme.colors.brand.primary : undefined,
-  })
-
-  // One status-aware deadline row (open → "Accept by", accepted → "Deliver by",
-  // submitted → "Review by"); replaces the old duplicate "Accept by" + generic
-  // "Deadline" pair, which showed the same moment on open and a stale accept
-  // deadline once the gig moved on.
-  const deadlineRowLabel = DEADLINE_LABEL[gig.status]
-  if (deadlineLbl && deadlineRowLabel) {
-    rows.push({
-      Icon: Clock,
-      label: deadlineRowLabel,
-      value: deadlineLbl,
-    })
-  }
+  const rows = gigMetaRows(gig, deadlineLbl, theme.colors.brand.primary)
 
   return (
     <View
@@ -119,7 +61,9 @@ export function GigMetaInfo({ gig, deadlineLbl }: Props) {
           </Text>
           <View style={s.payValue}>
             <Text style={[s.payAmount, { color: theme.colors.content.primary }]}>
-              {amount.toLocaleString('en-US', { maximumFractionDigits: amount >= 1 ? 2 : 4 })}
+              {formatAmountOrUnknown(amount, (v) =>
+                v.toLocaleString('en-US', { maximumFractionDigits: v >= 1 ? 2 : 4 }),
+              )}
             </Text>
             <Text style={[s.payUnit, { color: theme.colors.content.secondary }]}>
               {symbol}
@@ -202,7 +146,7 @@ const s = StyleSheet.create({
     minWidth: 0,
   },
   payLabel: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',
@@ -215,20 +159,20 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   payAmount: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 22,
     lineHeight: 26,
     fontWeight: '700',
     letterSpacing: -0.22,
   },
   payUnit: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '600',
   },
   payFiat: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12,
     lineHeight: 16,
     marginTop: 2,

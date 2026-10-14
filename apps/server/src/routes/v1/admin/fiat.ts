@@ -14,9 +14,11 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
+import type { AdminContract, ApiError } from '@tenda/shared'
+import { toWire } from '@server/lib/http/wire'
 import { fiat_intents, fiat_providers, fiatIntentStatusEnum, type FiatIntentStatus } from '@tenda/shared/db/schema/fiat'
 import { AppError } from '@server/lib/errors'
-import { requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { buildFiatDeps } from '@server/features/fiat-rails'
 
 const LIST_LIMIT = 50
@@ -38,8 +40,9 @@ const route: FastifyPluginAsync = async (fastify) => {
   // keys on fiat_providers.id, a TEXT column ('p2p_internal'), so a
   // plugin-wide uuid guard would 404 a working endpoint.
   const intentIdGuard = uuidParamGuard('intent not found')
+  type FiatAdmin = AdminContract['fiat']
 
-  fastify.get<{ Querystring: { status?: string; provider?: string; user_id?: string } }>(
+  fastify.get<{ Querystring: { status?: string; provider?: string; user_id?: string }; Reply: FiatAdmin['intents']['response'] | ApiError }>(
     '/intents',
     { preHandler: [fastify.authenticate, requirePermission('fiat.read')] },
     async (request) => {
@@ -63,10 +66,21 @@ const route: FastifyPluginAsync = async (fastify) => {
         .where(filters.length > 0 ? and(...filters) : undefined)
         .orderBy(desc(fiat_intents.created_at))
         .limit(LIST_LIMIT)
-      return { intents: rows }
+      return { intents: rows.map(toWire) }
     },
   )
 
+  // GET /v1/admin/fiat/intents/:id, one intent, whole.
+  //
+  // NO CLIENT CALLS THIS (#125). The dashboard lists intents and can
+  // force-settle or refund one BY ID, but never reads one. Kept: the list is
+  // paginated and filtered, and an operator working a single stuck payment
+  // needs the row itself — every column, not the summary the list shows —
+  // before deciding which override to apply. The two override routes beside it
+  // are the actions this is the READ for.
+  //
+  // Covered by test/integration/admin-uncalled-surfaces.test.ts; before that
+  // its only case was a malformed id, which the uuid guard answers.
   fastify.get<{ Params: { id: string } }>(
     '/intents/:id',
     { preHandler: [fastify.authenticate, intentIdGuard, requirePermission('fiat.read')] },
@@ -81,7 +95,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  fastify.post<{ Params: { id: string }; Body: OverrideBody }>(
+  fastify.post<{ Params: { id: string }; Body: OverrideBody; Reply: FiatAdmin['forceSettle']['response'] | ApiError }>(
     '/intents/:id/force-settle',
     { preHandler: [fastify.authenticate, intentIdGuard, requirePermission('fiat.manage')] },
     async (request) => {
@@ -114,11 +128,11 @@ const route: FastifyPluginAsync = async (fastify) => {
         asset: updated.asset,
         asset_amount_raw: updated.asset_amount_raw,
       })
-      return { intent: updated }
+      return { intent: toWire(updated) }
     },
   )
 
-  fastify.post<{ Params: { id: string }; Body: OverrideBody }>(
+  fastify.post<{ Params: { id: string }; Body: OverrideBody; Reply: FiatAdmin['refund']['response'] | ApiError }>(
     '/intents/:id/refund',
     { preHandler: [fastify.authenticate, intentIdGuard, requirePermission('fiat.manage')] },
     async (request) => {
@@ -142,20 +156,20 @@ const route: FastifyPluginAsync = async (fastify) => {
       if (updated === null) {
         throw new AppError(409, ErrorCode.VALIDATION_ERROR, `intent is ${intent.status}, cannot mark refunded`)
       }
-      return { intent: updated }
+      return { intent: toWire(updated) }
     },
   )
 
-  fastify.get(
+  fastify.get<{ Reply: FiatAdmin['providers']['response'] | ApiError }>(
     '/providers',
     { preHandler: [fastify.authenticate, requirePermission('fiat.read')] },
     async () => {
       const rows = await fastify.db.select().from(fiat_providers).orderBy(fiat_providers.priority)
-      return { providers: rows }
+      return { providers: rows.map(toWire) }
     },
   )
 
-  fastify.patch<{ Params: { id: string }; Body: { is_enabled?: unknown; priority?: unknown } }>(
+  fastify.patch<{ Params: { id: string }; Body: { is_enabled?: unknown; priority?: unknown }; Reply: FiatAdmin['updateProvider']['response'] | ApiError }>(
     '/providers/:id',
     { preHandler: [fastify.authenticate, requirePermission('fiat.manage')] },
     async (request) => {
@@ -182,7 +196,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         .where(eq(fiat_providers.id, request.params.id))
         .returning()
       if (row === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'provider not found')
-      return { provider: row }
+      return { provider: toWire(row) }
     },
   )
 

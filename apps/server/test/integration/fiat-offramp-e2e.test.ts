@@ -6,7 +6,9 @@
  *                           (reusing the same id) + a p2p offer instruction
  *   GET  /v1/fiat/intents/:id → reflects the committed intent
  * Negatives: a second offramp on the consumed quote → 409; a payout account
- * whose currency ≠ the quote's → 422 (the payout_country guard wiring).
+ * whose currency ≠ the quote's → 422 (the payout_country guard wiring); and
+ * from #105 T1, a bank account the caller does not own → 404, and another
+ * user's committed intent → 404 rather than 403.
  *
  * The only stub is CoinGecko (p2p mid-rate) — parsed generically from the URL,
  * so no asset/currency ids are hardcoded. Everything else is the real path.
@@ -17,7 +19,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { P2P_PROVIDER_ID } from '@tenda/shared'
 import { fiat_providers, fiat_intents } from '@tenda/shared/db/schema/fiat'
-import { invalidateExchangeRatesCache } from '@server/lib/exchange-rates'
+import { invalidateExchangeRatesCache } from '@server/features/fiat-rails/rates/exchange-rates'
 import {
   TEST_DB_CONFIGURED,
   TEST_CHAIN_ID,
@@ -177,6 +179,71 @@ test('offramp e2e: a payout account whose currency ≠ the quote is rejected 422
     })
     assert.strictEqual(ok.statusCode, 200, ok.body)
     assert.strictEqual(ok.json().status, 'awaiting_user')
+  } finally {
+    restore()
+  }
+})
+
+test('POST /v1/fiat/offramp: a bank account the caller does not own is 404 (#105 T1)', { skip }, async () => {
+  // Guards the account BEFORE the quote is consumed, so a caller who names
+  // someone else's account does not burn their own quote finding out.
+  const app = getApp()
+  const seller = await createUser(app, { country: 'NG' })
+  const stranger = await createUser(app, { country: 'NG' })
+  const foreign = await createBankAccount(app, stranger.row.id)
+
+  const res = await app.inject({
+    method: 'POST', url: '/v1/fiat/offramp', headers: authHeader(seller.token),
+    payload: { intent_id: 'no-such-intent', bank_account_id: foreign.id },
+  })
+  assert.strictEqual(res.statusCode, 404)
+  assert.match(res.json().message, /bank account not found/)
+})
+
+test('GET /v1/fiat/intents/:id: another user\'s REAL intent is 404, not 403 (#105 T1)', { skip }, async () => {
+  // The guard is `intent === null || intent.user_id !== request.user.id`, and
+  // the ownership half is the half worth testing. A nonexistent id exercises
+  // only the first clause — MEASURED: with the ownership check deleted, a
+  // version of this case that used a random uuid still passed. So the intent
+  // below is committed for real, by its owner, and then fetched by somebody
+  // else.
+  //
+  // Ownership and existence answer identically on purpose: a 403 would confirm
+  // that the id belongs to someone.
+  const app = getApp()
+  const restore = stubCoinGecko()
+  try {
+    await seedProvider(app)
+    const owner = await createUser(app, { country: 'NG' })
+    const account = await createBankAccount(app, owner.row.id, { country: 'NG' })
+    const q = await quoteOfframp(app, owner.token)
+    assert.strictEqual(q.statusCode, 200, q.body)
+    const intentId = q.json().intent_id as string
+    const off = await app.inject({
+      method: 'POST', url: '/v1/fiat/offramp', headers: authHeader(owner.token),
+      payload: { intent_id: intentId, bank_account_id: account.id },
+    })
+    assert.strictEqual(off.statusCode, 200, off.body)
+
+    // The owner can read it...
+    const mine = await app.inject({
+      method: 'GET', url: `/v1/fiat/intents/${intentId}`, headers: authHeader(owner.token),
+    })
+    assert.strictEqual(mine.statusCode, 200)
+
+    // ...and a stranger gets the same answer as for an id that does not exist.
+    const stranger = await createUser(app, { country: 'NG' })
+    const theirs = await app.inject({
+      method: 'GET', url: `/v1/fiat/intents/${intentId}`, headers: authHeader(stranger.token),
+    })
+    assert.strictEqual(theirs.statusCode, 404)
+    assert.match(theirs.json().message, /intent not found/)
+
+    const absent = await app.inject({
+      method: 'GET', url: '/v1/fiat/intents/00000000-0000-0000-0000-000000000000',
+      headers: authHeader(stranger.token),
+    })
+    assert.strictEqual(absent.statusCode, 404)
   } finally {
     restore()
   }

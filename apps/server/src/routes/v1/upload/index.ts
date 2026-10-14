@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode, isScopedUploadType } from '@tenda/shared'
-import { generateUploadSignature } from '@server/lib/cloudinary'
-import { authorizeScopedUpload } from '@server/lib/uploads/scoped'
+import { generateUploadSignature } from '@server/features/uploads/cloudinary'
+import { authorizeScopedUpload } from '@server/features/uploads/scoped'
 import { AppError, requireBody } from '@server/lib/errors'
 import type { UploadContract, UploadType, ApiError } from '@tenda/shared'
 

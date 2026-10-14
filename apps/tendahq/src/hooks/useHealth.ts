@@ -43,15 +43,3 @@ export function useHealth(): State {
 
   return state
 }
-
-/**
- * Format uptime seconds → human-readable e.g. "12d 4h", "3h 21m", "47m".
- */
-export function formatUptime(seconds: number): string {
-  const days = Math.floor(seconds / 86_400)
-  const hrs = Math.floor((seconds % 86_400) / 3_600)
-  const mins = Math.floor((seconds % 3_600) / 60)
-  if (days) return `${days}d ${hrs}h`
-  if (hrs)  return `${hrs}h ${mins}m`
-  return `${mins}m`
-}

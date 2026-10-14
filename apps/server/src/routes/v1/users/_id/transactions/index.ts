@@ -1,11 +1,11 @@
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { eq, desc, and, sql } from 'drizzle-orm'
 import { escrows, escrow_transactions, disputes, gig_details } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { userFeedPredicate } from '@server/lib/escrow-feed'
+import { userFeedPredicate } from '@server/features/escrows/detail/feed'
 
 type TransactionsRoute = UsersContract['transactions']
 
@@ -17,7 +17,7 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
   // Not the escrow's audit trail. Being a party to an escrow used to be the
   // whole filter, which put the counterparty's actions in your wallet ("Gig
   // accepted", "Proof submitted" on the POSTER's feed). The per-escrow trail
-  // is still complete at GET /v1/escrows/:id/transactions; see lib/escrow-feed
+  // is still complete at GET /v1/escrows/:id/transactions; see features/escrows/detail/feed
   // for why the split is keyed by role and not by `actor_id`.
   fastify.get<{
     Params: TransactionsRoute['params']

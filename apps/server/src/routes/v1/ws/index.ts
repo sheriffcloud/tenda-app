@@ -22,7 +22,7 @@ import {
   drizzleWsAuthStore,
   parseChannel,
   parseSubprotocolAuth,
-} from '@server/lib/ws'
+} from '@server/realtime/ws'
 
 export const WS_AUTH_GRACE_MS = 5_000
 

@@ -1,12 +1,10 @@
 import { FastifyPluginAsync } from 'fastify'
-import { ErrorCode, PUSH_ANNOUNCEMENT_TTL_DAYS } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { ErrorCode, MS_PER_DAY, PUSH_ANNOUNCEMENT_TTL_DAYS } from '@tenda/shared'
+import { requirePermission } from '@server/lib/http/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
-import { createAnnouncement, normalizeTarget } from '@server/lib/announcements'
+import { createAnnouncement, normalizeTarget } from '@server/features/announcements/announcements'
 import type { ApiError } from '@tenda/shared'
-
-const DAY_MS = 24 * 3_600_000
 
 const adminPush: FastifyPluginAsync = async (fastify) => {
   // POST /v1/admin/push/broadcast
@@ -48,7 +46,7 @@ const adminPush: FastifyPluginAsync = async (fastify) => {
         is_active:    true,
         target:       audience.target,
         target_value: audience.target_value,
-        expires_at:   new Date(Date.now() + PUSH_ANNOUNCEMENT_TTL_DAYS * DAY_MS),
+        expires_at:   new Date(Date.now() + PUSH_ANNOUNCEMENT_TTL_DAYS * MS_PER_DAY),
         created_by:   request.user.id,
       },
       { push: true, log: fastify.log, ...(pushData ? { pushData } : {}) },

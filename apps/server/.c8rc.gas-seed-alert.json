@@ -1,0 +1,26 @@
+{
+  "//": "Scoped coverage gate for the gas-seed hot-wallet MONITOR and its alert kind (#53b item 4). Mirrors .c8rc.gas-seed.json and .c8rc.contracts.json: the repo-wide gate in .c8rc.json sits at 81/82/80/81, raising that globally is a separate decision that would fail on unrelated files, so this asserts the house bar (>90) on the code this work owns. Deliberately NOT the whole of features/alerts — the dispute half predates #53b and speaking for it here would either hide a regression in this code behind its coverage or fail this gate for someone else's. Run via `pnpm test:coverage:gas-seed-alert`.",
+  "all": true,
+  "src": [
+    "src"
+  ],
+  "include": [
+    "src/features/alerts/monitors/**/*.ts",
+    "src/features/alerts/kinds/gas-seed-low-balance.ts",
+    "src/features/alerts/kinds/gas-seed-balance-reader.ts",
+    "src/features/alerts/channels/slack/kinds/gas-seed-low-balance.ts"
+  ],
+  "exclude": [
+    "src/**/*.d.ts"
+  ],
+  "reporter": [
+    "text"
+  ],
+  "report-dir": "coverage/gas-seed-alert",
+  "clean": true,
+  "check-coverage": true,
+  "lines": 90,
+  "branches": 90,
+  "functions": 90,
+  "statements": 90
+}

@@ -204,6 +204,125 @@
       "when": 1786642821713,
       "tag": "0028_tearful_thanos",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1787293414381,
+      "tag": "0029_large_hobgoblin",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1787376694865,
+      "tag": "0030_cultured_norman_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1787507031933,
+      "tag": "0031_flowery_mister_fear",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1787521228317,
+      "tag": "0032_lazy_venom",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1787665690139,
+      "tag": "0033_sloppy_boomerang",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1787896813846,
+      "tag": "0034_crazy_fallen_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1787954246645,
+      "tag": "0035_lazy_mach_iv",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1788083290541,
+      "tag": "0036_nice_random",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1788097967180,
+      "tag": "0037_natural_daredevil",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1788305168910,
+      "tag": "0038_hard_orphan",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1788310344321,
+      "tag": "0039_mysterious_tarot",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1788419524317,
+      "tag": "0040_right_doctor_octopus",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1788805096409,
+      "tag": "0041_special_puff_adder",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791072413996,
+      "tag": "0042_foamy_spirit",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791139803113,
+      "tag": "0043_majestic_major_mapleleaf",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791169116172,
+      "tag": "0044_lyrical_garia",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1791169120380,
+      "tag": "0045_gray_valeria_richards",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,18 @@ import { TendaEscrow } from "../target/types/tenda_escrow";
 // guarantee here as there is on EVM; this file is the convention that replaces
 // it, which is why it must never be skipped or assumed.
 //
+// WHO MAY RUN THIS (#39): the provider wallet must be the program's UPGRADE
+// AUTHORITY. `initialize_platform` now reads the program's own ProgramData
+// account and refuses any other signer (`NotUpgradeAuthority`), because Solana
+// has no constructor and the gap between deploy and init would otherwise let
+// anyone claim protocol_admin / dispute_admin / treasury — irrecoverably.
+// Consequences for launch ordering:
+//   - run this with the SAME key that deployed the program;
+//   - initialize BEFORE handing the upgrade authority to the Squads multisig
+//     (afterwards the multisig has to sign this transaction);
+//   - initialize BEFORE making the program immutable — a final-authority program
+//     carries `None` and can never be initialized.
+//
 // REQUIRED env on every cluster — no fallback, by design:
 //   TENDA_ADMIN            protocol admin — the Squads vault on mainnet (#30)
 //   TENDA_DISPUTE_ADMIN    dispute authority (ops key at launch)

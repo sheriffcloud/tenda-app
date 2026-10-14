@@ -52,8 +52,8 @@ export const reports = pgTable(
     content_snapshot: varchar('content_snapshot', { length: 2000 }), // text at time of report for offline review
     status: reportStatusEnum('status').notNull().default('pending'),
     admin_note: varchar('admin_note', { length: 1000 }),
-    reviewed_at: timestamp('reviewed_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    reviewed_at: timestamp('reviewed_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     // One report per user per piece of content — prevents spam reports and is naturally idempotent

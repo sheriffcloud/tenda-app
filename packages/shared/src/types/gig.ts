@@ -1,11 +1,15 @@
 /**
  * Gig READ surface (post-cutover). Gigs are escrows with kind='gig' —
  * creation and every transition go through /v1/escrows (escrows.contract).
- * This file only types the public browse surface: /v1/gigs (listing) and
- * /v1/gigs/:id (detail), both served from escrows ⨝ gig_details.
+ * This file only types the public browse surface — /v1/gigs (listing),
+ * /v1/gigs/:id (detail) and /v1/gigs/facets (the rail's counts) — every one of
+ * them served from escrows ⨝ gig_details.
  */
 import type { GigCategory } from '../constants/categories'
+import type { GigListSort } from '../constants/gig-list'
+import type { CountryCode } from '../constants/locations'
 import type { ProofType } from '../constants/proofs'
+import type { ProofParams } from '../constants/proof-params'
 // Type-only, so nothing is emitted and the gig ↔ application pairing stays a
 // compile-time relationship rather than a runtime import cycle.
 import type { GigViewerContext } from './application'
@@ -28,7 +32,13 @@ export interface GigSummary {
   amount_raw: string
   status: EscrowStatus
   accept_deadline: string | null
-  created_at: string | null
+  /**
+   * Always present: `escrows.created_at` is NOT NULL with a default, so every
+   * producer reads it as a `Date` and emits `.toISOString()` unconditionally —
+   * the shared `toGigSummary` (feed, featured rail, realtime frames) and the
+   * detail route's own projection, which builds this shape by hand.
+   */
+  created_at: string
   title: string
   description: string | null
   category: GigCategory
@@ -44,6 +54,13 @@ export interface GigSummary {
    * they accept, or discovering it afterwards is a bait-and-switch.
    */
   proof_requirements: ProofType[]
+  /**
+   * Per-type params for the requirements (geotag radius, structured fields);
+   * null when no required type carries params. On the SUMMARY for the same
+   * reason `proof_requirements` is: "within 500 m of the pin" and which fields
+   * must be reported are part of what accepting commits a worker to.
+   */
+  proof_params: ProofParams | null
   /**
    * Approval mode: this gig is assigned by the poster from applications, so a
    * worker APPLIES rather than accepting.
@@ -73,6 +90,15 @@ export interface GigDetail extends GigSummary {
   submitted_at: string | null
   approval_deadline: string | null
   dispute_bond_raw: string
+  /**
+   * The wallet THIS VIEWER is bound to on this escrow, chain-attested:
+   * creator → their create-signer, counterparty → their accept-signer,
+   * pre-accept assignee → the wallet baked at create. `null` for anonymous
+   * readers, non-parties, drafts, and escrows that predate the columns. The
+   * OTHER party's address is never on the wire, so "owner only" holds
+   * structurally rather than by client discipline.
+   */
+  my_signer_address: string | null
   /**
    * The named assignee — PARTIES ONLY (an admin who is not a party gets `null`
    * here too, and reads the escrow through /v1/admin/escrows/:id/dossier).
@@ -156,6 +182,11 @@ export interface CreateGigDetailsBody {
    * how every gig behaved before this field existed.
    */
   proof_requirements?: ProofType[]
+  /**
+   * Required iff `proof_requirements` includes a param-bearing type (geotag,
+   * structured); refused otherwise. See `parseProofParams`.
+   */
+  proof_params?: ProofParams | null
 }
 
 // ── Query types ───────────────────────────────────────────────────────
@@ -192,7 +223,7 @@ export type GigListQuery = {
   status?: EscrowStatus[]
   min_amount_raw?: string
   max_amount_raw?: string
-  sort?: 'created_at' | 'amount_asc' | 'amount_desc'
+  sort?: GigListSort
   lat?: number // proximity search centre
   lng?: number
   radius_km?: number
@@ -200,6 +231,50 @@ export type GigListQuery = {
   offset?: number
   /** Opaque keyset cursor used by the live public feed. */
   cursor?: string
+}
+
+// ── Facets ────────────────────────────────────────────────────────────
+
+/**
+ * Query for GET /v1/gigs/facets — the public feed's FILTERS and nothing else.
+ *
+ * Position and ordering are absent because they cannot change a count:
+ * `limit`/`offset`/`cursor` choose which page of the same set is returned, and
+ * `sort` chooses its order. `mine` and `status` are absent because facets
+ * describe the anonymous feed only — the route refuses both rather than
+ * silently answering a different question than the caller asked.
+ */
+export type GigFacetsQuery = Omit<
+  GigListQuery,
+  'mine' | 'status' | 'sort' | 'limit' | 'offset' | 'cursor'
+>
+
+/**
+ * Counts for the feed rail's cells (GET /v1/gigs/facets).
+ *
+ * Every number answers ONE question: how many gigs the reader would get if
+ * they clicked that cell. So each facet is counted with the CURRENT filters
+ * except its own key — which is exactly what clicking replaces (see the web
+ * rail's `gigsHref`, which swaps one key and carries the rest, `city`
+ * included). Counting with all filters applied would instead answer "how many
+ * of what you are already looking at", and every cell you have not selected
+ * would read 0.
+ *
+ * The two maps are COMPLETE over their vocabularies: the rail draws a cell per
+ * category and per market whether or not any gig matches, so an absent key
+ * would render as a blank where the honest answer is 0.
+ */
+export interface GigFacets {
+  category: Record<GigCategory, number>
+  /**
+   * Keyed by ISO-3166 alpha-2. Remote gigs persist no country, so they are in
+   * no bucket here — the sum of these counts is not the size of the feed.
+   */
+  country: Record<CountryCode, number>
+  /** Gigs that are remote, with any current `remote` filter lifted. */
+  remote: number
+  /** Gigs that are cross-border, with any current `cross_border` filter lifted. */
+  cross_border: number
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────

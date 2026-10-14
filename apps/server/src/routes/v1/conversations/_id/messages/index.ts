@@ -1,14 +1,14 @@
 import { FastifyPluginAsync } from 'fastify'
-import { uuidParamGuard } from '@server/lib/guards'
-import { clampLimit } from '@server/lib/pagination'
+import { uuidParamGuard } from '@server/lib/http/guards'
+import { clampLimit } from '@server/lib/http/pagination'
 import { and, eq, lt, lte, or, desc, isNull, ne, sql, type SQL } from 'drizzle-orm'
 import { conversations, messages, escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, MESSAGE_MAX_LENGTH } from '@tenda/shared'
 import { appEvents } from '@server/lib/events'
 import { AppError, requireBody } from '@server/lib/errors'
-import { validateMessageAttachment } from '@server/lib/uploads/validate-attachment'
-import { channelName } from '@server/lib/ws'
-import { messagePreview } from '@server/lib/chat'
+import { validateMessageAttachment } from '@server/features/uploads/validate-attachment'
+import { channelName } from '@server/realtime/ws'
+import { messagePreview } from '@server/lib/http/chat'
 import type { ConversationsContract, ApiError } from '@tenda/shared'
 
 type GetMessagesRoute = ConversationsContract['messages']
@@ -139,7 +139,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         escrow_title: m.escrow_title ?? null,
         escrow_kind: m.escrow_kind ?? null,
         read_at: m.read_at?.toISOString() ?? null,
-        created_at: m.created_at?.toISOString() ?? null,
+        created_at: m.created_at.toISOString(),
       }))
     },
   )
@@ -170,7 +170,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       const trimmed = (content ?? '').trim()
       // Attachment-only messages carry empty content.
       if (trimmed.length === 0 && attachment === null) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'content is required')
-      if (trimmed.length > 2000) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Message content must be at most 2000 characters')
+      if (trimmed.length > MESSAGE_MAX_LENGTH) throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Message content must be at most ${MESSAGE_MAX_LENGTH} characters`)
 
       // Context references must resolve, a bad id would otherwise surface
       // as an FK violation (500) instead of a client error.
@@ -254,7 +254,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         escrow_title: context.title,
         escrow_kind: context.kind,
         read_at: newMessage.read_at?.toISOString() ?? null,
-        created_at: newMessage.created_at?.toISOString() ?? null,
+        created_at: newMessage.created_at.toISOString(),
       }
 
       // Live fan-out to open chat screens. Reaches the sender's own socket

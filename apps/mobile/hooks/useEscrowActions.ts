@@ -5,43 +5,44 @@
  *   request unsigned tx (escrow.store) → sign + broadcast + client-ping
  *   (wallet/dispatch) → TransactionMonitor/WS confirms → screen refreshes.
  *
- * Proof submission is two-phase: the proof FILES go to the off-chain
- * satellite (POST /v1/escrows/:id/proofs) first, then the on-chain submit
- * commits a digest over their URLs. The digest is sha256 over the
- * '\n'-joined URLs in upload order, encoded base58 for Solana chains,
- * 0x-hex for EVM (matching SubmitEscrowProofBody's per-chain format).
+ * Proof submission is two-phase: the proofs — file urls AND data payloads
+ * (geotag/text/structured) — go to the off-chain satellite
+ * (POST /v1/escrows/:id/proofs) first, then the on-chain submit commits a
+ * digest over the escrow's whole stored set, read back from the server (see
+ * `attachedProofUrls`) rather than taken from the batch just picked. The
+ * digest is sha256 over the '\n'-joined identities (a file's url, a data
+ * proof's canonical JSON), encoded base58 for Solana chains, 0x-hex for EVM
+ * (matching SubmitEscrowProofBody's per-chain format).
  */
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
-import { sha256 } from '@noble/hashes/sha256'
-import { Buffer } from 'buffer'
-import bs58 from 'bs58'
-import { TAKEDOWN_REFUSED_MESSAGE } from '@tenda/shared'
 import type {
+  EscrowProofUpload,
   EscrowTxType,
-  ProofType,
   TransactionProgressPhase,
   UnsignedTx,
 } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
-import { WalletError } from '@/wallet/errors'
-import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import { errorMessage, PROOF_COPY } from '@tenda/shared'
+import {
+  declaredSignerFor,
+  resolveSignersForChain,
+  settleSignerFor,
+  signSendAndReport,
+} from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
-import { api } from '@/api/client'
 import { showToast } from '@/components/ui'
-import {
-  classifyTransactionGateError,
-  TRANSACTION_GATE_MESSAGE,
-  transactionGateRoute,
-} from '@/lib/transaction-gate'
-import { isTakedownRefusal } from '@/lib/takedown-refusal'
+import { surfaceTransitionFailure } from '@/features/escrow/transition-failure'
 import { persistEscrowProofs } from '@/features/escrow-proofs/persistEscrowProofs'
+import { attachedProofUrls } from '@/features/escrow-proofs/attachedProofUrls'
+import { proofHashFor } from '@/hooks/escrow/proof-hash'
 
-export interface ProofFile {
-  url: string
-  type: ProofType
-}
+/**
+ * One proof handed to submit/addProofs — the shared wire union (file url OR
+ * data payload). The old `ProofFile` name died with the files-only era.
+ */
+export type EscrowProofInput = EscrowProofUpload
 
 /**
  * Lifecycle of a single transition, drives the progress modal:
@@ -51,13 +52,6 @@ export interface ProofFile {
  *  - confirming → broadcast, waiting on-chain confirmation (pendingTxRef set)
  */
 export type TxPhase = TransactionProgressPhase
-
-export function proofHashFor(chainId: string, urls: string[]): string {
-  const digest = sha256(new TextEncoder().encode(urls.join('\n')))
-  return chainId.startsWith('solana:')
-    ? bs58.encode(digest)
-    : `0x${Buffer.from(digest).toString('hex')}`
-}
 
 interface UseEscrowActionsArgs {
   escrowId: string
@@ -107,6 +101,31 @@ export function useEscrowActions({
   }
 
   /**
+   * A leg that failed BEFORE the wallet opened: unwind the progress state and
+   * say which leg it was. The server's message wins; `fallback` names the leg
+   * when it has none.
+   */
+  function failPreparation(error: unknown, fallback: string): false {
+    setBusyAction(null)
+    setPhase('idle')
+    showToast('error', errorMessage(error) || fallback)
+    return false
+  }
+
+  /**
+   * Run a build that carries the SIGNER DECLARATION (publish, accept,
+   * dispute). The session is settled first so the address declared is the one
+   * that will actually sign — see `settleSignerFor`; declaring before
+   * connecting names the primary and then signs with someone else.
+   */
+  async function withDeclaredSigner(
+    build: (signer?: string) => Promise<UnsignedTx>,
+  ): Promise<UnsignedTx> {
+    await settleSignerFor(chainId)
+    return build(declaredSignerFor(chainId))
+  }
+
+  /**
    * `debitRaw` declares what this action takes from the signer's wallet, in
    * base units of the escrow's asset. Pass it for value-moving actions only —
    * accept/approve/claim/cancel/refund/submit/decline move nothing from the
@@ -145,37 +164,7 @@ export function useEscrowActions({
       return true
     } catch (e) {
       setPhase('idle')
-      // First-transaction gate (9D): route to link-wallet / verify-contact
-      // instead of a dead-end toast. The 403 surfaces from request() (the
-      // server build-tx call), before any wallet signing.
-      const gate = classifyTransactionGateError(e)
-      if (gate !== null) {
-        showToast('error', TRANSACTION_GATE_MESSAGE[gate])
-        router.push(transactionGateRoute(gate))
-        return false
-      }
-      // Guard exits (Cancel button / lost wallet response) are expected paths,
-      // not failures — the message already says whether the tx may still sync.
-      if (e instanceof WalletError && (e.code === 'declined' || e.code === 'timeout')) {
-        showToast('info', e.message)
-        return false
-      }
-      // Taken down (CO1) while this screen was open: the refusal is the FIRST
-      // the client hears of it, so a toast alone would leave the same button
-      // sitting there to be pressed again. Re-read instead — the party lands on
-      // the takedown notice with the entry actions gone, everyone else on "not
-      // available". The server's message is preferred — it is written for a
-      // stranger whose screen simply went stale — but it falls back to the
-      // SHARED constant the server itself sends, not to the generic "please try
-      // again" below: a blank envelope must not turn "this listing is gone"
-      // into advice to retry something that will be refused every time.
-      if (isTakedownRefusal(e)) {
-        showToast('error', (e as Error).message || TAKEDOWN_REFUSED_MESSAGE)
-        onStale?.()
-        return false
-      }
-      showToast('error', (e as Error).message || 'Transaction failed, please try again')
-      return false
+      return surfaceTransitionFailure(e, { navigate: (route) => router.push(route), onStale })
     } finally {
       setBusyAction(null)
     }
@@ -194,8 +183,14 @@ export function useEscrowActions({
     /** Publish a draft: rebuild + sign the create tx (offramp drafts /
      *  signing-declined retries, the escrow id is preserved). Funds the escrow,
      *  so it debits the full amount. */
-    publish: () => dispatch('create', () => store.requestBuildCreate(escrowId), amountRaw),
-    accept: () => dispatch('accept', () => store.requestAccept(escrowId)),
+    publish: () =>
+      dispatch(
+        'create',
+        () => withDeclaredSigner((signer) => store.requestBuildCreate(escrowId, signer)),
+        amountRaw,
+      ),
+    accept: () =>
+      dispatch('accept', () => withDeclaredSigner((signer) => store.requestAccept(escrowId, signer))),
     decline: () => dispatch('decline', () => store.requestDecline(escrowId)),
     /**
      * Approval mode, poster-signed. No `debitRaw`: the escrow is already
@@ -217,30 +212,46 @@ export function useEscrowActions({
     refund: (kind: 'refund_expired' | 'reclaim_abandoned') =>
       dispatch(kind, () => store.requestRefund(escrowId)),
 
-    /** Upload satellite rows first, then commit the digest on-chain. */
-    submit: async (proofs: ProofFile[]): Promise<boolean> => {
+    /**
+     * Upload satellite rows first, then commit a digest over the escrow's
+     * WHOLE stored proof set on-chain.
+     *
+     * `proofs` may be EMPTY, and that is the retry path rather than a mistake:
+     * a worker whose files uploaded and whose transaction then failed has
+     * nothing left to upload, only a signature to give again. The digest comes
+     * from the server either way, so the empty case seals exactly the evidence
+     * the escrow already holds.
+     *
+     * Two legs, two fallbacks. Sharing one message told a worker their files
+     * had failed to save when it was the READ-BACK that failed — i.e. at the
+     * one moment the upload is the thing that did succeed.
+     */
+    submit: async (proofs: EscrowProofInput[]): Promise<boolean> => {
       setBusyAction('submit')
       setPhase('preparing')
       try {
-        await persistEscrowProofs(escrowId, proofs)
+        if (proofs.length > 0) await persistEscrowProofs(escrowId, proofs)
       } catch (e) {
-        setBusyAction(null)
-        setPhase('idle')
-        showToast('error', (e as Error).message || 'Failed to save proof files')
-        return false
+        return failPreparation(e, PROOF_COPY.saveFailed)
       }
-      const proof_hash = proofHashFor(chainId, proofs.map((p) => p.url))
+      let urls: string[]
+      try {
+        urls = await attachedProofUrls(escrowId)
+      } catch (e) {
+        return failPreparation(e, 'Could not read the proof on this escrow, please try again')
+      }
+      const proof_hash = proofHashFor(chainId, urls)
       return dispatch('submit', () => store.requestSubmit(escrowId, proof_hash))
     },
 
     /** Supplementary evidence while submitted, off-chain only. */
-    addProofs: async (proofs: ProofFile[]): Promise<boolean> => {
+    addProofs: async (proofs: EscrowProofInput[]): Promise<boolean> => {
       try {
         await persistEscrowProofs(escrowId, proofs)
         showToast('success', 'Proof added!')
         return true
       } catch (e) {
-        showToast('error', (e as Error).message || 'Failed to add proof, please try again')
+        showToast('error', errorMessage(e) || 'Failed to add proof, please try again')
         return false
       }
     },
@@ -253,13 +264,14 @@ export function useEscrowActions({
     dispute: (reason: string, bondRaw: string) =>
       dispatch(
         'dispute',
-        async () => {
-          const permit =
-            bondRaw !== '0'
-              ? await buildPermitFor({ chain_id: chainId, asset, value_raw: bondRaw })
-              : undefined
-          return store.requestDispute(escrowId, bondRaw, reason, permit)
-        },
+        () =>
+          withDeclaredSigner(async (signer) => {
+            const permit =
+              bondRaw !== '0'
+                ? await buildPermitFor({ chain_id: chainId, asset, value_raw: bondRaw })
+                : undefined
+            return store.requestDispute(escrowId, bondRaw, reason, permit, signer)
+          }),
         bondRaw,
       ),
   }

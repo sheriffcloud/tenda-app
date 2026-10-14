@@ -11,9 +11,16 @@
  * collapse the user's scrolled pages.
  */
 import { create } from 'zustand'
-import type { GigDetail, ReviewInput } from '@tenda/shared'
+import {
+  accountGeneration,
+  classifyDetailLoadError,
+  isSameAccount,
+  registerAccountReset,
+  type DetailLoadError,
+  type GigDetail,
+  type ReviewInput,
+} from '@tenda/shared'
 import { api } from '@/api/client'
-import { classifyDetailLoadError, type DetailLoadError } from '@/lib/detail-load-error'
 
 /**
  * A failed load, and WHICH gig it was for.
@@ -60,6 +67,11 @@ export const useGigsStore = create<GigsState>((set) => ({
   error: null,
 
   fetchGigDetail: async (id) => {
+    // Two different questions, both needed. `latestRequest` answers "did a
+    // newer fetch supersede this one"; the generation answers "does this
+    // response belong to a previous ACCOUNT" — which a sign-out is, and which
+    // a per-store request token cannot express (#65).
+    const gen = accountGeneration()
     const request = ++latestRequest
     set((state) => ({
       isLoading: true,
@@ -71,6 +83,7 @@ export const useGigsStore = create<GigsState>((set) => ({
     }))
     try {
       const gig = await api.gigs.get({ id })
+      if (!isSameAccount(gen)) return
       // Superseded: a newer fetch owns the slot, so this response writes
       // nothing at all. `isLoading` is included in that for consistency rather
       // than for effect — NOTHING reads it today (`GigDetailGate` decides on
@@ -79,6 +92,11 @@ export const useGigsStore = create<GigsState>((set) => ({
       if (request !== latestRequest) return
       set({ selectedGig: gig, isLoading: false })
     } catch (e) {
+      // The failure path writes as much as the success path does — an error
+      // banner naming a gig, and a possible null of the slot — so guarding only
+      // the success half would let a stale 404 report the previous account's
+      // gig as gone on the next account's screen.
+      if (!isSameAccount(gen)) return
       if (request !== latestRequest) return
       const failure = classifyDetailLoadError(e)
       // A `gone` refetch DROPS the gig it was refreshing. Without this, a gig
@@ -97,13 +115,25 @@ export const useGigsStore = create<GigsState>((set) => ({
   },
 
   reviewEscrow: async (id, input) => {
+    // `isLoading` is shared with fetchGigDetail, so a review that settles after
+    // a sign-out would switch off a spinner the NEXT account's detail load put
+    // up. The caller still gets its rejection: the guard suppresses the write,
+    // not the throw.
+    const gen = accountGeneration()
     set({ isLoading: true })
     try {
       await api.escrows.review({ id }, input)
+      if (!isSameAccount(gen)) return
       set({ isLoading: false })
     } catch (e) {
-      set({ isLoading: false })
+      if (isSameAccount(gen)) set({ isLoading: false })
       throw e
     }
   },
 }))
+
+// `selectedGig` carries the viewer block — the previous account's Apply /
+// Withdraw state — so a leftover is a wrong ACTION offered, not just stale text.
+registerAccountReset(() =>
+  useGigsStore.setState({ selectedGig: null, isLoading: false, error: null }),
+)

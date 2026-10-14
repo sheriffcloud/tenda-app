@@ -18,12 +18,15 @@ import { ErrorCode, type AssignWorkerBody } from '@tenda/shared'
 import { AppError, requireBody } from '@server/lib/errors'
 import { getPlatformConfig } from '@server/lib/platform'
 import { requireGoodStanding } from '@server/features/reputation/guards'
-import { requireProfileComplete } from '@server/lib/guards'
-import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
-import { guardTransition } from '@server/lib/escrow-routes'
-import { buildEscrowTx } from '@server/lib/escrow'
+import { requireProfileComplete } from '@server/lib/http/guards'
+import { assertCanTransact } from '@server/lib/auth/resolver'
+import { guardTransition } from '@server/features/escrows/routes'
+import { buildEscrowTx, partyCaller } from '@server/lib/escrow'
 import { assertWorkerGigCapacity } from '@server/features/capacity/guards'
-import { assertAssignable } from '@server/features/applications/guards'
+import {
+  assertAssignable,
+  resolveApplicationBakeWallet,
+} from '@server/features/applications/guards'
 import { heldExpiry } from '@server/features/applications/service'
 import { drizzleApplicationStore } from '@server/features/applications/store'
 
@@ -38,7 +41,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       }
       const now = new Date()
       const cfg = await getPlatformConfig(fastify.db)
-      const { escrow } = await guardTransition({
+      const { escrow, caller } = await guardTransition({
         db: fastify.db,
         escrow_id: request.params.id,
         user_id: request.user.id,
@@ -62,9 +65,6 @@ const route: FastifyPluginAsync = async (fastify) => {
       const adapter = fastify.chains.get(escrow.chain_id)
       // The POSTER is signing, so they need the transaction gate…
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
-      // …and the worker needs a wallet on this chain, because their address is
-      // baked into the transaction. Same 422 shape as a direct-assign create.
-      await assertAssigneeHasWallet(fastify.db, worker_user_id, adapter.namespace)
 
       // The worker cannot check their own capacity here — they are not the
       // caller — so the poster is stopped from overloading them instead.
@@ -74,10 +74,21 @@ const route: FastifyPluginAsync = async (fastify) => {
       const application = await store.find(escrow.id, worker_user_id)
       assertAssignable(application, now)
 
+      // The wallet this transaction bakes: the one the worker CHOSE on their
+      // application (re-verified as still linked — a stale choice is refused,
+      // never silently swapped for the primary). Pre-choice rows keep the
+      // primary-first resolution, same 422 shape as a direct-assign create.
+      const worker_address = await resolveApplicationBakeWallet(fastify.db, {
+        application,
+        worker_user_id,
+        chain_ns: adapter.namespace,
+      })
+
       const unsigned = await buildEscrowTx(fastify, escrow, {
         action: 'assignAccept',
         user_id: request.user.id,
-        payload: { escrow_id: escrow.id, worker_user_id },
+        caller: partyCaller(caller),
+        payload: { escrow_id: escrow.id, worker_user_id, worker_address },
       })
 
       // Hold LAST: only once the transaction is built and every guard has

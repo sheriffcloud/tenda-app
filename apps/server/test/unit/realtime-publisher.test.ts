@@ -1,11 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { WsServerFrame } from '@tenda/shared'
-import { createWsBroadcaster, type WsSink } from '@server/lib/ws'
+import { createWsBroadcaster, type WsSink } from '@server/realtime/ws'
 import { createRealtimePublisher } from '@server/realtime'
 import type { RealtimeEnvelope } from '@server/realtime'
-import type { RealtimeRemoteTransport } from '@server/realtime/redis-realtime-transport'
-import { createRecentEventCache } from '@server/realtime/recent-event-cache'
+import type { RealtimeRemoteTransport } from '@server/realtime/publisher/redis-realtime-transport'
+import { createRecentEventCache } from '@server/realtime/publisher/recent-event-cache'
 
 const frame: WsServerFrame = {
   channel: 'escrow:e1',

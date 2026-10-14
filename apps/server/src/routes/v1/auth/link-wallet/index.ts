@@ -23,10 +23,8 @@ import { and, eq } from 'drizzle-orm'
 import { user_wallets } from '@tenda/shared/db/schema'
 import { AppError, requireBody, requireNonEmptyString } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
-import { verifyWalletAuth } from '@server/lib/auth/strategies/wallet'
-import { hasVerifiedPhone } from '@server/lib/auth/resolver'
+import { verifyWalletAuth } from '@server/features/auth/strategies/wallet'
 import { walletAddressEquals } from '@server/lib/auth/wallet-address'
-import { fireRetroactiveGasSeed } from '@server/lib/onboarding-deps'
 
 interface Body {
   chain_id: string
@@ -94,13 +92,6 @@ const route: FastifyPluginAsync = async (fastify) => {
         )
       }
 
-      // Gas-seed check on every successful link (stage-1, decision #16):
-      // only phone-verified users are eligible; the dispatcher itself is
-      // idempotent per (user, chain). Fire-and-forget, linking must not
-      // block on an RPC transfer.
-      if (await hasVerifiedPhone(fastify.db, request.user.id)) {
-        fireRetroactiveGasSeed(fastify, request.user.id)
-      }
 
       return { ok: true }
     },

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! `dispute_escrow_{sol,spl}` — either party raises a dispute against an
 //! Accepted or Submitted escrow. Raiser funds the bond into the same vault
 //! as the principal. Status -> Disputed.

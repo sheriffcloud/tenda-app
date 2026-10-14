@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
@@ -13,12 +13,19 @@ export function DisputeSheet({
   visible,
   onClose,
   bondLabel = null,
+  signerRow,
   onDisputeReady,
 }: {
   visible: boolean
   onClose: () => void
   /** Formatted dispute bond (e.g. "5 USDC"), or null when no bond is required. */
   bondLabel?: string | null
+  /**
+   * The signer preview, injected rather than built here: raising a dispute
+   * posts a BOND from a specific wallet, so which one must be on screen — but
+   * a reason field has no business knowing about wallets.
+   */
+  signerRow?: ReactNode
   onDisputeReady: (reason: string) => Promise<boolean>
 }) {
   const { theme } = useUnistyles()
@@ -63,6 +70,12 @@ export function DisputeSheet({
       <Text variant="caption" color={theme.colors.content.secondary}>
         {note}
       </Text>
+      {signerRow !== undefined && (
+        <>
+          <Spacer size={spacing.sm} />
+          {signerRow}
+        </>
+      )}
       <Spacer size={spacing.md} />
       <Button variant="danger" size="xl" fullWidth disabled={!reason.trim()} loading={loading} onPress={handleDispute}>
         Raise Dispute

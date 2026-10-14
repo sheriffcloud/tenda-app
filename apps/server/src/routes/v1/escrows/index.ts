@@ -17,29 +17,35 @@
 
 import { randomUUID } from 'node:crypto'
 import type { FastifyPluginAsync } from 'fastify'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
-import { escrows } from '@tenda/shared/db/schema'
 import { users } from '@tenda/shared/db/schema/identity'
+import { escrows } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import { getPlatformConfig } from '@server/lib/platform'
 import { requireGoodStanding } from '@server/features/reputation/guards'
-import { requireProfileComplete } from '@server/lib/guards'
-import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
+import { requireProfileComplete } from '@server/lib/http/guards'
+import { assertCanTransact, resolveAssigneeWalletAddress } from '@server/lib/auth/resolver'
 import { validateCreateEscrow, type CreateEscrowBody } from '@server/features/escrows/creation/validateCreateEscrow'
 import { normalizeContractAddress } from '@server/chains/contracts'
-import { assertNotTakenDown } from '@server/lib/escrow'
-import { hasPendingEscrowCreateTransaction } from '@server/features/escrows/creation/hasPendingEscrowCreateTransaction'
+import { assertCallerWallet, readSignerPreference } from '@server/lib/escrow'
+import { draftCreatePayload, type DraftSource } from '@server/features/escrows/creation/draftCreatePayload'
+import { draftColumns, findReplayedDraft, insertDraft } from '@server/features/escrows/creation/draftResolution'
+import { acceptDeadlineMoved, deriveAcceptDeadline } from '@server/features/escrows/creation/deriveAcceptDeadline'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: CreateEscrowBody }>(
     '/',
     { preHandler: [fastify.authenticate, requireProfileComplete, requireGoodStanding('create')] },
     async (request, reply) => {
+      // ONE instant for the whole request: the validator and the draft's
+      // provisional accept deadline are both anchored to it, so they cannot
+      // disagree by the milliseconds between two `new Date()` calls (#41).
+      const now = new Date()
       const input = validateCreateEscrow(
         {
           hasChain: (chain_id) => fastify.chains.has(chain_id),
-          now: () => new Date(),
+          now: () => now,
           caller_user_id: request.user.id,
         },
         request.body ?? {},
@@ -55,7 +61,6 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(401, ErrorCode.UNAUTHORIZED, 'user no longer exists')
       }
 
-      const escrow_id = randomUUID()
       const adapter = fastify.chains.get(input.chain_id)
       // EIP-2612 is an EVM-token concept, never forward a permit to an
       // adapter whose namespace can't encode it.
@@ -68,146 +73,93 @@ const route: FastifyPluginAsync = async (fastify) => {
       }
       // First-transaction gate: a wallet on this chain + a verified contact.
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
+      // Free-signer case: the wallet the client intends to sign with is baked
+      // in (Solana) / enforced on the wire (EVM) — but only a wallet this
+      // caller has verified. Absent → the primary, the pre-existing default.
+      const signer_address = readSignerPreference(request.body)
+      if (signer_address !== undefined) {
+        await assertCallerWallet(fastify.db, {
+          user_id: request.user.id,
+          chain_ns: adapter.namespace,
+          address: signer_address,
+        })
+      }
       // Direct assignment bakes the assignee's wallet into the escrow at create,
-      // so they must already have one (clean 422 vs the adapter's raw 404).
-      if (input.assigned_counterparty_id !== null) {
-        await assertAssigneeHasWallet(fastify.db, input.assigned_counterparty_id, adapter.namespace)
+      // so they must already have one (clean 422 vs the adapter's raw 404) —
+      // and the row RECORDS which wallet will be baked, via the same
+      // resolution the builder runs, so the assignee's my_signer_address can
+      // name the one wallet their accept/decline must be signed with.
+      const assigned_counterparty_address =
+        input.assigned_counterparty_id === null
+          ? null
+          : await resolveAssigneeWalletAddress(fastify.db, input.assigned_counterparty_id, adapter.namespace)
+      const { permit, ...terms } = input
+      const identity = { user_id: request.user.id, terms, assigned_counterparty_address }
+
+      // The draft a persisted row describes → the adapter's payload, plus the
+      // permit riding this request (never persisted; it is a signature).
+      const buildUnsigned = (
+        draft: DraftSource & { accept_deadline: Date | null; completion_duration_seconds: number | null },
+      ) => {
+        if (draft.accept_deadline === null || draft.completion_duration_seconds === null) {
+          throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'a created draft must carry its windows')
+        }
+        return adapter.buildTx({
+          action: 'createEscrow',
+          user_id: request.user.id,
+          ...(signer_address !== undefined ? { signer_address } : {}),
+          payload: {
+            ...draftCreatePayload(draft, {
+              accept_deadline: draft.accept_deadline,
+              completion_duration_seconds: draft.completion_duration_seconds,
+            }),
+            ...(permit !== null ? { permit } : {}),
+          },
+        })
       }
+
+      // A replayed operation (same terms, still a draft) answers the SAME
+      // draft with a rebuilt transaction — features/escrows/creation owns
+      // the rules, shared with the agent one-shot.
+      const replayed = await findReplayedDraft(fastify.db, identity)
+      if (replayed !== null) {
+        // A replay can arrive after the draft's own window has run out, and this
+        // path does not go through `prepareDraftCreate` — so it applies the same
+        // derivation, and persists it when it moved. Handing back a transaction
+        // the row disagrees with is the failure mode the re-stamp exists to stop;
+        // handing back a LAPSED one costs the caller gas for a certain revert.
+        const accept_deadline = deriveAcceptDeadline(replayed, now)
+        if (acceptDeadlineMoved(replayed.accept_deadline, accept_deadline)) {
+          await fastify.db
+            .update(escrows)
+            .set({ accept_deadline })
+            .where(and(eq(escrows.id, replayed.id), eq(escrows.status, 'draft')))
+        }
+        const unsigned = await buildUnsigned({ ...replayed, accept_deadline })
+        return reply.code(200).send({ escrow_id: replayed.id, unsigned })
+      }
+
       const { unassign_window_seconds } = await getPlatformConfig(fastify.db)
-      const matchesInput = (row: typeof escrows.$inferSelect): boolean =>
-        row.kind === input.kind &&
-        row.chain_id === input.chain_id &&
-        row.asset === input.asset &&
-        row.amount_raw === input.amount_raw &&
-        row.assigned_counterparty_id === input.assigned_counterparty_id &&
-        row.requires_approval === input.requires_approval &&
-        row.completion_duration_seconds === input.completion_duration_seconds &&
-        row.dispute_bond_raw === input.dispute_bond_raw &&
-        row.accept_deadline?.getTime() === input.accept_deadline_unix * 1000
-      const buildUnsigned = (escrowId: string, persisted?: typeof escrows.$inferSelect) => adapter.buildTx({
-        action: 'createEscrow',
-        user_id: request.user.id,
-        payload: {
-          escrow_id: escrowId,
-          kind: persisted?.kind ?? input.kind,
-          asset: persisted?.asset ?? input.asset,
-          amount_raw: persisted?.amount_raw ?? input.amount_raw,
-          ...((persisted?.assigned_counterparty_id ?? input.assigned_counterparty_id) !== null
-            ? { assigned_counterparty_user_id: persisted?.assigned_counterparty_id ?? input.assigned_counterparty_id! }
-            : {}),
-          accept_deadline_unix: persisted === undefined
-            ? input.accept_deadline_unix
-            : Math.floor(persisted.accept_deadline!.getTime() / 1000),
-          completion_duration_seconds: persisted?.completion_duration_seconds ?? input.completion_duration_seconds,
-          dispute_bond_raw: persisted?.dispute_bond_raw ?? input.dispute_bond_raw,
-          is_seeker: persisted?.is_seeker ?? user.is_seeker,
-          requires_approval: persisted?.requires_approval ?? input.requires_approval,
-          // Fixed on-chain at create and immutable after, so the row must
-          // record the SAME number the transaction encodes — see the escrows
-          // column comment for why today's config is not a substitute.
-          unassign_window_seconds: persisted?.unassign_window_seconds ?? unassign_window_seconds,
-          ...(input.permit !== null ? { permit: input.permit } : {}),
-        },
-      })
-
-      const assertReplayable = async (row: typeof escrows.$inferSelect): Promise<void> => {
-        if (row.status !== 'draft') {
-          throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'This creation operation is no longer a draft')
-        }
-        assertNotTakenDown(row, 'create')
-        if (await hasPendingEscrowCreateTransaction(fastify.db, row.id)) {
-          throw new AppError(
-            409,
-            ErrorCode.ESCROW_WRONG_STATUS,
-            'A create transaction is awaiting confirmation, wait for it to settle',
-          )
-        }
-      }
-
-      const matchingOperation = input.creation_operation_id === null
-        ? undefined
-        : await fastify.db.query.escrows.findFirst({
-            where: and(
-              eq(escrows.creator_id, request.user.id),
-              eq(escrows.creation_operation_id, input.creation_operation_id),
-            ),
-          })
-      if (matchingOperation !== undefined) {
-        if (!matchesInput(matchingOperation)) {
-          throw new AppError(
-            409,
-            ErrorCode.VALIDATION_ERROR,
-            'creation_operation_id was already used with different escrow terms',
-          )
-        }
-        await assertReplayable(matchingOperation)
-        return reply.code(200).send({
-          escrow_id: matchingOperation.id,
-          unsigned: await buildUnsigned(matchingOperation.id, matchingOperation),
-        })
-      }
-
-      const unsigned = await buildUnsigned(escrow_id)
-
-      const insertValues = {
-        id: escrow_id,
-        creation_operation_id: input.creation_operation_id,
-        kind: input.kind,
-        chain_id: input.chain_id,
-        asset: input.asset,
-        amount_raw: input.amount_raw,
-        creator_id: request.user.id,
-        assigned_counterparty_id: input.assigned_counterparty_id,
-        requires_approval: input.requires_approval,
-        unassign_window_seconds,
-        status: 'draft',
-        // The contract this create targets. A new escrow always joins the
-        // CURRENT deployment, so `adapter.escrowAddress` is right by definition
-        // — but it must be recorded, because by the time a transition is built
-        // "current" may mean a different contract and the funds will not have
-        // moved with it. Re-attested from the EscrowCreated log when the tx
-        // lands (lib/escrow-events), which is what makes a create built just
-        // before a redeploy and mined just after still record the truth.
-        escrow_contract: normalizeContractAddress(adapter.namespace, adapter.escrowAddress),
-        accept_deadline: new Date(input.accept_deadline_unix * 1000),
-        completion_duration_seconds: input.completion_duration_seconds,
-        dispute_bond_raw: input.dispute_bond_raw,
+      const escrow_id = randomUUID()
+      const insert = {
+        ...identity,
+        escrow_id,
+        now,
         is_seeker: user.is_seeker,
-      } satisfies typeof escrows.$inferInsert
-      const inserted = input.creation_operation_id === null
-        ? await fastify.db.insert(escrows).values(insertValues).returning({ id: escrows.id })
-        : await fastify.db.insert(escrows).values(insertValues).onConflictDoNothing({
-            target: [escrows.creator_id, escrows.creation_operation_id],
-            where: sql`${escrows.creation_operation_id} IS NOT NULL`,
-          }).returning({ id: escrows.id })
-
-      if (inserted.length === 0 && input.creation_operation_id !== null) {
-        // A concurrent identical request won the unique operation key after
-        // our build. Re-enter once; it now follows the verified existing path.
-        const winner = await fastify.db.query.escrows.findFirst({
-          where: and(
-            eq(escrows.creator_id, request.user.id),
-            eq(escrows.creation_operation_id, input.creation_operation_id),
-          ),
-        })
-        if (winner === undefined) {
-          throw new AppError(409, ErrorCode.INTERNAL_ERROR, 'Could not reconcile escrow creation')
-        }
-        if (!matchesInput(winner)) {
-          throw new AppError(
-            409,
-            ErrorCode.VALIDATION_ERROR,
-            'creation_operation_id was already used with different escrow terms',
-          )
-        }
-        await assertReplayable(winner)
-        return reply.code(200).send({
-          escrow_id: winner.id,
-          unsigned: await buildUnsigned(winner.id, winner),
-        })
+        unassign_window_seconds,
+        escrow_contract: normalizeContractAddress(adapter.namespace, adapter.escrowAddress),
       }
-
-      return reply.code(201).send({ escrow_id, unsigned })
+      // Built BEFORE the insert so a builder failure never strands an orphan
+      // draft; the row is the last step and the transaction only returned
+      // when it exists. Built from the SAME columns the insert writes.
+      const unsigned = await buildUnsigned(draftColumns(insert))
+      const { row, created } = await insertDraft(fastify.db, insert)
+      // Lost the operation-key race: the winner's row is the draft, and its
+      // transaction is rebuilt from that row (the assignee may have been
+      // restamped), exactly as the replay path above does.
+      return created
+        ? reply.code(201).send({ escrow_id, unsigned })
+        : reply.code(200).send({ escrow_id: row.id, unsigned: await buildUnsigned(row) })
     },
   )
 }

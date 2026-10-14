@@ -1,9 +1,14 @@
 import { showToast } from '@/components/ui/Toast'
 import { uploadToCloudinary } from '@/lib/upload'
 import type { PickedFile } from '@/components/form/FilePicker'
-import type { ProofType } from '@tenda/shared'
+import { errorMessage, type EscrowProofUpload } from '@tenda/shared'
 
-export type Proof = { url: string; type: ProofType }
+/**
+ * One proof headed for POST /escrows/:id/proofs — the shared wire union:
+ * a FILE proof (uploaded url) or a DATA proof (geotag/text/structured
+ * payload, captured by DataProofInputs, never uploaded anywhere).
+ */
+export type Proof = EscrowProofUpload
 
 /**
  * Upload picked proof files to Cloudinary in order. Returns the proof list on
@@ -17,7 +22,10 @@ export async function uploadProofs(files: PickedFile[]): Promise<Proof[] | null>
       const url = await uploadToCloudinary(file, 'proof')
       proofs.push({ url, type: file.type })
     } catch (e) {
-      showToast('error', `Failed to upload "${file.name}": ${(e as Error).message}`)
+      // The detail is appended only when the throw carried one — a bare
+      // trailing colon reads as a message that got cut off.
+      const detail = errorMessage(e)
+      showToast('error', `Failed to upload "${file.name}"${detail === '' ? '' : `: ${detail}`}`)
       return null
     }
   }

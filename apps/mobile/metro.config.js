@@ -26,6 +26,25 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const contractsRoot = new RegExp(
   `^${escapeRe(path.resolve(workspaceRoot, "contracts"))}[\\\\/].*`,
 );
+// Test fixtures are not app code, and `app/` is a require.context root.
+//
+// expo-router bundles `app/` via `require.context(APP_ROOT, true, /\.[tj]sx?$/)`,
+// which sweeps in EVERY matching file under it, route or not. Expo's default
+// blockList already carries `/(\/__tests__\/.*)$/`, which is the only reason
+// the ~20 colocated suites under `app/**/__tests__` have never reached the
+// bundle. `__fixtures__` had no such entry, so `app/settings/__fixtures__/`
+// did reach it and dragged @testing-library/react-native — and its
+// `require("console")` — into the Android graph, failing the bundle outright.
+//
+// `__fixtures__` rather than `__tests__` is deliberate at the call sites, not
+// an accident to undo: jest-expo's testMatch treats every file under
+// `__tests__` as a suite, so a shared harness cannot live there. So the
+// directory gets the same bundler treatment its sibling already has.
+//
+// Same shape as Expo's own entry (unanchored, so it matches at any depth).
+// Safe repo-wide: nothing outside a test imports from a `__fixtures__` dir.
+const testFixtures = /(\/__fixtures__\/.*)$/;
+
 const existingBlockList = config.resolver.blockList;
 config.resolver.blockList = [
   ...(Array.isArray(existingBlockList)
@@ -34,6 +53,7 @@ config.resolver.blockList = [
       ? [existingBlockList]
       : []),
   contractsRoot,
+  testFixtures,
 ];
 
 // Node-builtin shims for the web3 stack (WalletConnect/Reown relay +

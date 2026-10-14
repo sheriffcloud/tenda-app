@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use anchor_lang::prelude::*;
 
 use crate::errors::TendaError;
@@ -11,7 +12,10 @@ pub fn handler(ctx: Context<EscrowMutation>) -> Result<()> {
     let signer = ctx.accounts.signer.key();
     let now = Clock::get()?.unix_timestamp;
 
-    require!(escrow.status == EscrowStatus::Open, TendaError::InvalidEscrowStatus);
+    require!(
+        escrow.status == EscrowStatus::Open,
+        TendaError::InvalidEscrowStatus
+    );
     let assigned = escrow
         .assigned_counterparty
         .ok_or(TendaError::NoAssignedCounterparty)?;

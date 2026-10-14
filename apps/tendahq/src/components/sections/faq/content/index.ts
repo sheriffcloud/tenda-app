@@ -12,7 +12,6 @@ import { TRUST_CATEGORY } from './trust'
 import type { FaqCategory } from '../types'
 
 export { FAQ_HEADER } from './header'
-export { STILL_QUESTIONS } from './still-questions'
 
 export const FAQ_CATEGORIES: readonly FaqCategory[] = [
   TRUST_CATEGORY,

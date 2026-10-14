@@ -7,16 +7,16 @@
  * whether they won, which lives on the application.
  *
  * The gig is nested as the standard `GigSummary` so the client reuses the same
- * card it renders everywhere else (lib/gig-read's stated purpose).
+ * card it renders everywhere else (features/gigs/gig-read's stated purpose).
  */
 
 import type { FastifyPluginAsync } from 'fastify'
 import { desc, eq, sql } from 'drizzle-orm'
 import { escrows, gig_applications, gig_details, users } from '@tenda/shared/db/schema'
 import type { MyApplication, PaginatedResponse } from '@tenda/shared'
-import { GIG_SUMMARY_COLS, toGigSummary } from '@server/lib/gig-read'
+import { GIG_SUMMARY_COLS, toGigSummary } from '@server/features/gigs/gig-read'
 import { toApplicationWire } from '@server/features/applications/wire'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { limit?: number; offset?: number } }>(
@@ -36,6 +36,7 @@ const route: FastifyPluginAsync = async (fastify) => {
           application_id: gig_applications.id,
           application_applicant_id: gig_applications.applicant_id,
           application_message: gig_applications.message,
+          application_wallet_address: gig_applications.wallet_address,
           application_status: gig_applications.status,
           application_expires_at: gig_applications.expires_at,
           application_created_at: gig_applications.created_at,
@@ -70,6 +71,7 @@ const route: FastifyPluginAsync = async (fastify) => {
             application_id,
             application_applicant_id,
             application_message,
+            application_wallet_address,
             application_status,
             application_expires_at,
             application_created_at,
@@ -82,6 +84,7 @@ const route: FastifyPluginAsync = async (fastify) => {
               escrow_id: gig.escrow_id,
               applicant_id: application_applicant_id,
               message: application_message,
+              wallet_address: application_wallet_address,
               status: application_status,
               expires_at: application_expires_at,
               created_at: application_created_at,

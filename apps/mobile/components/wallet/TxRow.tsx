@@ -4,7 +4,7 @@ import { Briefcase, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import type { UserEscrowTransaction } from '@tenda/shared'
-import { txDisplayAmount, txLabel, txSign, viewerRole } from './tx-copy'
+import { formatAmountOrUnknown, txDisplayAmount, txLabel, txSign, viewerRole } from '@tenda/shared'
 
 /**
  * One row of the wallet feed, worded and signed from the VIEWER's side — the
@@ -21,8 +21,8 @@ export function TxRow({ tx, userId }: TxRowProps) {
 
   const isGig = tx.escrow.kind === 'gig'
   const Icon = isGig ? Briefcase : ArrowLeftRight
-  const iconBg = isGig ? theme.colors.brand.primarySurface : theme.colors.accent.primarySurface
-  const iconColor = isGig ? theme.colors.brand.primary : theme.colors.accent.primary
+  const iconBg = isGig ? theme.colors.brand.primarySurface : theme.colors.feedback.warning.surface
+  const iconColor = isGig ? theme.colors.brand.primary : theme.colors.feedback.warning.base
 
   // Derived once and threaded through: label, sign and amount all key off it.
   const role = viewerRole(tx, userId)
@@ -57,7 +57,9 @@ export function TxRow({ tx, userId }: TxRowProps) {
         <View style={s.amt}>
           <Text style={[s.amtMain, { color: amountColor }]} numberOfLines={1}>
             {sign ? `${sign} ` : ''}
-            {money.amount.toLocaleString('en-US', { maximumFractionDigits: 4 })}
+            {formatAmountOrUnknown(money.amount, (v) =>
+              v.toLocaleString('en-US', { maximumFractionDigits: 4 }),
+            )}
           </Text>
           <Text style={[s.amtUnit, { color: theme.colors.content.tertiary }]}>{money.symbol}</Text>
         </View>
@@ -102,14 +104,14 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   amtMain: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 15,
     lineHeight: 18,
     fontWeight: '600',
     letterSpacing: -0.15,
   },
   amtUnit: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 10,
     lineHeight: 13,
     marginTop: 2,

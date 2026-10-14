@@ -4,7 +4,6 @@
  * exchange variant is the #7 fix: the P2P sell/create flow must disclose the
  * platform fee instead of reading as "free". Fee math is the real shared util.
  */
-/* eslint-disable @typescript-eslint/no-require-imports, import/first -- Jest factories load RN after hoisting. */
 import { render, screen } from '@testing-library/react-native'
 
 let mockSeeker = false

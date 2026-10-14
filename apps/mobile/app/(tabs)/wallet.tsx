@@ -13,8 +13,12 @@ import {
   WalletEmptyState,
   WalletLoadError,
 } from '@/components/wallet'
+import { useGasClaimChip } from '@/features/gas-claim'
 import { useWalletScreen } from '@/hooks/useWalletScreen'
-import { END_REACHED_THRESHOLD } from '@/lib/pagination'
+import { useExchangeRateStore } from '@/stores/exchange-rate.store'
+import { useSettingsStore } from '@/stores/settings.store'
+import { walletFiatLine } from '@/components/wallet/wallet-fiat'
+import { END_REACHED_THRESHOLD } from '@tenda/shared'
 
 export default function WalletScreen() {
   const { theme } = useUnistyles()
@@ -25,6 +29,7 @@ export default function WalletScreen() {
     retryChains,
     balances,
     totalUsdc,
+    usdcAssetId,
     earnedUsdc,
     spentUsdc,
     feed,
@@ -36,6 +41,19 @@ export default function WalletScreen() {
     handleRefresh,
   } = useWalletScreen()
 
+  // The gas claim (#100). ONE line: the feature owns its own fetch, its states,
+  // its copy and its failure toast — see features/gas-claim. It returns a
+  // renderer rather than a block, so the offer lands on the balance row of the
+  // chain that actually has no gas instead of as a card stack of its own.
+  // Called unconditionally, above the branch below: it is a hook.
+  // `enabled` on the ready branch only: the hook must be called unconditionally
+  // (it is a hook), but there is nothing to offer a chip on until the balance
+  // rows exist — and on `no-wallet` every answer would be `no_wallet` anyway.
+  const rates = useExchangeRateStore((s) => s.rates)
+  const currency = useSettingsStore((s) => s.currency)
+  const fiatLine = walletFiatLine(totalUsdc, rates, currency, usdcAssetId)
+  const renderGasChip = useGasClaimChip({ enabled: section === 'ready' })
+
   // One branch per settled fact, resolved in the hook (resolveWalletSection).
   // A failed load must NOT read as "no wallet linked", and an unreadable chain
   // registry must NOT read as a zero balance — those were the two bugs. While
@@ -43,8 +61,8 @@ export default function WalletScreen() {
   const walletSection =
     section === 'ready' ? (
       <>
-        <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} />
-        <WalletBalanceRows balances={balances} />
+        <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} fiatLine={fiatLine} />
+        <WalletBalanceRows balances={balances} renderChainAction={renderGasChip} />
         <WalletActions />
         <EarningsSummary earnedUsdc={earnedUsdc} spentUsdc={spentUsdc} />
       </>
@@ -128,7 +146,7 @@ const s = StyleSheet.create({
   content: { paddingTop: 4 },
   footer: { paddingVertical: 16 },
   sectionTitle: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',
@@ -138,7 +156,7 @@ const s = StyleSheet.create({
     paddingBottom: 8,
   },
   dayHeader: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',

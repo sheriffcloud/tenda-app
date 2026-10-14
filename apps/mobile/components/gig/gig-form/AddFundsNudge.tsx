@@ -3,13 +3,13 @@ import { useUnistyles } from 'react-native-unistyles'
 import { useRouter } from 'expo-router'
 import { Text } from '@/components/ui/Text'
 import { useSpendableBalance } from '@/hooks/useSpendableBalance'
-import { toBigIntOrNull } from '@/wallet/balances/raw-amount'
+import { toBigIntOrNull } from '@tenda/shared'
 
 interface AddFundsNudgeProps {
   chainId: string
   asset: string
-  /** Budget in base units. */
-  paymentRaw: number
+  /** Base-unit string; '' until a budget is set. */
+  paymentRaw: string
 }
 
 /**

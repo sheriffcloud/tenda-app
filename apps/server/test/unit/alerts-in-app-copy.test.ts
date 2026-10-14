@@ -32,9 +32,9 @@ import {
   inAppExcludedIds,
   inAppNotice,
   inAppPartyIds,
-} from '@server/features/alerts/channels/in-app/copy'
+} from '@server/features/alerts/channels/in-app/render/copy'
 import { inAppAlertChannel } from '@server/features/alerts/channels/in-app'
-import { disputeRaisedAlert } from '../helpers/alert-fixtures'
+import { disputeRaisedAlert, gasSeedLowBalanceAlert } from '../helpers/alert-fixtures'
 import { testChannelContract } from '../helpers/alert-channel-contract'
 
 const CREATOR_ID = randomUUID()
@@ -61,6 +61,7 @@ function disputeAlert(
 /** One alert per kind, keyed so the COMPILER forces an entry for a new kind. */
 const ALERT_FIXTURES: { [K in AlertKind]: AlertOf<K> } = {
   'dispute.raised': disputeAlert(),
+  'gas-seed.low-balance': gasSeedLowBalanceAlert(),
 }
 
 function notice(over: Partial<AlertOf<'dispute.raised'>> = {}) {
@@ -71,7 +72,14 @@ function notice(over: Partial<AlertOf<'dispute.raised'>> = {}) {
 
 // ---------- which kinds the channel accepts -------------------------------
 
-const DELIBERATELY_NOT_IN_APP: Partial<Record<AlertKind, string>> = {}
+const DELIBERATELY_NOT_IN_APP: Partial<Record<AlertKind, string>> = {
+  // The bell is the DISPUTE ROSTER's feed: this channel pages mediators, and it
+  // routes every notice to an escrow. A drained hot wallet is neither — no
+  // mediator can top it up, there is no escrow to open, and the remedy is an
+  // operator with the funding key. Paging the roster would train them to
+  // dismiss a notice they cannot act on, which costs the alerts they can.
+  'gas-seed.low-balance': 'an operator/funding concern, not a mediator one — Slack carries it',
+}
 
 // The per-channel properties from the shared contract — kind coverage, the
 // derived-kinds agreement, and reachability through the registry — so a third
@@ -101,10 +109,21 @@ test('every advertised kind renders a non-empty title AND body', () => {
 // Unlike Slack this channel has no optional dependency — it writes to our own
 // notification centre. A deployment with no Slack must still alert someone, and
 // that only holds if this never opts itself out.
-test('configured: always true, for any environment', () => {
-  assert.strictEqual(inAppAlertChannel.configured(), true)
-  assert.strictEqual(inAppAlertChannel.configured({}), true)
-  assert.strictEqual(inAppAlertChannel.configured({ REDIS_URL: '' }), true)
+//
+// Slack answers `configured` PER KIND because it routes its kinds to different
+// rooms; this channel has no destination at all, so the parameter changes
+// nothing. Asserted across EVERY kind rather than one, so the day this channel
+// does grow a condition, a kind it silently drops fails here.
+test('configured: always true, for any kind and any environment', () => {
+  for (const kind of inAppAlertChannel.kinds) {
+    assert.strictEqual(inAppAlertChannel.configured(kind), true, `'${kind}' with no env`)
+    assert.strictEqual(inAppAlertChannel.configured(kind, {}), true, `'${kind}' with empty env`)
+    assert.strictEqual(
+      inAppAlertChannel.configured(kind, { REDIS_URL: '' }),
+      true,
+      `'${kind}' with a blank REDIS_URL`,
+    )
+  }
 })
 
 // ---------- the conflict rule ----------------------------------------------

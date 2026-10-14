@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { UserActions } from '@/components/users/user-actions'
 import { adminApi, type AdminUserDetail } from '@/api/client'
 import { setSession } from '@/lib/auth'
+import { userDetail } from '../fixtures'
 
 vi.mock('@/api/client', () => ({
   adminApi: {
@@ -20,14 +21,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const { updateStatus, updateRole, grantLoginEmail, revokeLoginEmail } = vi.mocked(adminApi.adminUsers)
 
 function makeUser(over: Partial<AdminUserDetail> = {}): AdminUserDetail {
-  return {
-    id: 'u1', first_name: 'Ada', last_name: 'L', role: 'user', status: 'active',
-    is_seeker: false, country: 'NG', city: 'Lagos', review_score: null,
-    created_at: '2026-01-01', last_active_at: null, bio: null, avatar_url: null,
-    phone_e164: null, advanced_mode_enabled: false,
-    dispute_metric: { closed_engagements: 0, disputed: 0, dispute_rate_bps: null, fraud_flag: false },
-    ...over,
-  }
+  return userDetail({ first_name: 'Ada', last_name: 'L', created_at: '2026-01-01', ...over })
 }
 
 beforeEach(() => {

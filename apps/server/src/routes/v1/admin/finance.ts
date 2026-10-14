@@ -4,11 +4,12 @@
  * filtered by escrow kind. Amounts are raw-unit strings (numeric 78,0).
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
 import { desc, eq, sql, and, gte, lte, type SQL } from 'drizzle-orm'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import type { AdminContract } from '@tenda/shared'
+import { requirePermission } from '@server/lib/http/guards'
 import { AppError } from '@server/lib/errors'
 import type { ApiError, EscrowKind, FinanceFeeRow } from '@tenda/shared'
 
@@ -30,7 +31,7 @@ const adminFinance: FastifyPluginAsync = async (fastify) => {
   // escrow kind + transaction type. Optional filters: from / to (ISO date).
   fastify.get<{
     Querystring: { from?: string; to?: string }
-    Reply: unknown | ApiError
+    Reply: AdminContract['finance']['fees']['response'] | ApiError
   }>('/fees', {
     preHandler: [requirePermission('finance.read')],
   }, async (request) => {
@@ -74,7 +75,7 @@ const adminFinance: FastifyPluginAsync = async (fastify) => {
     }
 
     return {
-      period: { from: fromDate ?? null, to: toDate ?? null },
+      period: { from: fromDate?.toISOString() ?? null, to: toDate?.toISOString() ?? null },
       by_kind: byKind,
       grand_total_fee_raw: grandTotal.toString(),
     }
@@ -82,6 +83,16 @@ const adminFinance: FastifyPluginAsync = async (fastify) => {
 
   // GET /v1/admin/finance/transactions, paginated escrow-transaction ledger.
   // Optional filters: kind ('gig' | 'exchange'), tx_type, from / to.
+  //
+  // NO CLIENT CALLS THIS (#125) — the dashboard's Finance screen calls /fees
+  // only. Kept, and of the three uncalled admin reads this is the least
+  // arguable: /fees returns SUMS grouped by kind and type, and the first
+  // question anyone asks of a total is which rows made it. Reconciliation and
+  // any "where did this fee come from" answer start here.
+  //
+  // Unlike its two companions this one was genuinely tested already —
+  // admin-refusals-reporting.test.ts drives both refusals and a success
+  // control over seeded rows.
   fastify.get<{
     Querystring: {
       kind?: string

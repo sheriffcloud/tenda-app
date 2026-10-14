@@ -23,6 +23,7 @@ export type ResolvedChainSecret =
       usdcMint?: string
       gasSeedKey?: string
       webhookSecret?: string
+      relayerKey?: string
     }
   | {
       namespace: 'eip155'
@@ -36,6 +37,15 @@ export type ResolvedChainSecret =
       disputeAdmin?: string
       paymasterUrl?: string
       webhookSecret?: string
+      relayerKey?: string
+      /** Hot wallet funding the first-link native gas seed (#53a). */
+      gasSeedKey?: string
+      /**
+       * Is this chain allowed to spend the relayer float on abandoned-escrow
+       * sweeps (#43)? Absent = NO. Separate from `relayerKey` on purpose: the
+       * key says a sweep is POSSIBLE here, this says it is WANTED.
+       */
+      sweepEnabled?: boolean
     }
 
 /** Convenience aliases for the two namespace variants of the resolved union. */
@@ -68,6 +78,7 @@ export function assemble(
       usdcMint: present.get('usdcMint'),
       gasSeedKey: present.get('gasSeedKey'),
       webhookSecret: present.get('webhookSecret'),
+      relayerKey: present.get('relayerKey'),
     }
   }
   const escrowDeployBlock = present.get('escrowDeployBlock')
@@ -83,5 +94,10 @@ export function assemble(
     disputeAdmin: present.get('disputeAdmin'),
     paymasterUrl: present.get('paymasterUrl'),
     webhookSecret: present.get('webhookSecret'),
+    relayerKey: present.get('relayerKey'),
+    gasSeedKey: present.get('gasSeedKey'),
+    // Validated as exactly 'true' | 'false', so this comparison is total —
+    // and an absent var lands on `false` rather than on undefined-is-truthy.
+    sweepEnabled: present.get('sweepEnabled') === 'true',
   }
 }

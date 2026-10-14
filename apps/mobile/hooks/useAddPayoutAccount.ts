@@ -5,7 +5,8 @@ import {
   type BankAccountSummary,
   type PayoutCountrySpec,
 } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { showToast } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth.store'
 import type { PayoutFormValue } from '@/components/payout'

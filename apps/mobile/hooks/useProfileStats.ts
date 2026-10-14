@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { POSTED_ESCROW_STATUSES, type EscrowStatus } from '@tenda/shared'
+import { POSTED_ESCROW_STATUSES, type EscrowStatus, type LoadStatus } from '@tenda/shared'
 import { api } from '@/api/client'
 
 /** Statuses that mean "this gig still needs the poster's attention". */
@@ -31,8 +31,17 @@ export interface ProfileStats {
   active: number
   /** Gigs the user worked through to completion. */
   completed: number
-  /** False until the first load settles, so zeroes aren't rendered as fact. */
-  loaded: boolean
+  /**
+   * Where the read got to. Replaces a `loaded` boolean, which could not tell
+   * "the answer is zero" from "we could not check" — so a FIRST load that
+   * failed published the reset zeros with loaded=true and the screen stated
+   * them as fact. Only `ready` means the numbers below are answers.
+   *
+   * The old catch comment ("counts keep their last value") was true only of a
+   * FOCUS refetch, where nothing had zeroed them; on first load and on an
+   * account switch the reset effect below had already run.
+   */
+  status: LoadStatus
   reload: () => void
 }
 
@@ -46,15 +55,25 @@ async function countOf(mine: 'created' | 'working', status?: EscrowStatus[]): Pr
 
 export function useProfileStats(userId: string | undefined): ProfileStats {
   const [stats, setStats] = useState(EMPTY)
-  const [loaded, setLoaded] = useState(false)
+  const [status, setStatus] = useState<LoadStatus>('idle')
   // Drops superseded responses, so a fast account switch can't leave one
   // user's counts on another user's profile.
   const genRef = useRef(0)
 
   const reload = useCallback(() => {
-    if (userId === undefined) return
     const gen = ++genRef.current
+    // No account, nothing asked for: back to `idle` rather than leaving the
+    // previous user's numbers standing under a `ready` status.
+    if (userId === undefined) {
+      setStats(EMPTY)
+      setStatus('idle')
+      return
+    }
     void (async () => {
+      // A refetch over settled counts keeps them on screen and does NOT
+      // re-raise the skeleton — only a load with nothing behind it is
+      // 'loading'. Same guard chat.store uses for its inbox.
+      setStatus((current) => (current === 'ready' ? current : 'loading'))
       try {
         const [posted, active, completed] = await Promise.all([
           countOf('created', POSTED_STATUSES),
@@ -63,11 +82,12 @@ export function useProfileStats(userId: string | undefined): ProfileStats {
         ])
         if (gen !== genRef.current) return
         setStats({ posted, active, completed })
-        setLoaded(true)
+        setStatus('ready')
       } catch {
-        // Non-fatal: the profile still renders, counts keep their last value.
-        // A stat that fails to load is not worth an error screen over.
-        if (gen === genRef.current) setLoaded(true)
+        // The screen still renders — these counts are supplementary — but a
+        // failure says so and offers `reload` rather than presenting the reset
+        // zeros as the account's history.
+        if (gen === genRef.current) setStatus('error')
       }
     })()
   }, [userId])
@@ -77,7 +97,7 @@ export function useProfileStats(userId: string | undefined): ProfileStats {
   // the focus effect below.
   useEffect(() => {
     setStats(EMPTY)
-    setLoaded(false)
+    setStatus('idle')
   }, [userId])
 
   /**
@@ -90,5 +110,5 @@ export function useProfileStats(userId: string | undefined): ProfileStats {
    */
   useFocusEffect(reload)
 
-  return { ...stats, loaded, reload }
+  return { ...stats, status, reload }
 }

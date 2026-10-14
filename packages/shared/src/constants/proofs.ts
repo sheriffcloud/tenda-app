@@ -10,13 +10,68 @@
  * carries only a digest and checks none of this.
  */
 
-export const PROOF_TYPES = ['image', 'video', 'document'] as const
+/**
+ * The two proof classes. A FILE proof is an uploaded asset — its substance is
+ * a Cloudinary `url` and the platform never looks inside it. A DATA proof is
+ * a `payload` the server CAN read: geotag is verified geometrically against
+ * the gig's declared radius, structured is conformance-checked against the
+ * gig's declared fields, text is presence-checked. Only geotag earns the word
+ * "verified" — structured/text contents are judged by the poster, not us.
+ *
+ * PROOF_TYPES is DERIVED from the two classes, so they partition it by
+ * construction — a new type lands in exactly one class or it does not exist.
+ * Append only (file types before data types is the frozen historical order):
+ * the Postgres enum migrates by ADD VALUE, and normalise order below is
+ * stored order.
+ */
+export const FILE_PROOF_TYPES = ['image', 'video', 'document'] as const
+export const DATA_PROOF_TYPES = ['geotag', 'text', 'structured'] as const
+
+export const PROOF_TYPES = [...FILE_PROOF_TYPES, ...DATA_PROOF_TYPES] as const
 
 export type ProofType = (typeof PROOF_TYPES)[number]
+export type FileProofType = (typeof FILE_PROOF_TYPES)[number]
+export type DataProofType = (typeof DATA_PROOF_TYPES)[number]
 
-/** Stable retry identity for an already-uploaded proof asset. */
-export function proofIdentity(proof: { url: string; type: ProofType }): string {
-  return `${proof.type}\0${proof.url}`
+export function isFileProofType(type: ProofType): type is FileProofType {
+  return (FILE_PROOF_TYPES as readonly ProofType[]).includes(type)
+}
+
+export function isDataProofType(type: ProofType): type is DataProofType {
+  return (DATA_PROOF_TYPES as readonly ProofType[]).includes(type)
+}
+
+/**
+ * Stable retry identity for an attached proof: file proofs by url, data
+ * proofs by canonicalised payload — so re-sending the same evidence (a retry,
+ * a double tap) is a no-op in both classes, and two payloads that differ only
+ * in key order compare equal.
+ */
+export function proofIdentity(proof: {
+  type: ProofType
+  /** Absent and null mean the same thing: a data proof, identified by payload. */
+  url?: string | null
+  payload?: unknown
+}): string {
+  return `${proof.type}\0${proof.url ?? canonicalJson(proof.payload ?? null)}`
+}
+
+/**
+ * JSON with object keys sorted recursively — the canonical form behind
+ * `proofIdentity`, matching Postgres jsonb equality (which is key-order
+ * blind). Only ever fed proof payloads: plain data, no cycles.
+ */
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(',')}]`
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`)
+    return `{${entries.join(',')}}`
+  }
+  return JSON.stringify(value)
 }
 
 export function isProofType(value: unknown): value is ProofType {
@@ -32,6 +87,9 @@ export const PROOF_TYPE_LABEL: Record<ProofType, string> = {
   image: 'Photo',
   video: 'Video',
   document: 'Document',
+  geotag: 'Location check-in',
+  text: 'Written answer',
+  structured: 'Structured data',
 }
 
 /**

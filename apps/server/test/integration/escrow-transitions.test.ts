@@ -1,6 +1,6 @@
 /**
  * #98 gap-fill — escrow state-transition routes (build-unsigned-tx happy
- * paths + caller/status guards), exercising lib/escrow-routes + lib/escrow:
+ * paths + caller/status guards), exercising features/escrows/routes + lib/escrow:
  *   accept / decline / submit / approve / cancel / refund
  *
  * `accept` is kind-agnostic (gig vs exchange/p2p-order share the same
@@ -15,7 +15,7 @@ import assert from 'node:assert'
 import { ErrorCode, type ProofType } from '@tenda/shared'
 import { escrow_proofs } from '@tenda/shared/db/schema'
 import {
-  TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, makeTransactable, authHeader,
+  TEST_DB_CONFIGURED, useTestApp, createTransactableUser, createUser, createEscrow, authHeader,
   attachExchangeDetails, attachGigDetails,
 } from '../helpers/test-app'
 import { partiedEscrow, proofUrl } from '../helpers/escrow-states'
@@ -36,8 +36,7 @@ test('POST accept: 401 without a token', { skip }, async () => {
 test('POST accept: the assigned counterparty accepts an open escrow → unsigned tx', { skip }, async () => {
   const app = getApp()
   const creator = await createUser(app)
-  const worker = await createUser(app)
-  await makeTransactable(app, worker.row.id) // wallet + verified contact (9D gate)
+  const worker = await createTransactableUser(app) // wallet + verified contact (9D gate)
   const e = await createEscrow(app, {
     creator_id: creator.row.id, status: 'open', assigned_counterparty_id: worker.row.id,
   })
@@ -51,8 +50,7 @@ test('POST accept: the assigned counterparty accepts an open escrow → unsigned
 test('POST accept: a stranger accepts a public (unassigned) open escrow → unsigned tx', { skip }, async () => {
   const app = getApp()
   const creator = await createUser(app)
-  const stranger = await createUser(app)
-  await makeTransactable(app, stranger.row.id)
+  const stranger = await createTransactableUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id, status: 'open' })
   const res = await app.inject({
     method: 'POST', url: `/v1/escrows/${e.id}/accept`, headers: authHeader(stranger.token),
@@ -64,8 +62,7 @@ test('POST accept: a stranger accepts a public (unassigned) open escrow → unsi
 test('POST accept: a stranger takes a public (unassigned) exchange order → unsigned tx', { skip }, async () => {
   const app = getApp()
   const creator = await createUser(app)
-  const taker = await createUser(app)
-  await makeTransactable(app, taker.row.id)
+  const taker = await createTransactableUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id, status: 'open', kind: 'exchange' })
   await attachExchangeDetails(app, e.id)
   const res = await app.inject({

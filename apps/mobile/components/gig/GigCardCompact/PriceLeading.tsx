@@ -1,17 +1,17 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Clock, Check, ArrowLeftRight } from 'lucide-react-native'
+import { Clock, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { CATEGORY_META } from '@/lib/categories'
-import { toAssetPaymentDisplay, formatFiat } from '@/lib/currency'
+import { CATEGORY_META, toAssetPaymentDisplay, formatFiat, LOCATIONS, type CountryCode, GigSummary, gigDeadlineMeta } from '@tenda/shared'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { LOCATIONS, type CountryCode , GigSummary } from '@tenda/shared'
-import { gigDeadlineMeta } from '@/lib/gig-display'
 import { ChainBadge } from '@/components/escrow/ChainBadge'
-import { STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
+import { AgentBadge } from '@/components/ui/AgentBadge'
+import { GigCardPriceStrip } from './GigCardPriceStrip'
+import { gigCardAmountDigits } from './amount'
+import { CATEGORY_DOT_COLOR, STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
 interface Props {
   gig: GigSummary
@@ -20,8 +20,13 @@ interface Props {
 
 /**
  * Variant A, Price-Leading (home.html `.card` proposal).
- * Two-column grid 86 / 1fr. Left strip carries the SOL amount + fiat alt;
- * right body carries category/status label, deadline chip, title, and location meta.
+ * Two-column grid 86 / 1fr. Left strip carries the amount, its symbol and the
+ * fiat alt, stacked; right body carries category/status label, the settlement
+ * chain, deadline chip, title, and location meta.
+ *
+ * The chain sits on the category row rather than under the money because which
+ * chain a gig pays on decides whether the reader holds a wallet that can take
+ * it — the same reason it reads beside the category on web.
  */
 export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
   const router = useRouter()
@@ -29,15 +34,15 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
   const rates = useExchangeRateStore((s) => s.rates)
   const currency = useSettingsStore((s) => s.currency)
 
-  const categoryColor = theme.colors.category[gig.category]
+  const categoryDot = CATEGORY_DOT_COLOR(theme, gig.category)
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
-  const rate = rates?.[currency] ?? null
-  const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rate)
+  const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rates, currency)
 
   const deadlineMeta = gigDeadlineMeta(gig)
   const isUrgent = deadlineMeta.tone === 'urgent'
-  const isSuccess = deadlineMeta.tone === 'success'
+  // No success arm — see the NO SUCCESS CHIP note in ./shared for why a card
+  // never renders `gigDeadlineMeta`'s completed/resolved tone.
 
   const statusDotColor = STATUS_DOT_COLOR(theme, gig.status)
   const fiatAlt = price.fiat !== null ? `≈ ${formatFiat(price.fiat, currency)}` : ''
@@ -56,33 +61,11 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
         pressed && s.pressed,
       ]}
     >
-      <View
-        style={[
-          s.priceStrip,
-          {
-            backgroundColor: theme.colors.surface.backgroundAlt,
-            borderRightColor: theme.colors.border.subtle,
-          },
-        ]}
-      >
-        <Text style={[s.paysLabel, { color: theme.colors.content.tertiary }]}>
-          PAYS
-        </Text>
-        <View>
-          <View style={s.amountRow}>
-            <Text style={[s.amount, { color: theme.colors.content.primary }]} numberOfLines={1}>
-              {price.amount.toFixed(price.amount >= 1 ? 2 : 3)}
-            </Text>
-            <Text style={[s.unit, { color: theme.colors.content.tertiary }]}>{price.symbol}</Text>
-          </View>
-          {fiatAlt ? (
-            <Text style={[s.fiat, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
-              {fiatAlt}
-            </Text>
-          ) : null}
-          <ChainBadge chainId={gig.chain_id} style={s.chain} />
-        </View>
-      </View>
+      <GigCardPriceStrip
+        amount={gigCardAmountDigits(price.amount)}
+        symbol={price.symbol}
+        fiatAlt={fiatAlt}
+      />
 
       <View style={s.body}>
         <View style={s.topRow}>
@@ -90,7 +73,7 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
             <View
               style={[
                 s.dot,
-                { backgroundColor: showStatus ? statusDotColor : categoryColor.base },
+                { backgroundColor: showStatus ? statusDotColor : categoryDot },
               ]}
             />
             <Text
@@ -101,49 +84,47 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
             </Text>
           </View>
 
-          {deadlineMeta.label ? (
-            <View
-              style={[
-                s.deadlineChip,
-                {
-                  backgroundColor: isUrgent
-                    ? theme.colors.feedback.warning.surface
-                    : isSuccess
-                      ? theme.colors.feedback.success.surface
-                      : theme.colors.surface.inset,
-                },
-              ]}
-            >
-              {deadlineMeta.glyph === 'check' ? (
-                <Check size={10} color={theme.colors.feedback.success.base} strokeWidth={3} />
-              ) : deadlineMeta.glyph === 'clock' ? (
-                <Clock
-                  size={10}
-                  color={
-                    isUrgent
-                      ? theme.colors.feedback.warning.base
-                      : theme.colors.content.secondary
-                  }
-                />
-              ) : null}
-              <Text
+          <View style={s.rowBadges}>
+            <ChainBadge chainId={gig.chain_id} />
+            {gig.creator.is_agent && <AgentBadge />}
+            {deadlineMeta.label ? (
+              <View
                 style={[
-                  s.deadlineText,
+                  s.deadlineChip,
                   {
-                    color: isUrgent
-                      ? theme.colors.feedback.warning.base
-                      : isSuccess
-                        ? theme.colors.feedback.success.base
-                        : theme.colors.content.secondary,
-                    fontWeight: isUrgent || isSuccess ? '600' : '500',
+                    backgroundColor: isUrgent
+                      ? theme.colors.feedback.warning.surface
+                      : theme.colors.surface.inset,
                   },
                 ]}
-                numberOfLines={1}
               >
-                {deadlineMeta.label}
-              </Text>
-            </View>
-          ) : null}
+                {deadlineMeta.glyph === 'clock' ? (
+                  <Clock
+                    size={10}
+                    color={
+                      isUrgent
+                        ? theme.colors.feedback.warning.base
+                        : theme.colors.content.secondary
+                    }
+                  />
+                ) : null}
+                <Text
+                  style={[
+                    s.deadlineText,
+                    {
+                      color: isUrgent
+                        ? theme.colors.feedback.warning.base
+                        : theme.colors.content.secondary,
+                      fontWeight: isUrgent ? '600' : '500',
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {deadlineMeta.label}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         <Text
@@ -191,45 +172,6 @@ const s = StyleSheet.create({
     minHeight: 112,
   },
   pressed: { opacity: 0.96, transform: [{ scale: 0.995 }] },
-  priceStrip: {
-    width: 86,
-    paddingTop: 14,
-    paddingBottom: 12,
-    paddingHorizontal: 10,
-    borderRightWidth: 1,
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  paysLabel: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
-  },
-  amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
-  amount: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 20,
-    lineHeight: 22,
-    fontWeight: '700',
-    letterSpacing: -0.4,
-  },
-  unit: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '600',
-  },
-  fiat: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 10.5,
-    lineHeight: 14,
-    letterSpacing: 0.105,
-    marginTop: 4,
-  },
-  chain: { marginTop: 6 },
   body: {
     flex: 1,
     minWidth: 0,
@@ -238,11 +180,37 @@ const s = StyleSheet.create({
     flexDirection: 'column',
     gap: 6,
   },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 22 },
+  // `flexWrap` is load-bearing since the chain joined this row, and the width
+  // is MEASURED: at a 320px device the list pads 16, the price strip takes a
+  // fixed 86 and the body pads 14, leaving this row 174px — where the label,
+  // the chain and the deadline together want ~245px. They do not fit, and
+  // without the wrap the category squeezed away. Wrapping drops the badge pair
+  // onto its own right-aligned line and every label stays whole. `minHeight`
+  // rather than the old fixed `height: 22`, or the second line has nowhere to
+  // go. Testnet chain names are the long ones ('Solana Devnet'); production
+  // reads 'Solana', 'BASE'.
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    columnGap: 8,
+    rowGap: 6,
+    minHeight: 22,
+  },
+  // Chain and deadline move as one unit so the wrap never splits them across
+  // two lines, and `marginLeft: 'auto'` right-aligns the pair on whichever
+  // line it lands on.
+  rowBadges: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
   label: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, minWidth: 0 },
   dot: { width: 6, height: 6, borderRadius: 3 },
   labelText: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 9.5,
     lineHeight: 12,
     fontWeight: '600',
@@ -251,7 +219,6 @@ const s = StyleSheet.create({
     flexShrink: 1,
   },
   deadlineChip: {
-    marginLeft: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,

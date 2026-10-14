@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
 import { api } from '@/api/client'
-import { classifyDetailLoadError, type DetailLoadError } from '@/lib/detail-load-error'
-import type { ExchangeDetail } from '@tenda/shared'
+import { classifyDetailLoadError, type DetailLoadError, type ExchangeDetail } from '@tenda/shared'
 
 /**
  * Loader for the exchange-detail read surface (/v1/exchange/:id). Refetches on

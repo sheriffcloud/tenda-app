@@ -58,7 +58,7 @@ export function WalletLoadError({
       <Text style={[s.body, { color: theme.colors.content.secondary }]}>{copy.body}</Text>
       <Pressable
         onPress={onRetry}
-        style={({ pressed }) => [s.button, { backgroundColor: theme.colors.brand.primary }, pressed && { opacity: 0.85 }]}
+        style={({ pressed }) => [s.button, { backgroundColor: theme.colors.brand.solid }, pressed && { opacity: 0.85 }]}
         accessibilityRole="button"
         accessibilityLabel={copy.retryLabel}
       >

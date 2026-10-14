@@ -109,7 +109,7 @@ export function PagerTabBar({
           {
             width: tabWidth,
             left: insetX,
-            backgroundColor: theme.colors.brand.primary,
+            backgroundColor: theme.colors.brand.solid,
             transform: [{ translateX: underlineX }],
           },
         ]}
@@ -150,7 +150,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   countText: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.11,

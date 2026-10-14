@@ -1,9 +1,9 @@
 export const FAQ_HEADER = {
-  eyebrow: { num: '§ 09', label: 'Frequently asked' },
+  eyebrow: 'Frequently asked',
+  aside: "If we don't know, we say so",
   h2: {
-    lead: 'Honest',
-    accent: 'answers.',
+    lead: 'Honest answers',
     dim: "No \"we'll get back to you.\"",
   },
-  sub: "If a question has a number, the number is here. If a question has an on-chain receipt, the receipt is here. If we don't know, we say so.",
+  sub: 'If a question has a number, the number is here. If a question has an on-chain receipt, the receipt is here.',
 } as const

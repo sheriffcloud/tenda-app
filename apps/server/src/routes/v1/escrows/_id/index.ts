@@ -10,7 +10,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
-import { loadEscrowOr404, deriveCaller } from '@server/lib/escrow-routes'
+import { loadEscrowOr404, deriveCaller } from '@server/features/escrows/routes'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { hasPendingEscrowCreateTransaction } from '@server/features/escrows/creation/hasPendingEscrowCreateTransaction'

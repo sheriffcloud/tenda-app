@@ -20,10 +20,19 @@
 
 import fp from 'fastify-plugin'
 import cors from '@fastify/cors'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, X_PAYMENT_RESPONSE_HEADER } from '@tenda/shared'
 import { getConfig } from '@server/config'
 
 const ADMIN_PREFIX = '/v1/admin/'
+
+/** Response headers a browser client needs to read; see `exposedHeaders` below. */
+const EXPOSED_RESPONSE_HEADERS = [
+  'x-ratelimit-limit',
+  'x-ratelimit-remaining',
+  'x-ratelimit-reset',
+  'retry-after',
+  X_PAYMENT_RESPONSE_HEADER,
+] as const
 
 export default fp(async (fastify) => {
   const { CORS_ORIGIN, ADMIN_ORIGIN } = getConfig()
@@ -36,6 +45,11 @@ export default fp(async (fastify) => {
     // @fastify/cors defaults to GET,HEAD,POST, the dashboard's PATCH/PUT/
     // DELETE preflights (takedown, role changes, config) need the rest.
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    // A browser script can only read the CORS-safelisted response headers
+    // unless the server names the rest. Without this a client cannot see how
+    // much of the rate limit is left (so it cannot back off before a 429), how
+    // long to wait after one, or the relay receipt on the paid 201.
+    exposedHeaders: [...EXPOSED_RESPONSE_HEADERS],
   })
 
   // Admin surface: enforce the origin allow-list before any handler runs.

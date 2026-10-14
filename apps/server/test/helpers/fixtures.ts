@@ -1,3 +1,4 @@
+import { DEFAULT_ACCEPT_WINDOW_SECONDS } from '@tenda/shared'
 /**
  * Typed object factories for tests. Real implementations — usable now without
  * a DB or any external infra.
@@ -40,6 +41,7 @@ export interface UserRow {
   role: 'user' | 'dispute_admin' | 'super_admin'
   status: 'active' | 'suspended'
   is_seeker: boolean
+  is_agent: boolean
   review_score: string | null
   sponsored_tx_remaining: number
   advanced_mode_enabled: boolean
@@ -63,6 +65,7 @@ export function userFixture(overrides: Partial<UserRow> = {}): UserRow {
     role: 'user',
     status: 'active',
     is_seeker: false,
+    is_agent: false,
     review_score: null,
     sponsored_tx_remaining: 3,
     advanced_mode_enabled: false,
@@ -129,6 +132,11 @@ export function escrowFixture(overrides: Partial<EscrowRow> = {}): EscrowRow {
     creator_id: randomUUID(),
     counterparty_id: null,
     assigned_counterparty_id: null,
+    // Signer-address columns default null — "not recorded", the state every
+    // pre-column row and unconfirmed draft is in.
+    creator_address: null,
+    counterparty_address: null,
+    assigned_counterparty_address: null,
     status,
     hidden: false,
     escrow_ref: status === 'draft' ? null : `escrow-ref-${id}`,
@@ -139,6 +147,7 @@ export function escrowFixture(overrides: Partial<EscrowRow> = {}): EscrowRow {
     // what the boot probe is built to reject. Tests that exercise pinning set
     // it explicitly.
     escrow_contract: null,
+    accept_window_seconds: DEFAULT_ACCEPT_WINDOW_SECONDS,
     accept_deadline: new Date('2026-01-08T00:00:00Z'),
     completion_duration_seconds: 86_400,
     completion_deadline: null,

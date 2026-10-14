@@ -3,10 +3,10 @@
 The on-chain programs, in the monorepo so they version with the code that
 consumes them.
 
-| dir       | chain family | toolchain        | source of truth for           |
-| --------- | ------------ | ---------------- | ----------------------------- |
-| `evm/`    | EVM (Base/Celo) | Foundry (forge) | `packages/shared/src/abi/`    |
-| `solana/` | Solana       | Anchor           | `packages/shared/src/idl/`    |
+| dir       | chain family | toolchain       | source of truth for        |
+| --------- | ------------ | --------------- | -------------------------- |
+| `evm/`    | EVM chains   | Foundry (forge) | `packages/shared/src/abi/` |
+| `solana/` | Solana       | Anchor          | `packages/shared/src/idl/` |
 
 ## The anti-drift contract
 
@@ -50,6 +50,16 @@ rebuild and only refresh `src/{abi,idl}`.
   are gitignored and are **not** needed to build, test, or generate the
   ABI/IDL (the IDL address comes from `declare_id!`).
 - **Deployed contract addresses are config, not artifacts.** The live
-  per-chain escrow addresses are server env secrets (`CHAIN_<id>_ESCROW`),
+  per-chain escrow addresses are server env secrets (`CHAIN_<ID>_ESCROW_ADDR`),
   outside this guard. They are validated at runtime by the chain adapters, not
   here.
+
+## Licence
+
+Everything under `contracts/` is **Apache-2.0** ([`LICENSE`](LICENSE),
+[`NOTICE`](NOTICE)) — deliberately, and unlike the rest of the repository,
+which is BUSL-1.1. The settlement rules hold user funds, so they have to be
+verifiable and reusable by anyone, forever, with no strings. See
+[`../LICENSING.md`](../LICENSING.md).
+
+Vendored dependencies under `evm/lib/` keep their own licences.

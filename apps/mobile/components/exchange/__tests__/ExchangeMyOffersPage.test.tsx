@@ -45,7 +45,7 @@ import { ExchangeMyOffersPage } from '../ExchangeMyOffersPage'
 const row = (id: string, creator_id: string): EscrowListRow => ({
   id, kind: 'exchange', status: 'open', chain_id: 'solana:devnet', asset: 'USDC_SOL',
   amount_raw: '1000000', title: null, fiat_currency: 'NGN', creator_id,
-  counterparty_id: null, accept_deadline: null, created_at: null,
+  counterparty_id: null, accept_deadline: null, created_at: '2026-08-15T12:00:00.000Z',
 })
 
 beforeEach(() => { rowSides.length = 0 })

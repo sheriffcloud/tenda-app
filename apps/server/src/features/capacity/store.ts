@@ -20,7 +20,7 @@ export interface CapacityStore {
  *    the worker can no longer submit at all — only the CREATOR can act, via
  *    `reclaim_abandoned`, which costs them gas and which nothing forces them
  *    to do. Counting those would let one absent poster permanently occupy a
- *    slot; the reclaim nudge in jobs/expire-escrows chases them, but the
+ *    slot; the reclaim nudge in queue/jobs/expire-escrows chases them, but the
  *    worker must not be held hostage while it does.
  *  - `submitted` and the approval window is still open. Once it passes, the
  *    worker is free to `claim_stalled` and the poster is the one stalling —

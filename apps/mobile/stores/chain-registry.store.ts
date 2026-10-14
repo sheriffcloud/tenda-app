@@ -1,12 +1,35 @@
 import { create } from 'zustand'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SecureStore from 'expo-secure-store'
 import { api } from '@/api/client'
+import { isRegistryUsable } from '@tenda/shared'
 import type { ChainRegistryEntry } from '@tenda/shared'
 
 // Versioned: bump when ChainRegistryEntry gains REQUIRED fields, so a stale
 // persisted snapshot (older shape) is ignored instead of rehydrating as the
 // new type with undefined fields. v2 = escrow_address + supports_permit.
-const STORAGE_KEY = 'chain_registry_v2'
+// v3 (#132/#137) = relayed_funding_available + rpc_url + explorer_url +
+// faucet_url — and `roles` (#129), which shipped without a bump of its own.
+// v4 (#139) = network_kind. v5 (#148) = approval_window_seconds.
+//
+// Persisted in AsyncStorage, NOT SecureStore: the registry is public chain
+// facts (nothing secret to protect), and Android's expo-secure-store rejects
+// values over 2048 bytes — the snapshot was 1747 bytes with four chains, so
+// roughly one more chain would have made every persist fail silently and
+// frozen the fast first paint at the last pre-cap registry.
+const STORAGE_KEY = 'chain_registry_v5'
+/**
+ * Superseded snapshots, everywhere one ever lived — the SecureStore era held
+ * v2; AsyncStorage held v2, v3 and v4. Reclaimed on read and never hydrated:
+ * the SecureStore→AsyncStorage migration used to write the legacy copy
+ * through, which was right while the shape stayed the same, and would now
+ * carry an older shape into the current key — exactly the
+ * rehydrate-as-the-new-type the version bump exists to prevent. One launch
+ * after an upgrade pays a cold fetch for its first paint; that is the cost of
+ * a shape change, paid once. A bump appends the retired key here.
+ */
+const SUPERSEDED_SECURE_STORE_KEY = 'chain_registry_v2'
+const SUPERSEDED_ASYNC_STORAGE_KEYS = ['chain_registry_v2', 'chain_registry_v3', 'chain_registry_v4'] as const
 
 /**
  * Lifecycle of the registry load, mirroring `walletsStatus` in the auth store
@@ -21,7 +44,7 @@ export type ChainRegistryStatus = 'idle' | 'loading' | 'ready' | 'error'
  * Cached enabled-chain registry (id, namespace, display name, and each asset's
  * symbol/decimals/token_address). The SINGLE client-side source of token
  * addresses, the wallet balance readers consume it so a USDC address change is
- * a server config/seed edit, never an app change. Persisted to SecureStore for
+ * a server config/seed edit, never an app change. Persisted to AsyncStorage for
  * a fast first paint; refreshed from `/v1/platform/chains` on app start.
  */
 interface ChainRegistryState {
@@ -29,34 +52,27 @@ interface ChainRegistryState {
   chains: ChainRegistryEntry[] | null
   status: ChainRegistryStatus
   loadPersisted: () => Promise<void>
-  /** Fetch fresh; de-duped + cached. Never throws (keeps the last good value). */
+  /**
+   * Fetch fresh; de-duped + cached. Never throws (keeps the last good value).
+   * Callers: useAppReady once per launch, and the wallet screen's
+   * pull-to-refresh — the one user gesture that must refresh a registry that
+   * is STALE but usable, which `ensureLoaded` deliberately will not.
+   */
   fetch: () => Promise<void>
   /**
    * Fetch only when there is nothing usable to read, joining an in-flight
    * request rather than stacking another. The recovery path for consumers that
-   * mount long after startup: `fetch()` runs exactly once per launch
-   * (useAppReady), swallows its failure, and nothing retried it — so one cold
-   * -start blip left every balance read with zero chains to scan for the WHOLE
-   * session, which the wallet screen rendered as a confident `0.00`. Only a
-   * force-close recovered it.
+   * mount long after startup: before it existed, one cold-start blip left
+   * every balance read with zero chains to scan for the WHOLE session, which
+   * the wallet screen rendered as a confident `0.00`, and only a force-close
+   * recovered it.
    */
   ensureLoaded: () => Promise<void>
 }
 
 let inflight: Promise<void> | null = null
 
-/**
- * Whether the registry holds something a balance read can actually use. An
- * EMPTY array is not usable and must not be mistaken for a loaded registry:
- * `readWalletBalances` pairs each wallet against the chains sharing its
- * namespace, so zero chains yields zero pairs — downstream, indistinguishable
- * from a wallet holding nothing. It is also a reachable state (a persisted `[]`,
- * or a deployment with no enabled chains) that a `!== null` guard would treat
- * as loaded forever, defeating the retry.
- */
-export function isRegistryUsable(chains: ChainRegistryEntry[] | null): boolean {
-  return chains !== null && chains.length > 0
-}
+
 
 export const useChainRegistryStore = create<ChainRegistryState>((set, get) => ({
   chains: null,
@@ -64,7 +80,12 @@ export const useChainRegistryStore = create<ChainRegistryState>((set, get) => ({
 
   loadPersisted: async () => {
     try {
-      const raw = await SecureStore.getItemAsync(STORAGE_KEY)
+      // Fire-and-forget: reclaiming the superseded slots must not gate (or
+      // fail) the bootstrap, and no superseded copy is read — see the two
+      // SUPERSEDED_* constants above.
+      void SecureStore.deleteItemAsync(SUPERSEDED_SECURE_STORE_KEY).catch(() => {})
+      void AsyncStorage.multiRemove([...SUPERSEDED_ASYNC_STORAGE_KEYS]).catch(() => {})
+      const raw = await AsyncStorage.getItem(STORAGE_KEY)
       if (!raw) return
       // Don't clobber a fresher network result that already landed.
       if (get().chains === null) {
@@ -107,11 +128,16 @@ export const useChainRegistryStore = create<ChainRegistryState>((set, get) => ({
           return
         }
         set({ chains: data, status: 'ready' })
-        await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(data))
+        // Caught HERE, not in the outer catch: a persist failure must not be
+        // settled like a fetch failure (the fresh data is already in memory
+        // and `ready`), and silence is how the SecureStore 2048-byte cap
+        // would have shipped unnoticed — say so where a dev build can see it.
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data)).catch((err) => {
+          if (__DEV__) console.warn('chain-registry: persist failed', err)
+        })
       })
       // Never crash a caller on a registry fetch failure (useAppReady awaits it
-      // during the splash); a persist failure lands here too, harmlessly, since
-      // the fresh data is already in memory.
+      // during the splash).
       .catch(settleWithoutFreshData)
       .finally(() => {
         inflight = null

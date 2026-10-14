@@ -24,28 +24,35 @@ FROM base AS build
 # Manifests + lockfile first so the dependency layer caches independently of
 # source edits. pnpm validates the lockfile against EVERY workspace importer,
 # so all workspace package.json files must be present even though we only
-# install the server + shared subtree.
+# install the server + shared + api-doc subtree.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/server/package.json apps/server/
 COPY apps/mobile/package.json apps/mobile/
 COPY apps/admin/package.json apps/admin/
 COPY apps/tendahq/package.json apps/tendahq/
 COPY packages/shared/package.json packages/shared/
+COPY packages/api-doc/package.json packages/api-doc/
 COPY contracts/evm/package.json contracts/evm/
 COPY contracts/solana/package.json contracts/solana/
 
 # --ignore-scripts: @tenda/shared's `prepare` runs tsc, which cannot work in
 # this sources-absent layer. The build is run explicitly below instead.
 RUN pnpm install --frozen-lockfile --ignore-scripts \
-    --filter tenda-server --filter @tenda/shared
+    --filter tenda-server --filter @tenda/shared --filter @tenda/api-doc
 
 COPY packages/shared packages/shared
+COPY packages/api-doc packages/api-doc
 COPY apps/server apps/server
 
-RUN pnpm --filter @tenda/shared build && pnpm --filter tenda-server build
+# @tenda/api-doc between them, not beside them: it builds AGAINST shared's dist
+# (it is the served OpenAPI document, #157) and the server imports its dist in
+# turn, so the order is the dependency order.
+RUN pnpm --filter @tenda/shared build \
+    && pnpm --filter @tenda/api-doc build \
+    && pnpm --filter tenda-server build
 
-# Self-contained prod tree: @tenda/shared is physically copied in (no workspace
-# symlinks), devDependencies dropped. --legacy: pnpm v10 changed deploy to
+# Self-contained prod tree: @tenda/shared and @tenda/api-doc are physically
+# copied in (no workspace symlinks), devDependencies dropped. --legacy: pnpm v10 changed deploy to
 # require injected workspace packages; legacy mode is what we want with the
 # hoisted nodeLinker (shared's runtime imports of drizzle-orm resolve against
 # the server's hoisted copy).

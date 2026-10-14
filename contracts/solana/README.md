@@ -25,9 +25,8 @@ eventually mainnet — use `anchor upgrade`, not `anchor deploy`. The upgrade is
 signed by the upgrade authority; `anchor deploy` would instead create a second
 program at whatever `target/deploy/tenda_escrow-keypair.json` holds, and since
 `declare_id!` names the real one, every instruction on that copy reverts. The
-verified sequence (IDL parity → `solana program extend` if the binary grew →
-upgrade → byte-compare the chain → republish the on-chain IDL) is in
-`docs/stage-10-gig-approval-mode.md` § The deploy.
+verified sequence: IDL parity → `solana program extend` if the binary grew →
+upgrade → byte-compare the chain → republish the on-chain IDL.
 
 `anchor migrate` runs `migrations/deploy.ts`: it calls `initialize_platform`
 with `TENDA_ADMIN` / `TENDA_DISPUTE_ADMIN` / `TENDA_TREASURY`, and is idempotent
@@ -71,10 +70,10 @@ token custody); the state machine is identical.
 | `reclaim_abandoned_sol` / `_spl` | creator | Reclaim after the completion window + grace lapses |
 | `dispute_escrow_sol` / `_spl` | either party | Raise a dispute (posts a bond) |
 | `resolve_dispute_sol` / `_spl` | dispute_admin | Resolve, distributing funds + bond |
-| `close_legacy_platform` | protocol_admin | One-off cleanup of the pre-rewrite account |
+| `close_legacy_platform` | anyone (payer) | One-off cleanup of the pre-rewrite account; refuses a current-layout account |
 
-On mainnet `protocol_admin` is the Squads 3-of-5 vault (key ceremony pending —
-see `docs/production_setup_guide.md` § 4.3); `dispute_admin` is a single ops key.
+On mainnet `protocol_admin` is the Squads 3-of-5 vault (key ceremony
+pending); `dispute_admin` is a single ops key.
 
 ## Accounts
 
@@ -116,4 +115,5 @@ required only for deploys under the same program id. Keep it in a vault.
 
 ## License
 
-MIT
+Apache-2.0, with the rest of the repository under BUSL-1.1. See
+[`../LICENSE`](../LICENSE) and [`../../LICENSING.md`](../../LICENSING.md).

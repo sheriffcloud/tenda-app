@@ -2,7 +2,7 @@ import { View, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import type { NotificationWire } from '@tenda/shared'
 import { Text } from '@/components/ui'
-import { formatRelativeShort } from '@/lib/date'
+import { formatRelativeShort } from '@tenda/shared'
 import { notificationIcon } from '@/lib/notificationRoute'
 import { spacing } from '@/theme/tokens'
 
@@ -38,14 +38,12 @@ export function NotificationRow({ notification, onPress }: NotificationRowProps)
         <Text style={[s.text, { color: theme.colors.content.secondary }]} numberOfLines={2}>
           {notification.body}
         </Text>
-        {notification.created_at !== null && (
-          <Text style={[s.time, { color: theme.colors.content.tertiary }]}>
-            {formatRelativeShort(notification.created_at)}
-          </Text>
-        )}
+        <Text style={[s.time, { color: theme.colors.content.tertiary }]}>
+          {formatRelativeShort(notification.created_at)}
+        </Text>
       </View>
 
-      {unread && <View style={[s.dot, { backgroundColor: theme.colors.brand.primary }]} />}
+      {unread && <View style={[s.dot, { backgroundColor: theme.colors.brand.solid }]} />}
     </Pressable>
   )
 }

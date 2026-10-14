@@ -11,19 +11,26 @@
 import { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
-import { formatAssetAmount, canAssign, type GigApplicant, type GigDetail } from '@tenda/shared'
+import {
+  formatAssetAmount,
+  canAssign,
+  type GigApplicant,
+  type GigDetail,
+  formatDuration,
+  checkEscrowTransitionApplied,
+  TX_PROGRESS_LABEL,
+  txSuccessCopy,
+  approvalContextOf,
+} from '@tenda/shared'
 import { ScreenContainer, Header, showToast } from '@/components/ui'
 import { TransactionMonitor } from '@/components/feedback'
-import { TakedownNotice, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
+import { TakedownNotice, TxConfirmDialog } from '@/components/escrow'
 import { GigDetailGate } from '@/components/gig'
-import { approvalContextOf } from '@/components/gig/gig-cta'
 import { ApplicantList, useApplicantList, type ApplicantFilter } from '@/components/gig/gig-applications'
 import { useEscrowActions } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useGigsStore } from '@/stores'
-import { formatDuration } from '@/lib/gig-display'
 import { spacing } from '@/theme/tokens'
-import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
 import { api } from '@/api/client'
 
 function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) {
@@ -111,6 +118,10 @@ function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) 
 
       <TxConfirmDialog
         action={pending !== null ? 'assign_accept' : null}
+        chainId={gig.chain_id}
+        // The POSTER signs an assign, so the binding previewed is theirs — the
+        // wire is viewer-relative, so this is never the applicant's wallet.
+        boundSigner={gig.my_signer_address}
         ctx={{
           amount: formatAssetAmount(gig.amount_raw, gig.asset),
           kind: 'gig',

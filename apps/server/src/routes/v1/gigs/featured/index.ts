@@ -5,7 +5,7 @@
  */
 import type { FastifyPluginAsync } from 'fastify'
 import type { ApiError, GigSummary } from '@tenda/shared'
-import { getFeaturedGigs } from '@server/lib/featured'
+import { getFeaturedGigs } from '@server/features/gigs/featured'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Reply: { data: GigSummary[] } | ApiError }>('/', async () => {

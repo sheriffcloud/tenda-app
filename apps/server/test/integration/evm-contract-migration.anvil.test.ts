@@ -17,6 +17,7 @@
  * the foundry toolchain for the drift guard, so it runs there).
  */
 import { after, before, test } from 'node:test'
+import { fakeCursorStore } from '../helpers/cursor-store'
 import * as assert from 'node:assert'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
@@ -393,12 +394,10 @@ test('one polling tick picks up OLD-contract activity in a single getLogs call',
     chain_id: CHAIN_ID,
     escrow_contracts: [newEscrow, oldEscrow],
     min_confirmations: 0,
-    cursors: {
-      async getCursor() {
-        return Number(from)
-      },
-      async setCursor() {},
-    },
+    // Both positions at `from`: history complete, so the tick's LIVE scan is
+    // what covers the blocks this test just produced. Leaving history
+    // uninitialised would silently move the assertions onto the backfill path.
+    cursors: fakeCursorStore({ live: Number(from), backfill: Number(from) }),
     queue: {
       async enqueue(_name, payload) {
         enqueued.push((payload as { tx_ref: string }).tx_ref)

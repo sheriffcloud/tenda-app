@@ -20,13 +20,14 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { gig_applications } from '@tenda/shared/db/schema'
 import { appEvents, type AppEvents } from '@server/lib/events'
-import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
-import { fanOutEscrowEvent, type EscrowFanoutEvent } from '@server/workers/escrow-fanout'
+import { drizzleEscrowEventStore } from '@server/features/escrows/events'
+import { fanOutEscrowEvent, type EscrowFanoutEvent } from '@server/queue/workers/escrow-fanout'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
   createUser,
+  createTransactableUser,
   createEscrow,
   attachGigDetails,
   authHeader,
@@ -98,7 +99,7 @@ const applyTo = (app: App, token: string, id: string, body: Record<string, unkno
 test('applying announces it to the poster, carrying the gig title', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const escrow = await approvalGig(app, poster.row.id, 'Deliver a parcel')
 
   assert.strictEqual((await applyTo(app, worker.token, escrow.id)).statusCode, 201)
@@ -117,7 +118,7 @@ test('applying announces it to the poster, carrying the gig title', { skip }, as
 test('editing an existing open application does NOT re-notify', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const escrow = await approvalGig(app, poster.row.id)
 
   await applyTo(app, worker.token, escrow.id, { message: 'first pitch' })
@@ -132,7 +133,7 @@ test('editing an existing open application does NOT re-notify', { skip }, async 
 test('re-applying after withdrawing IS a new hand raised, so it notifies again', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const escrow = await approvalGig(app, poster.row.id)
 
   await applyTo(app, worker.token, escrow.id)
@@ -163,9 +164,9 @@ test('a rejected application notifies nobody', { skip }, async () => {
 test('assigning settles the rivals and the fan-out tells exactly them', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const winner = await createUser(app)
-  const loserA = await createUser(app)
-  const loserB = await createUser(app)
+  const winner = await createTransactableUser(app)
+  const loserA = await createTransactableUser(app)
+  const loserB = await createTransactableUser(app)
   const escrow = await approvalGig(app, poster.row.id)
 
   for (const u of [winner, loserA, loserB]) await applyTo(app, u.token, escrow.id)
@@ -221,8 +222,8 @@ test('assigning settles the rivals and the fan-out tells exactly them', { skip }
 test('unassigning revives the rivals and the fan-out tells exactly them', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const winner = await createUser(app)
-  const rival = await createUser(app)
+  const winner = await createTransactableUser(app)
+  const rival = await createTransactableUser(app)
   const escrow = await approvalGig(app, poster.row.id)
 
   for (const u of [winner, rival]) await applyTo(app, u.token, escrow.id)
@@ -285,8 +286,8 @@ test('unassigning revives the rivals and the fan-out tells exactly them', { skip
 test('a SECOND assign cycle notifies only the newly passed, not the old ones', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const first = await createUser(app)
-  const oldLoser = await createUser(app)
+  const first = await createTransactableUser(app)
+  const oldLoser = await createTransactableUser(app)
   const escrow = await approvalGig(app, poster.row.id)
 
   await applyTo(app, first.token, escrow.id)
@@ -328,8 +329,8 @@ test('a SECOND assign cycle notifies only the newly passed, not the old ones', {
     transaction: tx('assign_accept'),
   })
 
-  const newLoser = await createUser(app)
-  const second = await createUser(app)
+  const newLoser = await createTransactableUser(app)
+  const second = await createTransactableUser(app)
   await applyTo(app, newLoser.token, escrow.id)
   await applyTo(app, second.token, escrow.id)
 
@@ -350,8 +351,8 @@ test('a SECOND assign cycle notifies only the newly passed, not the old ones', {
 test('a tripped status guard settles nothing and notifies nobody', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
-  const rival = await createUser(app)
+  const worker = await createTransactableUser(app)
+  const rival = await createTransactableUser(app)
   const escrow = await approvalGig(app, poster.row.id)
 
   await applyTo(app, worker.token, escrow.id)

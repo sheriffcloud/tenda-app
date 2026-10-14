@@ -64,7 +64,7 @@ export interface AlertDeps {
   queue: Pick<QueueService, 'enqueueMany'>
   log: AlertLogger
   /**
-   * The environment both `configured()` and `deliver()` read — threaded rather
+   * The environment both `configured` and `deliver` read — threaded rather
    * than reached for, so a test can prove "posts to the configured webhook"
    * without mutating `process.env` and leaking that into every later test in
    * the file. The consumer resolves it once and passes the SAME value to both,
@@ -102,15 +102,27 @@ export interface AlertChannel {
   kinds: readonly AlertKind[]
 
   /**
-   * Can this channel deliver right now? MUST NOT THROW — being unconfigured is
-   * a normal state, not an error: Slack is optional, and dev and self-hosted
-   * deployments run without it. Mirrors `resolveSlackDestination`, which
-   * returns null rather than throwing for the same reason.
+   * Can this channel deliver THIS KIND right now? MUST NOT THROW — being
+   * unconfigured is a normal state, not an error: Slack is optional, and dev
+   * and self-hosted deployments run without it. Mirrors
+   * `resolveSlackDestination`, which returns null rather than throwing for the
+   * same reason.
+   *
+   * PER KIND, not per channel, because a channel can route its kinds to
+   * different places: Slack sends `dispute.raised` to the mediation room and
+   * `gas-seed.low-balance` to the operators' room, and those webhooks are
+   * configured independently. A channel-wide answer would have to be "some
+   * destination is set", which lets an alert whose OWN room is unset pass this
+   * filter and reach `deliver` — where the contract says a missing destination
+   * is a caller bug and throws, burning the retry budget and filing a real
+   * alert in removeOnFail. The kind is the smallest unit that has an answer.
+   *
+   * A channel with one destination, or none, ignores the parameter.
    *
    * `env` defaults to `process.env` for direct calls; the consumer passes
    * `deps.env` so both halves of the contract read one source.
    */
-  configured(env?: NodeJS.ProcessEnv): boolean
+  configured(kind: AlertKind, env?: NodeJS.ProcessEnv): boolean
 
   /**
    * Deliver, or THROW. The inverse posture of `configured`: a channel that is
@@ -118,11 +130,12 @@ export interface AlertChannel {
    * would turn a Slack outage into permanent silence, which is the one failure
    * mode an alerting path cannot have.
    *
-   * MAY ASSUME `configured(deps.env)` is true — filtering unconfigured channels
-   * is the consumer's job, so reaching here without configuration is a caller
-   * bug and should throw like any other failure. That keeps "not set up" (a
-   * quiet skip, decided in one place) from ever being confused with "set up and
-   * broken" (a retry), which is the distinction the two methods exist to draw.
+   * MAY ASSUME `configured(alert.kind, deps.env)` is true — filtering the
+   * unconfigured is the consumer's job, so reaching here without configuration
+   * is a caller bug and should throw like any other failure. That keeps "not
+   * set up" (a quiet skip, decided in one place) from ever being confused with
+   * "set up and broken" (a retry), which is the distinction the two methods
+   * exist to draw.
    */
   deliver(alert: Alert, deps: AlertDeps): Promise<void>
 }

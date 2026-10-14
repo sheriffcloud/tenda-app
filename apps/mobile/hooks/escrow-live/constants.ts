@@ -1,2 +1,0 @@
-export const ESCROW_EVENT_DEBOUNCE_MS = 400
-export const ESCROW_FOCUSED_POLL_MS = 15_000

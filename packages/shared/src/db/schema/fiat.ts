@@ -94,11 +94,11 @@ export const fiat_intents = pgTable(
     kyc_required: boolean('kyc_required').notNull().default(false),
     kyc_url: text('kyc_url'),
     /** Quote validity window (typ. 10min). */
-    expires_at: timestamp('expires_at').notNull(),
+    expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
     /** Bank details for offramp, provider callbacks, gig_id attribution… */
     metadata: jsonb('metadata'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -130,8 +130,8 @@ export const bank_accounts = pgTable(
     account_name: text('account_name').notNull(),
     is_default: boolean('is_default').notNull().default(false),
     /** Set when name-enquiry confirmed the account. */
-    verified_at: timestamp('verified_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    verified_at: timestamp('verified_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   // Uniqueness spans the rail too, so a bank and a MoMo account can share a
   // number space without a false collision.

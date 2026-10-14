@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
-import { payoutCurrencyForCountry, CURRENCY_META } from '@tenda/shared'
+import { payoutCurrencyForCountry, ApiClientError } from '@tenda/shared'
 import type { BankAccountSummary } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
 import { showToast } from '@/components/ui'
 import { useFiatQuote } from '@/hooks/useFiatQuote'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
@@ -24,12 +24,17 @@ export function useInstantSell({
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
 
+  /**
+   * `null` until a payout account is chosen — there is no default currency to
+   * fall back to, because under one-country-one-currency the account IS the
+   * answer. It joins the quote guard below rather than being coerced: a quote
+   * priced in a guessed currency is worse than no quote.
+   */
   const currency = payoutCurrencyForCountry(account?.country ?? null)
-  const currencySymbol = CURRENCY_META[currency].symbol
   const amountValid = amountRaw !== null && amountRaw !== '0'
 
   const { quote, expiresIn, loading, error, refetch } = useFiatQuote(
-    option !== null && amountValid && account !== null
+    option !== null && amountValid && account !== null && currency !== null
       ? {
           direction: 'offramp',
           asset: option.assetId,
@@ -65,5 +70,5 @@ export function useInstantSell({
     }
   }
 
-  return { quote, expiresIn, loading, error, refetch, currency, currencySymbol, submitting, confirm }
+  return { quote, expiresIn, loading, error, refetch, currency, submitting, confirm }
 }

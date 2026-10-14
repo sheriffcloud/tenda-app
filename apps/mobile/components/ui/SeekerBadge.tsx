@@ -19,15 +19,15 @@ export function SeekerBadge({ variant = 'compact', label }: SeekerBadgeProps) {
       style={[
         s.badge,
         isFull ? s.badgeFull : s.badgeCompact,
-        { backgroundColor: theme.colors.accent.primarySurface },
+        { backgroundColor: theme.colors.feedback.warning.surface },
       ]}
     >
-      <Sparkles size={isFull ? 13 : 10} color={theme.colors.accent.primary} />
+      <Sparkles size={isFull ? 13 : 10} color={theme.colors.feedback.warning.base} />
       <Text
         weight="bold"
         style={[
           isFull ? s.textFull : s.textCompact,
-          { color: theme.colors.accent.primary },
+          { color: theme.colors.feedback.warning.base },
         ]}
       >
         {text}

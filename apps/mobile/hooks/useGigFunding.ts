@@ -14,27 +14,32 @@ import { useRouter } from 'expo-router'
 import {
   coerceCityForCountry,
   ErrorCode,
-  reuseOrCreateEscrowCreationAttempt,
   type EscrowCreationAttempt,
+  reuseOrCreateEscrowCreationAttempt,
+  SECONDS_PER_HOUR,
+  ApiClientError,
+  checkEscrowTransitionApplied,
+  randomUuid,
+  WalletError,
+  classifyTransactionGateError,
+  TRANSACTION_GATE_MESSAGE,
+  transactionGateRoute,
+  type GigFormValues,
 } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
+import { useAuthStore } from '@/stores/auth.store'
 import { showToast } from '@/components/ui/Toast'
-import { WalletError } from '@/wallet/errors'
-import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import {
+  declaredSignerFor,
+  resolveSignersForChain,
+  settleSignerFor,
+  signSendAndReport,
+} from '@/wallet/dispatch'
 import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 import type { TxPhase } from '@/hooks/useEscrowActions'
-import {
-  classifyTransactionGateError,
-  TRANSACTION_GATE_MESSAGE,
-  transactionGateRoute,
-} from '@/lib/transaction-gate'
-import type { GigFormValues } from '@/components/gig/GigForm'
-import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
-import { randomUuid } from '@/lib/random-uuid'
 
-const MS_PER_HOUR = 3_600_000
 
 interface FundingMonitor {
   signature: string
@@ -65,6 +70,10 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null)
   const creationAttempt = useRef<EscrowCreationAttempt | null>(null)
 
+  /** The wallets[] load, read off the store rather than subscribed to: this
+   *  hook renders nothing, so a subscription would only add re-renders. */
+  const refreshLinkedWallets = () => useAuthStore.getState().refreshMe()
+
   async function runFunding() {
     if (pendingValues === null || !pendingValues.category) return
     const values = pendingValues
@@ -76,15 +85,16 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
     // shared gigAssetByChain helper, the server re-asserts it).
     const chain_id = values.chainId
     const asset = values.asset
-    const amount_raw = String(values.paymentRaw)
+    // Already a canonical base-unit string — the composer never holds it as
+    // a number, so there is nothing left to stringify.
+    const amount_raw = values.paymentRaw
     creationAttempt.current = reuseOrCreateEscrowCreationAttempt(
       creationAttempt.current,
       [chain_id, asset, amount_raw, values.acceptDeadlineHours, values.completionDuration,
         values.requiresApproval],
-      () => Math.floor((Date.now() + values.acceptDeadlineHours * MS_PER_HOUR) / 1000),
       randomUuid,
     )
-    const { operationId, acceptDeadlineUnix } = creationAttempt.current
+    const { operationId } = creationAttempt.current
 
     setPhase('preparing')
     let escrow_id: string | null = null
@@ -102,13 +112,20 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
       // EIP-2612: sign the allowance BEFORE creating so it rides the create tx
       // (undefined = approve fallback via the unsigned tx's approval hint).
       const permit = await buildPermitFor({ chain_id, asset, value_raw: amount_raw })
+      // Declared signer: the wallet the create BAKES. Settled first so it is
+      // the wallet that will actually sign — and so it is the same account the
+      // permit above was signed by, which the contract requires.
+      await settleSignerFor(chain_id)
+      const signer = declaredSignerFor(chain_id)
       const created = await api.escrows.create({
         creation_operation_id: operationId,
         kind: 'gig',
         chain_id,
         asset,
         amount_raw,
-        accept_deadline_unix: acceptDeadlineUnix,
+        ...(signer !== undefined ? { signer_address: signer } : {}),
+        // A DURATION: the server anchors it when it builds the create (#41).
+        accept_window_seconds: values.acceptDeadlineHours * SECONDS_PER_HOUR,
         completion_duration_seconds: values.completionDuration,
         // Only sent when true: the server treats an absent flag as instant
         // mode, so an omitted `false` and an explicit one mean the same thing
@@ -131,6 +148,12 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
           ...(values.proofRequirements.length > 0
             ? { proof_requirements: values.proofRequirements }
             : {}),
+          // The check-in pin + per-type params, already scoped to the selected
+          // requirement types by composerProofSubmission in the form.
+          ...(values.latitude !== null && values.longitude !== null
+            ? { latitude: values.latitude, longitude: values.longitude }
+            : {}),
+          ...(values.proofParams !== null ? { proof_params: values.proofParams } : {}),
         })
       } catch (e) {
         // Stage-6 block (or validation failure): the chain-agnostic draft would
@@ -161,13 +184,26 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
       setMonitor({ signature: tx_ref, escrowId: created.escrow_id, chainId: chain_id })
     } catch (e) {
       setPhase('idle')
-      // 9D first-transaction gate: route to link-wallet / verify-contact. It
-      // surfaces from escrows.create() before escrow_id is set, so there is no
-      // orphan draft to clean up here.
+      // 9D first-transaction gate. It surfaces from escrows.create() before
+      // escrow_id is set, so there is no orphan draft to clean up here. The
+      // two halves part company at #59: the CONTACT gate still routes, the
+      // WALLET gate answers in place (see below).
       const gate = classifyTransactionGateError(e)
       if (gate !== null) {
         showToast('error', TRANSACTION_GATE_MESSAGE[gate])
-        router.push(transactionGateRoute(gate))
+        if (gate === 'wallet_required') {
+          // #59: the composer STAYS. This screen is a tab and does not
+          // unmount, so the old push did not destroy the fields the way web's
+          // route change did — it BURIED them under Settings, mid-compose,
+          // answering a fixable precondition by throwing the poster somewhere
+          // else. The notice at the top of the composer answers it in place
+          // instead, and refreshing wallets[] is what makes that notice
+          // appear: the server has just contradicted what this client
+          // believed, so the list it believed it from is the stale thing.
+          void refreshLinkedWallets()
+        } else {
+          router.push(transactionGateRoute(gate))
+        }
       } else if (e instanceof ApiClientError && e.code === ErrorCode.CONTENT_MODERATED) {
         // Stage-6: block verdicts get the full dialog, no retry path.
         setBlockedMessage(e.message)

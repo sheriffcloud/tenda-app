@@ -15,7 +15,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { escrows, gig_applications } from '@tenda/shared/db/schema'
-import { applyEscrowEvent, drizzleEscrowEventStore } from '@server/lib/escrow-events'
+import { applyEscrowEvent, drizzleEscrowEventStore } from '@server/features/escrows/events'
 import type { DecodedEvent } from '@server/chains/types'
 import { TEST_ESCROW_PROGRAM } from '../helpers/fixtures'
 import {

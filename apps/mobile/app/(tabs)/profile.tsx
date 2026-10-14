@@ -20,7 +20,7 @@ import { ProfileHero, ProfileStats, ProfileMenu } from '@/components/profile'
 import type { MenuItem } from '@/components/profile'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProfileStats } from '@/hooks/useProfileStats'
-import { truncateWallet, formatFullName } from '@tenda/shared'
+import { displayWalletAddress, truncateWallet, formatFullName } from '@tenda/shared'
 
 export default function ProfileScreen() {
   const router = useRouter()
@@ -43,9 +43,11 @@ export default function ProfileScreen() {
 
   const fullName = formatFullName(user?.first_name ?? null, user?.last_name ?? null) || 'Anonymous'
 
-  // v2 identity is multi-wallet: show the primary linked wallet, falling
-  // back to the connected session address.
-  const primaryWallet = wallets.find((w) => w.is_primary)?.address ?? sessionWallet
+  // The same handle rule the drawer uses — see `displayWalletAddress`. Two
+  // copies of `find(w => w.is_primary)` is how the profile and the drawer end
+  // up naming a different wallet as "yours" on the same screen-load, now that
+  // the marker is per chain family (#42).
+  const primaryWallet = displayWalletAddress(wallets, sessionWallet)
   const walletShort = primaryWallet ? truncateWallet(primaryWallet) : '—'
 
   // v2 review_score is already a 0–5 average (numeric(3,2) → string).
@@ -99,7 +101,13 @@ export default function ProfileScreen() {
         hasWallet={primaryWallet !== null}
       />
 
-      <ProfileStats completed={stats.completed} posted={stats.posted} reputation={reputationDisplay} />
+      <ProfileStats
+        completed={stats.completed}
+        posted={stats.posted}
+        reputation={reputationDisplay}
+        status={stats.status}
+        onRetry={stats.reload}
+      />
 
       <SectionLabel>Account</SectionLabel>
       <ProfileMenu items={accountItems} />

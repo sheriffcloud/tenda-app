@@ -10,7 +10,7 @@
  * filter parsing wrapped around two queries. Every function here maps the
  * QUERYSTRING to SQL and nothing else, which makes them readable in isolation
  * and reachable from a test without a request — `queryConditions` takes the
- * chain registry as a parameter (a structural type, see lib/chain-filter)
+ * chain registry as a parameter (a structural type, see lib/http/chain-filter)
  * precisely so that stays true. What is NOT here is anything needing the
  * REQUEST: the `mine` branch authenticates and reads `request.user`, so it
  * stays in the handler where the auth lives.
@@ -22,20 +22,21 @@
  * `queryConditions`.
  */
 
-import { eq, gte, lte, asc, desc, sql, type SQL } from 'drizzle-orm'
+import { eq, asc, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, escrowStatusEnum, gig_details } from '@tenda/shared/db/schema'
 import {
   isValidLatitude,
   isValidLongitude,
   GIG_CATEGORIES,
   LOCATIONS,
+  MAX_PROXIMITY_RADIUS_KM,
   ErrorCode,
 } from '@tenda/shared'
 import type { GigsContract, GigCategory, EscrowStatus } from '@tenda/shared'
-import { isAmountRaw } from '@server/chains/types'
 import { AppError } from '@server/lib/errors'
-import { gigSearchCondition, gigSearchRank } from '@server/lib/gig-search'
-import { chainFilterCondition, type ChainFilterRegistry } from '@server/lib/chain-filter'
+import { gigSearchCondition, gigSearchRank } from '@server/features/gigs/gig-search'
+import { chainFilterCondition, type ChainFilterRegistry } from '@server/lib/http/chain-filter'
+import { amountWindowConditions } from '@server/lib/http/amount-window'
 
 type ListQuery = GigsContract['list']['query']
 
@@ -109,28 +110,6 @@ export function searchCondition(q: string | undefined): SQL | null {
 }
 
 /**
- * The amount window. Both bounds are decimal integer STRINGS (amount_raw is
- * numeric(78,0)), so the ordering check compares BigInts — a lexicographic
- * string compare would call '9' greater than '10'.
- */
-export function amountConditions(query: ListQuery): SQL[] {
-  const { min_amount_raw, max_amount_raw } = query
-  if (min_amount_raw !== undefined && !isAmountRaw(min_amount_raw)) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be a decimal integer string')
-  }
-  if (max_amount_raw !== undefined && !isAmountRaw(max_amount_raw)) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'max_amount_raw must be a decimal integer string')
-  }
-  if (min_amount_raw !== undefined && max_amount_raw !== undefined && BigInt(min_amount_raw) > BigInt(max_amount_raw)) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be ≤ max_amount_raw')
-  }
-  const conditions: SQL[] = []
-  if (min_amount_raw !== undefined) conditions.push(gte(escrows.amount_raw, min_amount_raw))
-  if (max_amount_raw !== undefined) conditions.push(lte(escrows.amount_raw, max_amount_raw))
-  return conditions
-}
-
-/**
  * Haversine proximity filter. All three params must arrive together — a
  * partial triple is a caller bug, and silently ignoring it would return the
  * unfiltered feed as though the radius had applied.
@@ -150,12 +129,12 @@ export function proximityCondition(query: ListQuery): SQL | null {
     !isValidLongitude(lngN) ||
     isNaN(rN) ||
     rN <= 0 ||
-    rN > 20_000
+    rN > MAX_PROXIMITY_RADIUS_KM
   ) {
     throw new AppError(
       400,
       ErrorCode.VALIDATION_ERROR,
-      'lat (−90–90), lng (−180–180), and radius_km (0–20000) must all be provided and valid',
+      `lat (−90–90), lng (−180–180), and radius_km (0–${MAX_PROXIMITY_RADIUS_KM}) must all be provided and valid`,
     )
   }
   // @todo Migrate to PostGIS ST_DWithin when query volume grows
@@ -168,16 +147,31 @@ export function proximityCondition(query: ListQuery): SQL | null {
 }
 
 /**
- * Ordering. An explicit `sort` wins; otherwise a search orders by RELEVANCE
- * and everything else by recency. Relevance is only meaningful when there is
- * a query to rank against, which is why it is not a `sort` value.
+ * Ordering, always TOTAL. An explicit `sort` wins; otherwise a search orders
+ * by RELEVANCE and everything else by recency. Relevance is only meaningful
+ * when there is a query to rank against, which is why it is not a `sort` value.
+ *
+ * Every ordering ends in the primary key, and that is correctness rather than
+ * tidiness: each leading expression ties heavily — 25 USDC is the commonest
+ * gig amount there is, `ts_rank` quantises, and `created_at` collides on bulk
+ * inserts — so on its own none of them is a total order. Postgres may then
+ * return tied rows in a different sequence per query (the planner resizes its
+ * top-N heap as the LIMIT+OFFSET window grows), and LIMIT/OFFSET across that
+ * shows one gig on two pages while never showing another. Measured on 200 tied
+ * rows read as three pages of twenty: 60 rows returned, 58 distinct. Pinned by
+ * test/integration/gig-feed-sort-ordering.test.ts.
+ *
+ * `desc(escrows.id)` matches the tiebreaker the keyset cursor already orders
+ * and compares by (see the feed handler and gig-feed-cursor), so the two paging
+ * modes agree on what "next" means.
  */
-export function listOrderBy(query: ListQuery): SQL {
+export function listOrderBy(query: ListQuery): SQL[] {
   const { sort, q } = query
-  if (sort === 'amount_asc') return asc(escrows.amount_raw)
-  if (sort === 'amount_desc') return desc(escrows.amount_raw)
-  if (q !== undefined && q.trim() !== '') return desc(gigSearchRank(q))
-  return desc(escrows.created_at)
+  const tiebreak = desc(escrows.id)
+  if (sort === 'amount_asc') return [asc(escrows.amount_raw), tiebreak]
+  if (sort === 'amount_desc') return [desc(escrows.amount_raw), tiebreak]
+  if (q !== undefined && q.trim() !== '') return [desc(gigSearchRank(q)), tiebreak]
+  return [desc(escrows.created_at), tiebreak]
 }
 
 /**
@@ -209,7 +203,7 @@ export function queryConditions(query: ListQuery, chains: ChainFilterRegistry): 
   if (chain !== null) conditions.push(chain)
   const search = searchCondition(query.q)
   if (search !== null) conditions.push(search)
-  conditions.push(...amountConditions(query))
+  conditions.push(...amountWindowConditions(query))
   const proximity = proximityCondition(query)
   if (proximity !== null) conditions.push(proximity)
   return conditions

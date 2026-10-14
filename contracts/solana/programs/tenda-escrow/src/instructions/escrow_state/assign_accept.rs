@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use anchor_lang::prelude::*;
 
 use crate::errors::TendaError;

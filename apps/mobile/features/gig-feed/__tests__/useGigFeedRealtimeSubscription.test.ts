@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react-native'
-import type { GigFeedServerFrame } from '@tenda/shared'
+import { GIG_FEED_REVISION_MEMORY, MAX_PAGINATION_LIMIT, type GigFeedServerFrame } from '@tenda/shared'
 import { gigDetail } from '@/components/gig/__fixtures__/gig-detail'
 
 let feedListener: ((frame: GigFeedServerFrame) => void) | undefined
@@ -32,6 +32,22 @@ function available(): GigFeedServerFrame {
     occurred_at: '2026-08-13T10:00:00.000Z',
     gig,
   }
+}
+
+/** A full server page of rows (the cap the memory itself is derived from), so a render makes every previous row depart at once. */
+function page(prefix: string): ReturnType<typeof gigDetail>[] {
+  return Array.from({ length: MAX_PAGINATION_LIMIT }, (_, i) => gigDetail({ escrow_id: `${prefix}-${i}`, public_feed_revision: '1' }))
+}
+
+/** A frame for `first` at a revision BELOW the 7 it was seen at — stale if remembered, new if forgotten. */
+function staleFrameForFirst(first: ReturnType<typeof gigDetail>): GigFeedServerFrame {
+  const stale = available()
+  if (stale.type === 'gig_available') {
+    stale.escrow_id = 'first'
+    stale.gig = { ...first, title: 'Stale' }
+    stale.gig_revision = '6'
+  }
+  return stale
 }
 
 test('applies a matchable available event without HTTP reconciliation', () => {
@@ -159,3 +175,45 @@ test('a rejected reconciliation does not permanently block later recovery', asyn
   await act(async () => { feedListener?.(available()); await Promise.resolve() })
   expect(target.reconcile).toHaveBeenCalledTimes(2)
 })
+
+test('#73: the seeded revision memory is bounded across renders — a long-departed row is no longer guarded', () => {
+  const first = gigDetail({ escrow_id: 'first', public_feed_revision: '7', title: 'Current' })
+  const target = {
+    items: [first],
+    applyRealtimeItems: jest.fn(),
+    reconcile: jest.fn(async () => true),
+  }
+  const { rerender } = renderHook(({ t }: { t: typeof target }) => useGigFeedRealtimeSubscription(t, {}), {
+    initialProps: { t: target },
+  })
+  // More departures than the memory, page by page; `first` left on the first turn.
+  const pages = Math.ceil((GIG_FEED_REVISION_MEMORY + 1) / MAX_PAGINATION_LIMIT) + 1
+  for (let p = 0; p < pages; p += 1) rerender({ t: { ...target, items: page(`p${p}`) } })
+  act(() => feedListener?.(staleFrameForFirst(first)))
+  // Forgotten, so the old frame is applied as new — the reducer's stated trade,
+  // and the proof the map did not keep every gig the session ever saw.
+  expect(target.applyRealtimeItems).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ escrow_id: 'first', title: 'Stale' })]))
+})
+
+test('#73: a row that departed RECENTLY is still guarded — the memory is a memory, not a reset', () => {
+  // The other half of the bound. Without it, a hook that forgot every
+  // departure at once (memory 0) passed the case above and replayed every
+  // late frame for a row that had just scrolled off as new. MEASURED.
+  const first = gigDetail({ escrow_id: 'first', public_feed_revision: '7', title: 'Current' })
+  const target = {
+    items: [first],
+    applyRealtimeItems: jest.fn(),
+    reconcile: jest.fn(async () => true),
+  }
+  const { rerender } = renderHook(({ t }: { t: typeof target }) => useGigFeedRealtimeSubscription(t, {}), {
+    initialProps: { t: target },
+  })
+  // `first` departs, and fewer than the memory follow it out.
+  rerender({ t: { ...target, items: page('a') } })
+  rerender({ t: { ...target, items: page('b') } })
+  act(() => feedListener?.(staleFrameForFirst(first)))
+  // Still remembered at 7, so a frame at 6 is stale: nothing applied, nothing asked.
+  expect(target.applyRealtimeItems).not.toHaveBeenCalled()
+  expect(target.reconcile).not.toHaveBeenCalled()
+})
+

@@ -1,5 +1,5 @@
 /**
- * lib/admin-links — the only place this server spells an apps/admin route.
+ * features/auth/admin/admin-links — the only place this server spells an apps/admin route.
  *
  * What is actually being pinned here is a DEGRADATION contract, not string
  * concatenation: every function returns null when `ADMIN_DASHBOARD_URL` is
@@ -13,7 +13,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { adminDashboardBaseUrl, adminDisputeUrl } from '@server/lib/admin-links'
+import { adminDashboardBaseUrl, adminDisputeUrl } from '@server/features/auth/admin/admin-links'
 import { ADMIN_DASHBOARD_URL_ENV, BASE_URL_PROTOCOLS } from '@server/config'
 
 const BASE = 'https://admin.tenda.test'
@@ -91,7 +91,7 @@ test('adminDisputeUrl: routes by DISPUTE id under the dashboard base', () => {
 // The join is the part that silently breaks: `base + '/disputes'` with a base
 // that kept its slash yields `//disputes`, which the dashboard's router 404s.
 //
-// REPEATED slashes are the case that actually escapes: lib/env's
+// REPEATED slashes are the case that actually escapes: config/env's
 // `stripTrailingSlash` removes exactly one BY DESIGN, and nothing upstream
 // rejects the typo — `isAbsoluteUrl` and the boot check both accept it — so
 // without normalising here `https://admin.tenda.test//` boots clean and emits

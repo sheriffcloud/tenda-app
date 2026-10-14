@@ -1,1 +1,0 @@
-ALTER TABLE "escrows" ADD COLUMN "unassign_window_seconds" integer DEFAULT 0 NOT NULL;

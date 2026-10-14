@@ -62,5 +62,5 @@ const s = StyleSheet.create({
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 12 },
   infoPill: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: 12, borderRadius: 999 },
   infoPillText: { fontSize: 12.5, fontWeight: '500' },
-  infoPillMono: { fontFamily: typography.fonts.mono, fontSize: 11.5, letterSpacing: 0.115 },
+  infoPillMono: { fontFamily: typography.fonts.mono.regular, fontSize: 11.5, letterSpacing: 0.115 },
 })

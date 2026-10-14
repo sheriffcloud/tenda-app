@@ -7,9 +7,7 @@ export interface FaqQuestion {
 }
 
 export interface FaqCategory {
-  num: '01' | '02' | '03' | '04' | '05'
-  slug: 'trust' | 'money' | 'disputes' | 'crypto' | 'coverage'
+  /** The tag each of its questions carries in the margin. */
   title: string
-  caption: string
   questions: readonly FaqQuestion[]
 }

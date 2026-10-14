@@ -16,14 +16,14 @@
 import { randomUUID } from 'node:crypto'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode, formatUnits } from '@tenda/shared'
-import { P2P_INTERNAL_ID, P2P_INTERNAL_SPREAD_BPS } from '../config'
+import { P2P_INTERNAL_ID, P2P_INTERNAL_SPREAD_BPS } from '../core/config'
 import type {
   FiatProvider,
   ProviderCapabilities,
   ProviderQuote,
   ProviderIntentStatus,
   ProviderStatusContext,
-} from '../types'
+} from '../core/types'
 
 /** Mid-rate source: fiat per display unit of asset (e.g. NGN per USDC). */
 export interface RateSource {

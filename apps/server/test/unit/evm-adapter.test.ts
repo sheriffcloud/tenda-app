@@ -2,8 +2,9 @@
  * chains/evm — builders (encode/decode round-trip + native-value rules),
  * verify pipeline (confirmations, revert, event decode, escrow_id check),
  * fetchEscrowState mapping, EOA auth-sig verify, paymaster sponsorship
- * with quota + degradation. Fully offline: fake EvmRpc/PaymasterHttp;
- * viem's pure encode/decode/sign primitives need no network.
+ * with quota + degradation, and ERC-8021 attribution ATTACHMENT (#83).
+ * Fully offline: fake EvmRpc/PaymasterHttp; viem's pure encode/decode/sign
+ * primitives need no network.
  */
 
 import { test } from 'node:test'
@@ -17,11 +18,13 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { evmAdapter, type EvmAdapterDeps } from '@server/chains/evm'
-import { buildEvmCall } from '@server/chains/evm/builders'
-import { decodeEscrowLogs, escrowIdHexToUuid } from '@server/chains/evm/verify'
+import { buildEvmCall } from '@server/chains/evm/build/builders'
+import { decodeEscrowLogs, escrowIdHexToUuid } from '@server/chains/evm/verify/verify'
 import { ESCROW_EVM_ABI, ZERO_ADDRESS, type EvmReceipt, type EvmRpc } from '@server/chains/evm/rpc'
-import type { PaymasterHttp } from '@server/chains/evm/paymaster'
-import { uuidToBytes } from '@server/chains/ids'
+import type { PaymasterHttp } from '@server/chains/evm/sender/paymaster'
+import { uuidToBytes } from '@server/chains/shared/ids'
+import { decodeTag } from '@server/features/attribution'
+import { withAttributionCode } from '../helpers/attribution-env'
 import { AppError } from '@server/lib/errors'
 import { extractTxHashes } from '@server/routes/v1/webhooks/alchemy'
 import {
@@ -29,10 +32,13 @@ import {
   type EscrowEventStore,
   type EscrowEventTransaction,
   type EscrowPatch,
-} from '@server/lib/escrow-events'
+} from '@server/features/escrows/events'
 import type { EscrowStatus } from '@server/lib/escrow'
+import { encodeApprove } from '@tenda/shared'
 
 const CHAIN_ID = 'eip155:8453'
+const CELO_CHAIN_ID = 'eip155:42220'
+const ATTRIBUTION_CODE = 'celo_558f532905be'
 const CONTRACT = '0x00000000000000000000000000000000000000e5' as const
 const USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 const UUID = '0d9cd2a4-3f1e-4b6a-9c3d-2f1e4b6a9c3d'
@@ -45,6 +51,8 @@ const TX = `0x${'ab'.repeat(32)}` as const
 
 function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
   return {
+    async readApprovalWindow() { return 172_800n },
+    async readFees() { return { feeBps: 250, seekerFeeBps: 100 } },
     async getTransactionReceipt() {
       return null
     },
@@ -64,9 +72,9 @@ function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
   }
 }
 
-function makeAdapter(deps: Partial<EvmAdapterDeps> = {}) {
+function makeAdapter(deps: Partial<EvmAdapterDeps> = {}, chain_id = CHAIN_ID) {
   return evmAdapter({
-    chain_id: CHAIN_ID,
+    chain_id,
     rpc_url: 'http://unused.invalid',
     escrow_contract: CONTRACT,
     min_confirmations: 5,
@@ -147,6 +155,24 @@ test('builders: assignAccept encodes the resolved worker address', () => {
   const args = decoded.args as readonly unknown[]
   assert.strictEqual(String(args[0]).toLowerCase(), UUID_HEX.toLowerCase())
   assert.strictEqual(String(args[1]).toLowerCase(), WORKER.toLowerCase())
+})
+
+test('adapter assignAccept: an application-chosen worker_address is encoded VERBATIM, resolver never asked', async () => {
+  const adapter = makeAdapter({
+    resolveWalletAddress: async () => {
+      throw new Error('resolver must not run when the choice rides the payload')
+    },
+  })
+  const tx = await adapter.buildTx({
+    action: 'assignAccept',
+    user_id: 'u1',
+    payload: { escrow_id: UUID, worker_user_id: 'w1', worker_address: WORKER },
+  })
+  assert.strictEqual(tx.kind, 'evm-tx')
+  if (tx.kind !== 'evm-tx') throw new Error('unreachable')
+  const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: tx.data })
+  assert.strictEqual(decoded.functionName, 'assignAccept')
+  assert.strictEqual(String((decoded.args as readonly unknown[])[1]).toLowerCase(), WORKER.toLowerCase())
 })
 
 test('builders: assignAccept without a resolved worker wallet throws, never encodes address(0)', () => {
@@ -763,7 +789,15 @@ test('buildTx: plain ERC-20 create carries the approval hint; permit and native 
   const plain = await adapter.buildTx(CREATE_ARGS)
   assert.strictEqual(plain.kind, 'evm-tx')
   if (plain.kind === 'evm-tx') {
-    assert.deepStrictEqual(plain.approval, { token: USDC, spender: CONTRACT, amount_raw: '1000000' })
+    // `data` is the approve the CLIENT will broadcast, built server-side so it
+    // can be tagged (#103). Derived from the shared encoder rather than pasted
+    // hex, so this pins the delegation and not a transcription.
+    assert.deepStrictEqual(plain.approval, {
+      token: USDC,
+      spender: CONTRACT,
+      amount_raw: '1000000',
+      data: encodeApprove(CONTRACT, '1000000'),
+    })
   }
 
   const withPermit = await adapter.buildTx({
@@ -810,7 +844,12 @@ test('buildTx: ERC-20 dispute bond carries the approval hint; zero bond does not
     payload: { escrow_id: UUID, bond_raw: '777' },
   })
   if (withBond.kind === 'evm-tx') {
-    assert.deepStrictEqual(withBond.approval, { token: USDC, spender: CONTRACT, amount_raw: '777' })
+    assert.deepStrictEqual(withBond.approval, {
+      token: USDC,
+      spender: CONTRACT,
+      amount_raw: '777',
+      data: encodeApprove(CONTRACT, '777'),
+    })
   }
 
   const zeroBond = await adapter.buildTx({
@@ -1118,4 +1157,91 @@ test('verifyTx (wide net): an unassign receipt decodes with no hint', async () =
   const r = await a.verifyTx(TX, {})
   assert.ok(r.confirmed === true && r.failed === false)
   assert.strictEqual(r.event.name, 'AssignmentReleased')
+})
+
+// ---------- attribution (#83) ------------------------------------------------
+
+/**
+ * These assert the ATTACHMENT, not the encoder — that has its own suite in
+ * attribution.test.ts. What can only be checked here is that `buildTx` actually
+ * calls it, because a feature that works perfectly and is never invoked looks
+ * identical to one that is, right up until the leaderboard is empty.
+ *
+ * `process.env` is set and restored per test rather than injected: the adapter
+ * takes no env parameter, and threading one through it for a single feature is
+ * exactly the coupling the feature directory exists to avoid. The set/restore
+ * is `withAttributionCode` (test/helpers/attribution-env), shared with the relay
+ * suite — it was written twice before, and the restore is the half that must not
+ * drift.
+ */
+test('buildTx on a CELO chain appends the attribution suffix to the calldata it returns', async () => {
+  const tagged = await withAttributionCode(ATTRIBUTION_CODE, async () =>
+    makeAdapter({}, CELO_CHAIN_ID).buildTx(CREATE_ARGS),
+  )
+  assert.strictEqual(tagged.kind, 'evm-tx')
+  const data = (tagged as { data: `0x${string}` }).data
+  assert.deepStrictEqual(decodeTag(data), {
+    status: 'tagged',
+    codes: [ATTRIBUTION_CODE],
+    schemaId: 0,
+    missing: [],
+  })
+  // The suffix must not disturb the call: viem still decodes the function and
+  // its arguments off calldata that has trailing bytes.
+  assert.strictEqual(
+    decodeFunctionData({ abi: ESCROW_EVM_ABI, data }).functionName,
+    'createEscrow',
+  )
+})
+
+test('the SAME build on a non-Celo chain is byte-identical to the untagged one', async () => {
+  const base = await withAttributionCode(ATTRIBUTION_CODE, async () => makeAdapter().buildTx(CREATE_ARGS))
+  const none = await withAttributionCode(undefined, async () => makeAdapter().buildTx(CREATE_ARGS))
+  assert.deepStrictEqual(base, none)
+  assert.deepStrictEqual(decodeTag((base as { data: `0x${string}` }).data), { status: 'untagged' })
+})
+
+/**
+ * The approve is the OTHER transaction in a plain create, and until #103 it was
+ * the one nobody could tag: the server sent terms and each client encoded the
+ * call. On a token without EIP-2612 — cNGN has no permit, verified on-chain —
+ * that is one uncredited transaction per post, forever, because the tag rides
+ * signed calldata and there is no backfill.
+ */
+test('the APPROVE hint carries tagged calldata on CELO — the second tx of a plain create', async () => {
+  const tagged = await withAttributionCode(ATTRIBUTION_CODE, async () =>
+    makeAdapter({}, CELO_CHAIN_ID).buildTx(CREATE_ARGS),
+  )
+  assert.strictEqual(tagged.kind, 'evm-tx')
+  if (tagged.kind !== 'evm-tx' || tagged.approval === undefined) throw new Error('no approval hint')
+  assert.deepStrictEqual(decodeTag(tagged.approval.data as `0x${string}`), {
+    status: 'tagged',
+    codes: [ATTRIBUTION_CODE],
+    schemaId: 0,
+    missing: [],
+  })
+  // Tagged calldata is still a valid approve: the suffix sits past both static
+  // arguments, so the prefix is byte-for-byte what the client would have built.
+  assert.ok(tagged.approval.data?.startsWith(encodeApprove(CONTRACT, '1000000')))
+})
+
+test('the approve hint is UNtagged off Celo and with no code, exactly like the escrow call', async () => {
+  const base = await withAttributionCode(ATTRIBUTION_CODE, async () => makeAdapter().buildTx(CREATE_ARGS))
+  const celoNoCode = await withAttributionCode(undefined, async () =>
+    makeAdapter({}, CELO_CHAIN_ID).buildTx(CREATE_ARGS),
+  )
+  for (const [label, tx] of [['base', base], ['celo/no-code', celoNoCode]] as const) {
+    if (tx.kind !== 'evm-tx' || tx.approval === undefined) throw new Error(`${label}: no hint`)
+    assert.deepStrictEqual(decodeTag(tx.approval.data as `0x${string}`), { status: 'untagged' }, label)
+    // Untagged is not merely "no suffix" — it is EXACTLY the client's encoding,
+    // so an old client and a new one broadcast identical bytes off Celo.
+    assert.strictEqual(tx.approval.data, encodeApprove(CONTRACT, '1000000'), label)
+  }
+})
+
+test('a CELO build with NO code configured is untagged — not tagged with an empty code', async () => {
+  const tx = await withAttributionCode(undefined, async () =>
+    makeAdapter({}, CELO_CHAIN_ID).buildTx(CREATE_ARGS),
+  )
+  assert.deepStrictEqual(decodeTag((tx as { data: `0x${string}` }).data), { status: 'untagged' })
 })

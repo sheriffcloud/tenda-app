@@ -11,8 +11,8 @@ import { eq, sql } from 'drizzle-orm'
 import { reviews, users, gig_details } from '@tenda/shared/db/schema'
 import { isValidReviewScore, MAX_REVIEW_COMMENT_LENGTH, ErrorCode } from '@tenda/shared'
 import type { ApiError, Review, ReviewInput } from '@tenda/shared'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
-import { handleUniqueConflict } from '@server/lib/db'
+import { loadEscrowOr404 } from '@server/features/escrows/routes'
+import { handleUniqueConflict } from '@server/lib/errors/pg'
 import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 
@@ -112,7 +112,7 @@ const reviewEscrow: FastifyPluginAsync = async (fastify) => {
           title: details?.title ?? null,
         })
 
-        return reply.code(201).send(review)
+        return reply.code(201).send({ ...review, created_at: review.created_at.toISOString() })
       } catch (err: unknown) {
         // Postgres unique violation on reviews_escrow_reviewer_uq
         handleUniqueConflict(err, ErrorCode.REVIEW_ALREADY_EXISTS, 'You have already reviewed this escrow')

@@ -1,74 +1,37 @@
 /**
- * The apply sheet.
+ * The apply sheet, the PITCH half.
  *
  * The obligation notice is the reason this component is tested rather than
  * eyeballed: D2 makes an applicant accountable for a gig they are assigned to,
  * so if that notice ever stops rendering, people take on a strike-eligible
  * commitment without being told. Everything else here is about not losing what
- * they typed.
+ * they typed. The wallet half lives in ApplySheet.wallet.test.tsx, and the
+ * doubles both halves need live in __fixtures__/apply-sheet.
  */
 import { render, screen, fireEvent, act } from '@testing-library/react-native'
-import { APPLICATION_MESSAGE_MAX_LENGTH } from '@tenda/shared'
-import { ApplySheet } from '../ApplySheet'
-import { APPLY_OBLIGATION, APPLY_SUBMIT_LABEL } from '../copy'
+import { APPLICATION_MESSAGE_MAX_LENGTH, APPLY_OBLIGATION, APPLY_SUBMIT_LABEL } from '@tenda/shared'
+import { ApplySheet, CHAIN, PRIMARY } from '../__fixtures__/apply-sheet'
 
-jest.mock('react-native-unistyles', () => ({
-  useUnistyles: () => ({
-    theme: {
-      colors: {
-        content: { primary: '#111', secondary: '#666' },
-        feedback: { warning: { surface: '#fe8', base: '#a60' } },
-      },
-    },
-  }),
-}))
-jest.mock('@/components/ui', () => {
-  const { Text, TextInput, View } = require('react-native')
-  return {
-    Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text>,
-    // Only renders its children when visible, as the real sheet does.
-    BottomSheet: ({
-      visible,
-      title,
-      children,
-    }: {
-      visible: boolean
-      title: string
-      children: React.ReactNode
-    }) =>
-      visible ? (
-        <View>
-          <Text>{title}</Text>
-          {children}
-        </View>
-      ) : null,
-    Input: ({
-      label,
-      value,
-      onChangeText,
-      maxLength,
-    }: {
-      label: string
-      value: string
-      onChangeText: (v: string) => void
-      maxLength?: number
-    }) => (
-      <View>
-        <Text>{`${label}:max=${String(maxLength)}`}</Text>
-        <TextInput testID="pitch" value={value} onChangeText={onChangeText} />
-      </View>
-    ),
-    Button: ({ children, onPress }: { children: React.ReactNode; onPress?: () => void }) => (
-      <Text onPress={onPress}>{children}</Text>
-    ),
-  }
-})
-
-function setup(submitResult = true) {
+function setup(submitResult = true, initialWallet: string | null = null) {
   const onSubmit = jest.fn().mockResolvedValue(submitResult)
   const onClose = jest.fn()
-  render(<ApplySheet visible busy={false} onClose={onClose} onSubmit={onSubmit} />)
+  render(
+    <ApplySheet
+      visible
+      busy={false}
+      chainId={CHAIN}
+      initialWallet={initialWallet}
+      onClose={onClose}
+      onSubmit={onSubmit}
+    />,
+  )
   return { onSubmit, onClose }
+}
+
+function submit() {
+  return act(async () => {
+    fireEvent.press(screen.getByText(APPLY_SUBMIT_LABEL))
+  })
 }
 
 test('the obligation is stated before the applicant commits, not after', () => {
@@ -80,11 +43,9 @@ test('a pitch is sent as typed', async () => {
   const { onSubmit, onClose } = setup()
 
   fireEvent.changeText(screen.getByTestId('pitch'), 'I can start on Monday')
-  await act(async () => {
-    fireEvent.press(screen.getByText(APPLY_SUBMIT_LABEL))
-  })
+  await submit()
 
-  expect(onSubmit).toHaveBeenCalledWith('I can start on Monday')
+  expect(onSubmit).toHaveBeenCalledWith('I can start on Monday', PRIMARY)
   expect(onClose).toHaveBeenCalled()
 })
 
@@ -94,21 +55,17 @@ test('an all-whitespace pitch is null, the same as none at all', async () => {
   const { onSubmit } = setup()
 
   fireEvent.changeText(screen.getByTestId('pitch'), '   \n  ')
-  await act(async () => {
-    fireEvent.press(screen.getByText(APPLY_SUBMIT_LABEL))
-  })
+  await submit()
 
-  expect(onSubmit).toHaveBeenCalledWith(null)
+  expect(onSubmit).toHaveBeenCalledWith(null, PRIMARY)
 })
 
 test('applying with no pitch at all is allowed — the message is optional', async () => {
   const { onSubmit, onClose } = setup()
 
-  await act(async () => {
-    fireEvent.press(screen.getByText(APPLY_SUBMIT_LABEL))
-  })
+  await submit()
 
-  expect(onSubmit).toHaveBeenCalledWith(null)
+  expect(onSubmit).toHaveBeenCalledWith(null, PRIMARY)
   expect(onClose).toHaveBeenCalled()
 })
 
@@ -118,9 +75,7 @@ test('a failed submit keeps the sheet open AND keeps what they wrote', async () 
   const { onClose } = setup(false)
 
   fireEvent.changeText(screen.getByTestId('pitch'), 'worth keeping')
-  await act(async () => {
-    fireEvent.press(screen.getByText(APPLY_SUBMIT_LABEL))
-  })
+  await submit()
 
   expect(onClose).not.toHaveBeenCalled()
   expect(screen.getByTestId('pitch').props.value).toBe('worth keeping')
@@ -133,6 +88,15 @@ test('the input is capped at the length the server enforces', () => {
 })
 
 test('a hidden sheet renders nothing at all', () => {
-  render(<ApplySheet visible={false} busy={false} onClose={() => {}} onSubmit={jest.fn()} />)
+  render(
+    <ApplySheet
+      visible={false}
+      busy={false}
+      chainId={CHAIN}
+      onClose={() => {}}
+      onSubmit={jest.fn()}
+    />,
+  )
   expect(screen.queryByText(APPLY_OBLIGATION)).toBeNull()
 })
+

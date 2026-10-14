@@ -5,7 +5,7 @@ import {
   type NonceStore,
   consumeNonce,
   issueNonce,
-} from '@server/lib/nonce'
+} from '@server/features/auth/session/nonce'
 
 // ---------- in-memory store -----------------------------------------------
 

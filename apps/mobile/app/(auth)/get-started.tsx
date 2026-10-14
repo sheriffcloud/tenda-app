@@ -7,7 +7,7 @@ import { ScreenContainer, Text, Header, Button, BrandLogo, showToast } from '@/c
 import { useAuthStore } from '@/stores/auth.store'
 import { signInWithGoogle, configureGoogleSignIn, GoogleSignInError } from '@/lib/google-signin'
 import { signInWithApple, isAppleAvailable, AppleSignInError } from '@/lib/apple-signin'
-import { verifyErrorMessage } from '@/lib/auth-flow'
+import { verifyErrorMessage } from '@tenda/shared'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
 
 type Busy = null | 'google' | 'apple'

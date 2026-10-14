@@ -8,18 +8,16 @@
  * Transitions live under /v1/escrows/:id/*.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { isEscrowCounterpartySide } from '@server/lib/escrow-party'
-import { eq, and, gt, inArray, isNull, or, sql, lt, desc, type SQL } from 'drizzle-orm'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
+import { isEscrowCounterpartySide } from '@server/lib/escrow/party'
+import { eq, and, inArray, or, sql, lt, desc, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, users } from '@tenda/shared/db/schema'
-import { MAX_GIG_DESCRIPTION_LENGTH, ASSET_META, ErrorCode } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { validateGigDetails } from '@server/lib/gig-details'
-import { GIG_SUMMARY_COLS, toGigSummary } from '@server/lib/gig-read'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
-import { moderateGig } from '@server/features/moderation/service'
-import { buildModerationDeps } from '@server/features/moderation/store'
+import { GIG_SUMMARY_COLS, toGigSummary } from '@server/features/gigs/gig-read'
+import { loadEscrowOr404 } from '@server/features/escrows/routes'
+import { attachGigDetails } from '@server/features/gigs/attachGigDetails'
 import {
   assertKnownCountry,
   listOrderBy,
@@ -27,6 +25,7 @@ import {
   queryConditions,
 } from './list-filters'
 import { decodeGigFeedCursor, encodeGigFeedCursor } from './gig-feed-cursor'
+import { publicGigConditions } from './public-feed'
 
 type ListRoute = GigsContract['list']
 type CreateRoute = GigsContract['create']
@@ -51,10 +50,14 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     const safeOffset = clampOffset(Number(offset))
 
     const now = new Date()
-    const conditions: SQL[] = [eq(escrows.kind, 'gig')]
+    // Each branch states its own full condition set — `kind` included — so the
+    // public one can be the SHARED builder rather than a partial list this
+    // handler completes. /v1/gigs/facets pushes the identical array.
+    const conditions: SQL[] = []
     let cursorCondition: SQL | null = null
 
     if (mine !== undefined) {
+      conditions.push(eq(escrows.kind, 'gig'))
       if (cursor !== undefined) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'cursor is only supported by the public feed')
       }
@@ -91,16 +94,10 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
           'status filter requires mine=created or mine=working',
         )
       }
-      // Public feed shows only open gigs whose accept window hasn't
-      // passed, display-correct even between expire-escrows job ticks.
-      // Taken-down listings (CO1) never surface here; the owner still sees
-      // them through mine= above.
-      conditions.push(
-        eq(escrows.status, 'open'),
-        eq(escrows.hidden, false),
-        isNull(escrows.assigned_counterparty_id),
-        or(isNull(escrows.accept_deadline), gt(escrows.accept_deadline, now)) as SQL,
-      )
+      // What "public" means lives in ./public-feed, shared verbatim with the
+      // facets route so the rail's counts and this list can never disagree
+      // about which gigs exist.
+      conditions.push(...publicGigConditions(now))
     }
 
     // Every filter that reads only the querystring — attributes, chain,
@@ -131,9 +128,12 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     const usesRecencyOrdering = !hasSearch && (
       request.query.sort === undefined || request.query.sort === 'created_at'
     )
+    // Both arms are TOTAL orderings ending in the primary key — the keyset
+    // cursor compares (created_at, id) and offset paging is only stable over
+    // a total order. `listOrderBy` owns the tiebreaker for the rest.
     const orderBy = cursor !== undefined || usesRecencyOrdering
       ? [desc(escrows.created_at), desc(escrows.id)]
-      : [listOrderBy(request.query)]
+      : listOrderBy(request.query)
 
     const [data, countResult] = await Promise.all([
       fastify.db
@@ -171,11 +171,8 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // POST /v1/gigs, attach listing details to the caller's draft escrow.
-  // Upsert while draft so a retry after a validation/moderation fix never
-  // 409s; once the create tx confirms (draft → open) the satellite is
-  // immutable through this route. Field validation lives in
-  // lib/gig-details.ts; this handler owns the DB guards + moderation gate.
+  // POST /v1/gigs, attach listing details to the caller's draft escrow —
+  // see features/gigs/attachGigDetails for the guards and the moderation gate.
   fastify.post<{
     Body: CreateRoute['body']
     Reply: CreateRoute['response'] | ApiError
@@ -186,53 +183,9 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const escrow = await loadEscrowOr404(fastify.db, body.escrow_id)
-    if (escrow.creator_id !== request.user.id) {
-      throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the escrow creator can attach gig details')
-    }
-    if (escrow.kind !== 'gig') {
-      throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Details can only be attached to gig escrows')
-    }
-    if (escrow.status !== 'draft') {
-      throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Details can only be attached while the escrow is a draft')
-    }
-
-    // Creator's stored country (JWT country can be up to 7 days stale).
-    const [creator] = await fastify.db
-      .select({ country: users.country })
-      .from(users)
-      .where(eq(users.id, request.user.id))
-      .limit(1)
-
-    const details = validateGigDetails(body, creator?.country ?? null)
-
-    // Stage-6 gate: block verdicts never reach the feed; warns pass with
-    // the verdict recorded for the admin queue.
-    const verdict = await moderateGig(
-      buildModerationDeps(fastify),
-      {
-        title: details.title,
-        description: (details.description ?? '').slice(0, MAX_GIG_DESCRIPTION_LENGTH),
-        category: details.category,
-        // Remote gigs persist no country; for price-sanity stats fall back to
-        // the poster's market (moderation-only, never stored on the gig).
-        country: details.country ?? creator?.country ?? '',
-        asset: escrow.asset,
-        amount_raw: escrow.amount_raw,
-        asset_decimals: ASSET_META[escrow.asset]?.decimals ?? 0,
-      },
-      { kind: 'gig_published', id: escrow.id },
-    )
-    if (verdict.decision === 'block') {
-      throw new AppError(400, ErrorCode.CONTENT_MODERATED, verdict.reasons.join('; ') || 'Content not allowed')
-    }
-
-    const values = { escrow_id: escrow.id, ...details }
-    const [row] = await fastify.db
-      .insert(gig_details)
-      .values(values)
-      .onConflictDoUpdate({ target: gig_details.escrow_id, set: values })
-      .returning()
-
+    // Guards, validation, moderation and the upsert live in the feature —
+    // shared with the agent one-shot (POST /v1/agent/tasks).
+    const row = await attachGigDetails(fastify, { escrow, user_id: request.user.id, body })
     return reply.code(201).send(row)
   })
 }

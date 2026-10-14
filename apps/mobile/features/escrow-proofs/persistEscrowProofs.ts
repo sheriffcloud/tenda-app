@@ -1,15 +1,10 @@
-import { ErrorCode, proofIdentity, type ProofType } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { ErrorCode, proofIdentity, type EscrowProofUpload, ApiClientError } from '@tenda/shared'
+import { api } from '@/api/client'
 
-export interface PersistableProof {
-  url: string
-  type: ProofType
-}
-
-/** Save uploaded proof identities, resolving a lost response by reading them back. */
+/** Save proof identities (urls AND data payloads), resolving a lost response by reading them back. */
 export async function persistEscrowProofs(
   escrowId: string,
-  proofs: PersistableProof[],
+  proofs: EscrowProofUpload[],
 ): Promise<void> {
   try {
     await api.escrows.addProofs({ id: escrowId }, { proofs })

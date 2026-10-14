@@ -2,7 +2,7 @@
  * CO2 route matrix — public feed + my-gigs + device-token pruning:
  *   GET /v1/gigs       (status/deadline visibility, filters, search)
  *   GET /v1/gigs?mine= (full authenticate incl. suspended rejection)
- *   workers/processors removeTokens (provider-dead push-token pruning)
+ *   queue/workers/processors removeTokens (provider-dead push-token pruning)
  *
  * Real app via fastify.inject; gated on TEST_DATABASE_URL (helpers/test-app).
  */
@@ -11,7 +11,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { device_tokens } from '@tenda/shared/db/schema'
 import { POSTED_ESCROW_STATUSES } from '@tenda/shared'
-import { removeTokens } from '@server/workers/processors'
+import { removeTokens } from '@server/queue/workers/processors'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -67,13 +67,25 @@ test('GET /v1/gigs: amount-range filters validate and apply', { skip }, async ()
   await openGig(app, { amount_raw: '9000000' })
   const ranged = await app.inject({ method: 'GET', url: '/v1/gigs?min_amount_raw=5000000' })
   assert.strictEqual(ranged.json().total, 1)
-  const malformed = await app.inject({ method: 'GET', url: '/v1/gigs?min_amount_raw=1.5' })
-  assert.strictEqual(malformed.statusCode, 400)
+  // Each refusal names its own field. Status alone cannot tell these apart —
+  // every filter guard on this route answers 400 — and the MAX case had no test
+  // at all until #103: every case here reached for `min` and supplied a valid
+  // `max` beside it, so the max guard's throw had never run on either route
+  // that shares it.
+  const malformedMin = await app.inject({ method: 'GET', url: '/v1/gigs?min_amount_raw=1.5' })
+  assert.strictEqual(malformedMin.statusCode, 400)
+  assert.match(malformedMin.json().message, /min_amount_raw must be a decimal integer/)
+
+  const malformedMax = await app.inject({ method: 'GET', url: '/v1/gigs?max_amount_raw=1.5' })
+  assert.strictEqual(malformedMax.statusCode, 400)
+  assert.match(malformedMax.json().message, /max_amount_raw must be a decimal integer/)
+
   const inverted = await app.inject({
     method: 'GET',
     url: '/v1/gigs?min_amount_raw=9&max_amount_raw=1',
   })
   assert.strictEqual(inverted.statusCode, 400)
+  assert.match(inverted.json().message, /min_amount_raw must be ≤ max_amount_raw/)
 })
 
 test('GET /v1/gigs: full-text q matches the title', { skip }, async () => {
@@ -157,7 +169,7 @@ test('GET /v1/gigs?mine=working: rows where I am (assigned) counterparty', { ski
   assert.strictEqual(res.json().total, 2)
 })
 
-// ---------- device-token pruning (workers/processors.removeTokens) -----------------
+// ---------- device-token pruning (queue/workers/processors.removeTokens) -----------------
 
 test('removeTokens: prunes provider-dead tokens, leaves the rest', { skip }, async () => {
   const app = getApp()

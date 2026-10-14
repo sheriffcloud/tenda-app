@@ -6,12 +6,12 @@
  * unavailable), in which case the service treats no-match as approve.
  */
 
-import { normalizeForKeywords } from '@server/features/moderation/normalize'
+import { normalizeForKeywords } from '@server/features/moderation/core/normalize'
 import {
   CRITICAL_KEYWORDS,
   SUSPICIOUS_KEYWORDS,
 } from '@server/features/moderation/providers/keyword-lists'
-import type { ModerationInput, ModerationProvider, Verdict } from '@server/features/moderation/types'
+import type { ModerationInput, ModerationProvider, Verdict } from '@server/features/moderation/core/types'
 
 export interface KeywordScreen {
   /** Decisive block (critical match) or null. */

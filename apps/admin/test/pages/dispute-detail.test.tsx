@@ -28,7 +28,7 @@ const dossier: AdminEscrowDossier = {
   asset: 'USDC_SOL', amount_raw: '5000000', dispute_bond_raw: '0',
   created_at: '2026-06-10T00:00:00.000Z',
   parties: [{ role: 'creator', user_id: 'r1', first_name: 'R', last_name: 'X', raised_dispute: true }],
-  gig: { title: 'Broken delivery', description: null, category: 'errands', country: null, city: null, remote: true, proof_requirements: [], requires_approval: false, assigned_from_application: false, applicant_count: 0 },
+  gig: { title: 'Broken delivery', description: null, category: 'errands', country: null, city: null, remote: true, proof_requirements: [], proof_params: null, requires_approval: false, assigned_from_application: false, applicant_count: 0 },
   exchange: null, proofs: [], transactions: [],
 }
 

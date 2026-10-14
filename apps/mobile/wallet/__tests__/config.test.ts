@@ -14,15 +14,18 @@ function loadConfig(env: AppEnv): ConfigModule {
 }
 
 describe('wallet/config, env-derived chain config', () => {
-  const cases: ReadonlyArray<{
+  const cases: readonly {
     env: AppEnv
     network: string
     solana: string
     eip155: string
-  }> = [
-    { env: 'development', network: 'devnet', solana: 'solana:devnet', eip155: 'eip155:84532' },
-    { env: 'staging', network: 'devnet', solana: 'solana:devnet', eip155: 'eip155:84532' },
-    { env: 'production', network: 'mainnet-beta', solana: 'solana:mainnet', eip155: 'eip155:8453' },
+  }[] = [
+    // The canonical EVM id is the first ENABLED EVM chain of the env's kind (manifest
+    // order). Base is PAUSED (2026-10-02), so it is Celo's; re-enabling Base restores
+    // eip155:84532 / eip155:8453 here. The server verifies sign-in by namespace only.
+    { env: 'development', network: 'devnet', solana: 'solana:devnet', eip155: 'eip155:11142220' },
+    { env: 'staging', network: 'devnet', solana: 'solana:devnet', eip155: 'eip155:11142220' },
+    { env: 'production', network: 'mainnet-beta', solana: 'solana:mainnet', eip155: 'eip155:42220' },
   ]
 
   for (const c of cases) {

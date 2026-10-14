@@ -1,0 +1,224 @@
+[
+  {
+    "title": "Install the Tenda app and send us a screenshot of your wallet screen",
+    "description": "A five-minute check that the app installs and signs in on your phone.\n\nSteps:\n1. On an Android phone, open https://tendahq.com and tap Download for Android. Install the APK (allow installs from your browser if asked).\n2. Open Tenda and sign in with your phone number or email. Enter the code you receive.\n3. Tap the Wallet tab at the bottom.\n4. Take a screenshot of the Wallet screen exactly as it appears, even if it shows 0.00 or an error.\n\nSubmit: the screenshot, and in the text box your phone model, your Android version, and one sentence on anything that looked wrong or took too long. If the install or sign-in failed, a screenshot of where it stopped is a complete answer and is paid.",
+    "category": "digital",
+    "remote": true,
+    "proof_requirements": [
+      "image",
+      "text"
+    ],
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Find one typo or wrong word anywhere in the Tenda app",
+    "description": "Hunt for a spelling mistake, a grammar slip, or a label that says the wrong thing.\n\nSteps:\n1. Install Tenda from https://tendahq.com and sign in.\n2. Visit at least five different screens: the Home feed, a gig's detail page, the Trade tab, the Wallet tab, and your profile (tap your avatar at the top of Home).\n3. When you find a typo or a wrong word, take a screenshot with the text clearly visible.\n\nSubmit: the screenshot, and in the text box the name of the screen, the exact wrong text, and what it should say instead. One real mistake is enough. If you honestly find none after five screens, say so and list the screens you checked; that is also a paid answer.",
+    "category": "digital",
+    "remote": true,
+    "proof_requirements": [
+      "image",
+      "text"
+    ],
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Enter a wrong sign-in code three times and tell us what the app says",
+    "description": "We want to see the app's error messages through a new user's eyes.\n\nSteps:\n1. Install Tenda from https://tendahq.com. On the sign-in screen enter your phone number or email and request a code.\n2. Type a WRONG code on purpose. Note the message you see.\n3. Do it twice more. Note whether the message changes and whether anything stops you from trying again.\n4. Take a screenshot of the last message.\n\nSubmit: the screenshot, and in the text box the messages you saw (copy the words), whether you understood what to do next, and roughly how long each attempt took. Then sign in with the real code so we know the recovery works, and say whether it did.",
+    "category": "digital",
+    "remote": true,
+    "proof_requirements": [
+      "image",
+      "text"
+    ],
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Start posting a gig in the app, stop before the final button, and list every step that confused you",
+    "description": "Walk the posting flow as a first-time poster and tell us where it is unclear. You will not pay anything.\n\nSteps:\n1. Install Tenda from https://tendahq.com and sign in.\n2. On the Home tab tap the round + button in the middle of the bottom bar.\n3. Work through the three steps, Details, Payment and Delivery: a title, a description, a category, an amount and network, a delivery window, who can take it, and what proof you expect.\n4. STOP on the last step, where the button says Post Gig. Do NOT tap it: that button checks the gig against our guidelines and then opens your wallet to fund it. Take a screenshot of that last step instead.\n\nSubmit: the screenshot, and in the text box a numbered list of every step where you were not sure what to do, what a field meant, or what would happen next. Three or more honest notes is a complete answer.",
+    "category": "digital",
+    "remote": true,
+    "proof_requirements": [
+      "image",
+      "text"
+    ],
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Check every network row on the Wallet screen and report what each one shows",
+    "description": "The Wallet screen shows one row per network. We want to know how each behaves on a real phone.\n\nSteps:\n1. Install Tenda from https://tendahq.com and sign in.\n2. Open the Wallet tab. Wait ten seconds and look at each network row: a balance, a spinner that never stops, a zero, or an error.\n3. Pull down to refresh once, and watch each row again.\n4. Take a screenshot of the Wallet screen after the refresh.\n\nSubmit: the screenshot, and in the text box one line per network row saying what it showed and whether the refresh changed it. If a row stayed on a spinner or showed an error, say how long you waited.",
+    "category": "digital",
+    "remote": true,
+    "proof_requirements": [
+      "image",
+      "text"
+    ],
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Start a sell offer on the Trade tab, stop before posting it, and tell us what was unclear",
+    "description": "The Trade tab lets you sell USDC for cash at your own rate. Walk the offer flow without finishing it.\n\nSteps:\n1. Install Tenda from https://tendahq.com and sign in.\n2. Open the Trade tab and tap Post offer. Choose the Create offer tab.\n3. Fill in the amount, your rate, and where the money should be paid out, as far as the app lets you.\n4. STOP when you reach the review card. Do NOT tap Post offer. Take a screenshot of the review card.\n\nSubmit: the screenshot, and in the text box the steps you took, anything you could not fill in, and every word or number on the way that you did not understand. If the app blocked you earlier (for example, asking for a wallet), a screenshot of that block and a sentence on it is a complete, paid answer.",
+    "category": "digital",
+    "remote": true,
+    "proof_requirements": [
+      "image",
+      "text"
+    ],
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Use the Tenda app with your data switched off and report what breaks",
+    "description": "Find out how the app behaves when the network drops, which happens to everyone.\n\nSteps:\n1. Install Tenda from https://tendahq.com, sign in, and open the Home feed so it has loaded once.\n2. Turn on airplane mode.\n3. Pull down to refresh the feed, open a gig, open the Wallet tab. Note what each screen shows.\n4. Take a screenshot of the worst-looking screen (a blank page, a spinner, an error).\n5. Turn airplane mode off and wait twenty seconds. Note whether the screens recover on their own or need the app restarted.\n\nSubmit: the screenshot, and in the text box what each screen showed offline and whether it recovered without a restart.",
+    "category": "digital",
+    "remote": true,
+    "proof_requirements": [
+      "image",
+      "text"
+    ],
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Read the escrow explainer in the app and tell us one thing that is wrong or unclear",
+    "description": "The app explains how escrow protects both sides. We want to know whether a new reader believes it and understands it.\n\nSteps:\n1. Install Tenda from https://tendahq.com and sign in.\n2. Tap your avatar at the top of Home, then Settings, then Help & Guide, then Payments & Escrow.\n3. Read the page once, slowly.\n4. Take a screenshot of the sentence or section you found wrong, confusing, or hard to believe.\n\nSubmit: the screenshot, and in the text box the sentence in your own words, why it confused you, and how you would say it instead. One good note is enough. If everything was clear, say which part convinced you most; that is also paid.",
+    "category": "digital",
+    "remote": true,
+    "proof_requirements": [
+      "image",
+      "text"
+    ],
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Snap today's petrol pump price at any filling station in Lagos",
+    "description": "One photo, taken at the station.\n\nSteps:\n1. Go to any filling station in Lagos.\n2. Photograph the price board so the petrol (PMS) price per litre is readable without zooming. Stand close; avoid shooting into the sun.\n3. Submit from the station with location on: the app checks your location when you submit, and it must be within the city. A submission sent from somewhere else is rejected.\n\nSubmit: the photo, and in the text box the station name and the price per litre as a plain number. If the board is blank or the station is closed, photograph it anyway and say so; that is a paid answer. Do not photograph attendants or customers.",
+    "category": "photo",
+    "country": "NG",
+    "city": "Lagos",
+    "latitude": 6.5244,
+    "longitude": 3.3792,
+    "proof_requirements": [
+      "image",
+      "geotag",
+      "text"
+    ],
+    "proof_params": {
+      "geotag": {
+        "radius_m": 25000
+      }
+    },
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Snap the price of a loaf of sliced bread at any shop in Abuja",
+    "description": "One photo, taken in the shop.\n\nSteps:\n1. Go to any supermarket, kiosk or bakery in Abuja.\n2. Photograph a loaf of sliced bread together with its price tag in one frame. A price tag alone cannot be matched to a product and is rejected.\n3. Submit from the shop with location on: the app checks your location when you submit, and it must be within the city. A submission sent from somewhere else is rejected.\n\nSubmit: the photo, and in the text box the shop name, the brand, the loaf size if shown, and the price in naira as a plain number. Do not buy anything. If the shop has no sliced bread, photograph the bread shelf and say so; that is paid.",
+    "category": "photo",
+    "country": "NG",
+    "city": "Abuja",
+    "latitude": 9.0765,
+    "longitude": 7.3986,
+    "proof_requirements": [
+      "image",
+      "geotag",
+      "text"
+    ],
+    "proof_params": {
+      "geotag": {
+        "radius_m": 25000
+      }
+    },
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Snap the price of a 75cl bottle of water at any shop in Ibadan",
+    "description": "One photo, taken in the shop.\n\nSteps:\n1. Go to any shop, kiosk or supermarket in Ibadan.\n2. Photograph a 75cl bottle of water together with its price tag or the price written on the fridge or shelf. Product and price in one frame.\n3. Submit from the shop with location on: the app checks your location when you submit, and it must be within the city. A submission sent from somewhere else is rejected.\n\nSubmit: the photo, and in the text box the shop name or street, the brand, and the price in naira as a plain number. If there is no price tag, ask the seller and type what they said. Do not buy anything.",
+    "category": "photo",
+    "country": "NG",
+    "city": "Ibadan",
+    "latitude": 7.3775,
+    "longitude": 3.947,
+    "proof_requirements": [
+      "image",
+      "geotag",
+      "text"
+    ],
+    "proof_params": {
+      "geotag": {
+        "radius_m": 25000
+      }
+    },
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Snap today's diesel price at any filling station in Port Harcourt",
+    "description": "One photo, taken at the station.\n\nSteps:\n1. Go to any filling station in Port Harcourt.\n2. Photograph the price board so the diesel (AGO) price per litre is readable without zooming.\n3. Submit from the station with location on: the app checks your location when you submit, and it must be within the city. A submission sent from somewhere else is rejected.\n\nSubmit: the photo, and in the text box the station name and the diesel price per litre as a plain number. If the station sells no diesel or the board is blank, photograph it anyway and say so; that is a paid answer. Do not photograph attendants or customers.",
+    "category": "photo",
+    "country": "NG",
+    "city": "Port Harcourt",
+    "latitude": 4.8156,
+    "longitude": 7.0498,
+    "proof_requirements": [
+      "image",
+      "geotag",
+      "text"
+    ],
+    "proof_params": {
+      "geotag": {
+        "radius_m": 25000
+      }
+    },
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Snap the price of a 500ml bottle of water at any shop in Accra",
+    "description": "Apply first: this gig picks one worker from the applicants, then you have a day to do it.\n\nSteps:\n1. Apply in the app. If you are chosen you will get a notification saying You got the gig.\n2. Once assigned, go to any shop, kiosk or supermarket in Accra.\n3. Photograph a 500ml bottle of water together with its price, both in one frame.\n\nSubmit: the photo, and in the text box the shop name or street, the brand, and the price in cedis as a plain number. If there is no price tag, ask the seller and type what they said. Do not buy anything.",
+    "category": "photo",
+    "country": "GH",
+    "city": "Accra",
+    "proof_requirements": [
+      "image",
+      "text"
+    ],
+    "requires_approval": true,
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  },
+  {
+    "title": "Tell us today's matatu fare for one route in Nairobi, with a photo of the stage",
+    "description": "Apply first: this gig picks one worker from the applicants, then you have a day to do it.\n\nSteps:\n1. Apply in the app. If you are chosen you will get a notification saying You got the gig.\n2. Once assigned, go to any matatu stage in Nairobi.\n3. Ask a tout or driver the fare for that route right now, or read the board if one is posted. You do not need to board.\n4. Photograph the stage or the fare board.\n\nSubmit: the photo, and in the text box the route (from and to), the fare in shillings as a plain number, and the time you asked. If the fare differs by vehicle, give the most common one and say so.",
+    "category": "errand",
+    "country": "KE",
+    "city": "Nairobi",
+    "proof_requirements": [
+      "image",
+      "text"
+    ],
+    "requires_approval": true,
+    "amount_raw": "1000000",
+    "accept_window_seconds": 2592000,
+    "completion_duration_seconds": 86400
+  }
+]

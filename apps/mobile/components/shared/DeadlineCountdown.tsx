@@ -4,7 +4,7 @@ import type { AppTheme } from '@/theme/themes'
 import { spacing, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { useCountdown } from '@/hooks/useCountdown'
-import { formatHMS, countdownTone, type CountdownTone } from '@/lib/countdown'
+import { formatHMS, countdownTone, type CountdownTone } from '@tenda/shared'
 
 interface DeadlineCountdownDisplayProps {
   remaining: number | null
@@ -122,7 +122,7 @@ const s = StyleSheet.create({
     gap: spacing['2xs'],
   },
   inlineClock: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 13.5,
     lineHeight: 18,
     fontWeight: '700',
@@ -141,7 +141,7 @@ const s = StyleSheet.create({
     letterSpacing: 0.6,
   },
   bannerClock: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.extrabold,
     fontSize: 30,
     lineHeight: 34,
     fontWeight: '800',

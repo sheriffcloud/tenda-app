@@ -1,16 +1,20 @@
 import { FastifyPluginAsync } from 'fastify'
-import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { clampLimit, clampOffset } from '@server/lib/http/pagination'
+import { containsPattern } from '@server/lib/http/like-pattern'
 import { eq, exists, ilike, or, and, desc, isNull, sql, SQL } from 'drizzle-orm'
 import { users, user_wallets, disputes, admin_users } from '@tenda/shared/db/schema'
 import {
   ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode,
 } from '@tenda/shared'
-import { hasPermission, requirePermission, uuidParamGuard } from '@server/lib/guards'
+import { hasPermission, requirePermission, uuidParamGuard } from '@server/lib/http/guards'
 import { computeDisputeRate } from '@server/features/reputation/fraud-flag'
 import { AppError, requireBody } from '@server/lib/errors'
-import { ensureTxUpdated } from '@server/lib/db'
+import { ensureTxUpdated } from '@server/lib/errors/pg'
 import { appEvents } from '@server/lib/events'
-import type { ApiError, UserRole, UserStatus } from '@tenda/shared'
+import type { AdminContract, ApiError, UserRole, UserStatus } from '@tenda/shared'
+import { toWire } from '@server/lib/http/wire'
+
+type UsersContract = AdminContract['users']
 
 
 const adminUsers: FastifyPluginAsync = async (fastify) => {
@@ -22,7 +26,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
   // legacy role zoo collapsed to dispute_admin + super_admin)
   fastify.get<{
     Querystring: { status?: string; role?: string; search?: string; limit?: number; offset?: number }
-    Reply: { data: unknown[]; total: number; limit: number; offset: number } | ApiError
+    Reply: UsersContract['list']['response'] | ApiError
   }>('/', { 
     preHandler: [requirePermission('users.read')] 
   }, async (request) => {
@@ -44,9 +48,31 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     }
 
     if (search && search.trim().length > 0) {
-      const pattern = `%${search.trim()}%`
-      // Wallets are multi-row in v2, match any linked address (the
-      // text_pattern_ops index covers prefix searches, S5.7/A6).
+      // Escaped, so the term is matched as TEXT: `%`, `_` and `\` are pattern
+      // syntax to postgres even in a bound parameter, and an operator pasting an
+      // address fragment or a name containing one used to get a wider list with
+      // nothing to say why (#119). Not a security fix — the value never reaches
+      // SQL text — a correctness one.
+      const pattern = containsPattern(search.trim())
+      // Wallets are multi-row in v2, so match any linked address — correlated
+      // to its owner, which admin-user-list.test.ts pins in both directions.
+      //
+      // THIS IS A SEQ SCAN over user_wallets, ON PURPOSE, and the note that
+      // used to sit here claimed otherwise: it said the text_pattern_ops index
+      // covered the search. That index served LIKE 'abc%', and this pattern is
+      // neither prefix-only nor case-sensitive. MEASURED on 3k rows with fresh
+      // statistics (docs/query_plan_measurements.md): LIKE 'SoWabc%' → Index
+      // Only Scan, ILIKE '%abc%' → Seq Scan, and even ILIKE 'SoWabc%' → Seq
+      // Scan.
+      //
+      // #118 resolved it by DROPPING that index (migration 0030) rather than by
+      // narrowing this search, so do not go looking for it. The scan is the
+      // price of letting an operator paste a fragment from the MIDDLE of an
+      // address, which is what they actually have when a user reads one out;
+      // a prefix index cannot serve that at any opclass. If this table ever
+      // grows enough to matter, the fix is a pg_trgm index, not a narrower
+      // match — the reasoning is in #118 and in the schema comment on
+      // user_wallets.
       conditions.push(
         or(
           ilike(users.first_name, pattern),
@@ -89,13 +115,13 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
         .where(where),
     ])
 
-    return { data, total: countResult[0].count, limit: safeLimit, offset: safeOffset }
+    return { data: data.map(toWire), total: countResult[0].count, limit: safeLimit, offset: safeOffset }
   })
 
   // GET /v1/admin/users/:id, full user detail (same PII restriction as list)
   fastify.get<{
-    Params: { id: string }
-    Reply: unknown | ApiError
+    Params: UsersContract['get']['params']
+    Reply: UsersContract['get']['response'] | ApiError
   }>('/:id', { 
     preHandler: [requirePermission('users.read')] 
   }, async (request) => {
@@ -112,14 +138,14 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     // #82: live dispute-rate metric, FLAG only, never auto-restricts.
     const dispute_metric = await computeDisputeRate(fastify.db, id)
 
-    return { ...user, dispute_metric }
+    return { ...toWire(user), dispute_metric }
   })
 
   // PATCH /v1/admin/users/:id/status, suspend or reinstate (role: support, moderator, super_admin)
   fastify.patch<{
     Params: { id: string }
     Body:   { status: 'active' | 'suspended' }
-    Reply:  { id: string; status: string } | ApiError
+    Reply:  UsersContract['updateStatus']['response'] | ApiError
   }>('/:id/status', { preHandler: [requirePermission('users.suspend')] }, async (request) => {
     const { id } = request.params
     const { status } = requireBody(request.body)
@@ -160,7 +186,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
   fastify.patch<{
     Params: { id: string }
     Body:   { role: UserRole }
-    Reply:  { id: string; role: string } | ApiError
+    Reply:  UsersContract['updateRole']['response'] | ApiError
   }>('/:id/role', { 
     preHandler: [requirePermission('users.assign_roles')] 
   }, async (request) => {

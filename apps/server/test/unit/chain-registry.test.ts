@@ -37,9 +37,9 @@ const solSecrets = () =>
   loadChainSecrets({ CHAIN_SOLANA_DEVNET_RPC_URL: RPC, CHAIN_SOLANA_DEVNET_TREASURY_ADDR: SOL })
 const baseSecrets = () =>
   loadChainSecrets({
-    CHAIN_EIP155_8453_RPC_URL: RPC,
-    CHAIN_EIP155_8453_ESCROW_ADDR: EVM,
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM,
+    CHAIN_EIP155_84532_RPC_URL: RPC,
+    CHAIN_EIP155_84532_ESCROW_ADDR: EVM,
+    CHAIN_EIP155_84532_TREASURY_ADDR: EVM,
   })
 const celoSecrets = () =>
   loadChainSecrets({
@@ -57,7 +57,7 @@ test('buildAdapters: a solana secret yields one solana adapter', () => {
 
 test('buildAdapters: an EVM secret yields one eip155 adapter', () => {
   const adapters = buildAdapters(baseSecrets(), STUB)
-  assert.strictEqual(adapters[0]?.chain_id, 'eip155:8453')
+  assert.strictEqual(adapters[0]?.chain_id, 'eip155:84532')
   assert.strictEqual(adapters[0]?.namespace, 'eip155')
 })
 
@@ -76,14 +76,14 @@ test('buildAdapters: empty secrets yield no adapters', () => {
 test('buildChainRegistry: has/get/list over built adapters', () => {
   const r = buildChainRegistry(buildAdapters(solSecrets(), STUB))
   assert.strictEqual(r.has('solana:devnet'), true)
-  assert.strictEqual(r.has('eip155:8453'), false)
+  assert.strictEqual(r.has('eip155:84532'), false)
   assert.strictEqual(r.get('solana:devnet').chain_id, 'solana:devnet')
   assert.strictEqual(r.list().length, 1)
 })
 
 test('buildChainRegistry: get() throws on an unregistered chain id', () => {
   const r = buildChainRegistry(buildAdapters(solSecrets(), STUB))
-  assert.throws(() => r.get('eip155:8453'), /no adapter registered/)
+  assert.throws(() => r.get('eip155:84532'), /no adapter registered/)
 })
 
 test('buildChainRegistry: a duplicate chain id throws at build', () => {
@@ -94,25 +94,25 @@ test('buildChainRegistry: a duplicate chain id throws at build', () => {
 // ---------- resolveEvmRpcFallback (failover endpoint selection) --------------
 
 test('rpc fallback: defaults to the manifest publicRpcUrl when no override', () => {
-  const secret = baseSecrets().get('eip155:8453')
+  const secret = baseSecrets().get('eip155:84532')
   assert.ok(secret && secret.namespace === 'eip155')
   assert.strictEqual(
-    resolveEvmRpcFallback(secret, chainById('eip155:8453')),
-    'https://mainnet.base.org',
+    resolveEvmRpcFallback(secret, chainById('eip155:84532')),
+    'https://sepolia.base.org',
   )
 })
 
 test('rpc fallback: the RPC_URL_FALLBACK secret overrides the default', () => {
   const secrets = loadChainSecrets({
-    CHAIN_EIP155_8453_RPC_URL: RPC,
-    CHAIN_EIP155_8453_RPC_URL_FALLBACK: 'https://keyed-fallback.example/v2/key',
-    CHAIN_EIP155_8453_ESCROW_ADDR: EVM,
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM,
+    CHAIN_EIP155_84532_RPC_URL: RPC,
+    CHAIN_EIP155_84532_RPC_URL_FALLBACK: 'https://keyed-fallback.example/v2/key',
+    CHAIN_EIP155_84532_ESCROW_ADDR: EVM,
+    CHAIN_EIP155_84532_TREASURY_ADDR: EVM,
   })
-  const secret = secrets.get('eip155:8453')
+  const secret = secrets.get('eip155:84532')
   assert.ok(secret && secret.namespace === 'eip155')
   assert.strictEqual(
-    resolveEvmRpcFallback(secret, chainById('eip155:8453')),
+    resolveEvmRpcFallback(secret, chainById('eip155:84532')),
     'https://keyed-fallback.example/v2/key',
   )
 })
@@ -120,25 +120,25 @@ test('rpc fallback: the RPC_URL_FALLBACK secret overrides the default', () => {
 test('rpc fallback: dropped when it would duplicate the primary', () => {
   // Primary IS the public endpoint → failing over to itself is pointless.
   const secrets = loadChainSecrets({
-    CHAIN_EIP155_8453_RPC_URL: 'https://mainnet.base.org',
-    CHAIN_EIP155_8453_ESCROW_ADDR: EVM,
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM,
+    CHAIN_EIP155_84532_RPC_URL: 'https://sepolia.base.org',
+    CHAIN_EIP155_84532_ESCROW_ADDR: EVM,
+    CHAIN_EIP155_84532_TREASURY_ADDR: EVM,
   })
-  const secret = secrets.get('eip155:8453')
+  const secret = secrets.get('eip155:84532')
   assert.ok(secret && secret.namespace === 'eip155')
-  assert.strictEqual(resolveEvmRpcFallback(secret, chainById('eip155:8453')), undefined)
+  assert.strictEqual(resolveEvmRpcFallback(secret, chainById('eip155:84532')), undefined)
 })
 
 test('rpc fallback: an explicit override equal to the primary is also dropped', () => {
   const secrets = loadChainSecrets({
-    CHAIN_EIP155_8453_RPC_URL: RPC,
-    CHAIN_EIP155_8453_RPC_URL_FALLBACK: RPC,
-    CHAIN_EIP155_8453_ESCROW_ADDR: EVM,
-    CHAIN_EIP155_8453_TREASURY_ADDR: EVM,
+    CHAIN_EIP155_84532_RPC_URL: RPC,
+    CHAIN_EIP155_84532_RPC_URL_FALLBACK: RPC,
+    CHAIN_EIP155_84532_ESCROW_ADDR: EVM,
+    CHAIN_EIP155_84532_TREASURY_ADDR: EVM,
   })
-  const secret = secrets.get('eip155:8453')
+  const secret = secrets.get('eip155:84532')
   assert.ok(secret && secret.namespace === 'eip155')
-  assert.strictEqual(resolveEvmRpcFallback(secret, chainById('eip155:8453')), undefined)
+  assert.strictEqual(resolveEvmRpcFallback(secret, chainById('eip155:84532')), undefined)
 })
 
 // ---------- the contract set actually reaches the adapter (open_issues #89) ---
@@ -158,8 +158,8 @@ const PREVIOUS_EVM = '0xd6E82103C674747ba7E54195D690e40F1f6f4d1C'
 
 function registryWithPrevious() {
   return buildContractRegistry(
-    [{ chain_id: 'eip155:8453', namespace: 'eip155', escrowAddress: EVM }],
-    [{ chain_id: 'eip155:8453', address: PREVIOUS_EVM.toLowerCase() }],
+    [{ chain_id: 'eip155:84532', namespace: 'eip155', escrowAddress: EVM }],
+    [{ chain_id: 'eip155:84532', address: PREVIOUS_EVM.toLowerCase() }],
   )
 }
 
@@ -191,6 +191,8 @@ function depsReturning(address: `0x${string}`): AdapterDepsFactory {
       resolveWalletAddress: async () => 'wallet',
       resolveAsset: async () => ({ token_address: null }),
       rpc: {
+        async readApprovalWindow() { return 172_800n },
+        async readFees() { return { feeBps: 250, seekerFeeBps: 100 } },
         async getTransactionReceipt() {
           return { block_number: 1n, status: 'success' as const, logs: [createdLogFrom(address)] }
         },
@@ -253,4 +255,15 @@ test('buildAdapters: a chain missing from the registry falls back to its current
   const verified = await adapter.verifyTx(`0x${'ab'.repeat(32)}`, { expected_event: 'EscrowCreated' })
 
   assert.strictEqual('failed' in verified ? verified.failed : undefined, false)
+})
+
+test('a PAUSED chain still builds its adapter and registers: the pause refuses new work, it does not unplug the chain', () => {
+  // Base is paused (2026-10-02). An escrow already on it must keep resolving,
+  // settling and being listened to, so the registry has to carry its adapter —
+  // and the paymaster set the sponsor reads has to keep the id, or a funded
+  // Base escrow could not be settled.
+  assert.strictEqual(chainById('eip155:84532').paused, true, 'precondition: Base Sepolia is paused')
+  const registry = buildChainRegistry(buildAdapters(baseSecrets(), STUB))
+  assert.strictEqual(registry.has('eip155:84532'), true)
+  assert.strictEqual(registry.get('eip155:84532').namespace, 'eip155')
 })

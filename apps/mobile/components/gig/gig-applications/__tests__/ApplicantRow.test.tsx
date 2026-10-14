@@ -8,7 +8,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react-native'
 import type { ApplicationStatus, GigApplicant } from '@tenda/shared'
 import { ApplicantRow } from '../ApplicantRow'
-import { applicantStatusLine } from '../copy'
+import { applicantStatusLine } from '@tenda/shared'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({

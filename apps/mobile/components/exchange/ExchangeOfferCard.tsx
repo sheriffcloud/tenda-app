@@ -6,11 +6,8 @@ import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
-import { formatFiat } from '@/lib/currency'
-import { chainLabel } from '@/lib/chains'
-import { formatDurationShort } from '@/lib/countdown'
-import { formatAssetAmount, ASSET_META, formatFullName } from '@tenda/shared'
-import type { ExchangeSummary, SupportedCurrency } from '@tenda/shared'
+import { chainLabel, formatDurationShort, formatAssetAmount, assetSymbol, scopedName, formatFiat, formatRate } from '@tenda/shared'
+import type { ExchangeSummary } from '@tenda/shared'
 
 interface Props {
   offer: ExchangeSummary
@@ -22,19 +19,25 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
   const { theme } = useUnistyles()
 
   // numeric(20,4)/(30,10) arrive as strings, display-only conversion.
-  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
-  const rate = formatFiat(Number(offer.rate), offer.fiat_currency as SupportedCurrency)
-  const symbol = ASSET_META[offer.asset]?.symbol ?? offer.asset
+  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency)
+  // A RATE, not an amount. `formatFiat` drops to whole units, which is right
+  // for the total above and wrong here: GHS 15.40 and 15.49 both rendered
+  // "GH₵15", so two traders quoting different rates were indistinguishable in
+  // the list a buyer scans to pick one.
+  const rate = formatRate(Number(offer.rate), offer.fiat_currency)
+  const symbol = assetSymbol(offer.asset)
   // 'Seller' kept verbatim: it is user-visible copy, and whether this surface
   // should say Seller / Maker / Anonymous is a product call, not a refactor.
-  const sellerName =
-    formatFullName(offer.creator.first_name, offer.creator.last_name) || 'Seller'
-  // `.trim()` before the truthiness test, for the same reason sellerName uses
-  // formatFullName: a first_name of '  ' is truthy, so this rendered the string
-  // '@  ' — a visible at-sign with nothing after it, and a separator dot after
-  // that. Not covered by formatFullName because this is one name, not a join.
-  const first = offer.creator.first_name?.trim()
-  const handle = first ? `@${first.toLowerCase()}` : null
+  //
+  // The book serves an abbreviated label and withholds the legal name from
+  // anyone who is not a settled party (#175), so this renders the server's
+  // answer and reconstructs nothing.
+  //
+  // The `@firstname` line that sat under this name is GONE with the columns it
+  // was built from. It was never a handle anybody owns — it lower-cased the
+  // first name the row already printed above it — so there is nothing to
+  // reconstruct from `display_name` and nothing lost by dropping it.
+  const sellerName = scopedName(offer.creator) || 'Seller'
   // numeric(3,2), string on the wire, null when unrated.
   const score = offer.creator.review_score === null ? null : Number(offer.creator.review_score)
 
@@ -76,21 +79,20 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
           </Text>
         </View>
 
-        {/* Row 3, handle · ★ rating · rate/asset · window */}
+        {/* Row 3, ★ rating · rate/asset. The separator belongs to the rating,
+            so an unrated seller's row opens with the rate rather than with a
+            dangling dot — which is what the old handle-or-nothing arrangement
+            printed whenever both of the fields before it were absent. */}
         <View style={s.metaRow}>
-          {handle && (
-            <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>{handle}</Text>
-          )}
-          {score != null && handle && (
-            <Text style={[s.metaSep, { color: theme.colors.content.tertiary }]}>·</Text>
-          )}
           {score != null && (
-            <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>
-              <Text style={{ color: theme.colors.accent.primary }}>★ </Text>
-              {score.toFixed(1)}
-            </Text>
+            <>
+              <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>
+                <Text style={{ color: theme.colors.feedback.warning.base }}>★ </Text>
+                {score.toFixed(1)}
+              </Text>
+              <Text style={[s.metaSep, { color: theme.colors.content.tertiary }]}>·</Text>
+            </>
           )}
-          <Text style={[s.metaSep, { color: theme.colors.content.tertiary }]}>·</Text>
           <Text style={[s.metaText, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
             {rate}/{symbol}
           </Text>
@@ -159,7 +161,7 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   sol: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 16,
     lineHeight: 20,
     fontWeight: '700',
@@ -167,13 +169,13 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   arrow: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 13,
     lineHeight: 18,
     flexShrink: 0,
   },
   fiat: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '600',

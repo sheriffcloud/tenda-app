@@ -24,7 +24,7 @@ import { ErrorCode, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import type { EscrowStatus } from '@tenda/shared'
 import { platform_config } from '@tenda/shared/db/schema'
 import {
-  TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, makeTransactable, authHeader,
+  TEST_DB_CONFIGURED, useTestApp, createTransactableUser, createUser, createEscrow, authHeader,
   attachExchangeDetails,
   type TestUser,
 } from '../helpers/test-app'
@@ -40,8 +40,7 @@ type App = ReturnType<typeof getApp>
 
 /** A worker who has cleared the first-transaction gate. */
 async function transactableWorker(app: App): Promise<TestUser> {
-  const worker = await createUser(app)
-  await makeTransactable(app, worker.row.id)
+  const worker = await createTransactableUser(app)
   return worker
 }
 

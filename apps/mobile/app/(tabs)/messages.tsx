@@ -1,5 +1,5 @@
 import { useCallback, useState, useMemo } from 'react'
-import { FlatList, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { MessageCircle } from 'lucide-react-native'
@@ -9,7 +9,7 @@ import { ErrorState } from '@/components/feedback'
 import { ConversationItem } from '@/components/chat/ConversationItem'
 import { useChatStore } from '@/stores/chat.store'
 import { typography } from '@/theme/tokens'
-import type { Conversation } from '@tenda/shared'
+import { END_REACHED_THRESHOLD, type Conversation } from '@tenda/shared'
 
 type FeedItem =
   | { type: 'header'; key: string; label: string }
@@ -18,7 +18,7 @@ type FeedItem =
 export default function MessagesScreen() {
   const { theme } = useUnistyles()
   const router = useRouter()
-  const { conversations, fetchConversations } = useChatStore()
+  const { conversations, fetchConversations, loadMoreConversations, loadingMoreConversations } = useChatStore()
   const [fetchError, setFetchError] = useState(false)
 
   const load = useCallback(() => {
@@ -72,6 +72,11 @@ export default function MessagesScreen() {
             />
           )
         }
+        onEndReached={() => void loadMoreConversations()}
+        onEndReachedThreshold={END_REACHED_THRESHOLD}
+        ListFooterComponent={
+          loadingMoreConversations ? <ActivityIndicator style={s.footer} color={theme.colors.brand.primary} /> : null
+        }
         ListEmptyComponent={
           <View style={s.emptyWrapper}>
             {fetchError ? (
@@ -98,7 +103,7 @@ export default function MessagesScreen() {
 
 const s = StyleSheet.create({
   groupHeader: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',
@@ -113,4 +118,5 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   emptyContainer: { flex: 1 },
+  footer: { paddingVertical: 16 },
 })

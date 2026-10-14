@@ -7,12 +7,12 @@
 
 export { requestQuote, initiateIntent, cancelIntent, settleFromProvider, reconcileIntent } from './service'
 export type { QuoteInput, QuoteResult, InitiateOutput, FiatDeps, FiatEvent } from './service'
-export { drizzleFiatStore, drizzleBankAccountStore, OPEN_STATUSES } from './store'
-export type { FiatStore, BankAccountStore, BankAccountRow } from './store'
-export { redisQuoteCache, inMemoryQuoteCache, quoteKey } from './quote-cache'
-export type { QuoteCache, StoredQuote } from './quote-cache'
-export { pickCandidates, supportsRequest } from './routing'
-export type { ProviderRegistryRow } from './routing'
+export { drizzleFiatStore, drizzleBankAccountStore, OPEN_STATUSES } from './core/store'
+export type { FiatStore, BankAccountStore, BankAccountRow } from './core/store'
+export { redisQuoteCache, inMemoryQuoteCache, quoteKey } from './core/quote-cache'
+export type { QuoteCache, StoredQuote } from './core/quote-cache'
+export { pickCandidates, supportsRequest } from './core/routing'
+export type { ProviderRegistryRow } from './core/routing'
 // Named rather than `export *`: `export type` marks what is erased and
 // `export` what survives to runtime, and no __exportStar loop is emitted.
 export type {
@@ -32,8 +32,8 @@ export type {
   // them too — `export *` used to carry them along invisibly.
   FiatDirection,
   FiatIntentStatus,
-} from './types'
-export { QUOTE_TTL_MS, P2P_INTERNAL_ID } from './config'
-export { P2P_INTERNAL_CAPABILITIES, EXCHANGE_ASSET_IDS } from './capabilities'
+} from './core/types'
+export { QUOTE_TTL_MS, P2P_INTERNAL_ID } from './core/config'
+export { P2P_INTERNAL_CAPABILITIES, EXCHANGE_ASSET_IDS } from './core/capabilities'
 export { YELLOWCARD_SPEC, ONRAMPMONEY_SPEC } from './providers/specs'
-export { buildProviders, buildFiatDeps } from './live-deps'
+export { buildProviders, buildFiatDeps } from './rates/live-deps'

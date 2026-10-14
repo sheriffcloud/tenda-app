@@ -1,5 +1,5 @@
 /**
- * New-gig fan-out to gig_subscriptions (workers/escrow-fanout/subscribers.ts).
+ * New-gig fan-out to gig_subscriptions (queue/workers/escrow-fanout/subscribers.ts).
  *
  * Deliberately an integration test: the matching is SQL — a wildcard sentinel
  * OR'd against the gig's city and category — so a fake store would assert the
@@ -12,12 +12,12 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { device_tokens, gig_subscriptions, notifications, users } from '@tenda/shared/db/schema'
-import { buildProcessors } from '@server/workers/processors'
+import { buildProcessors } from '@server/queue/workers/processors'
 import {
   fanOutEscrowEvent,
   SUBSCRIBER_PAGE_SIZE,
   type EscrowFanoutEvent,
-} from '@server/workers/escrow-fanout'
+} from '@server/queue/workers/escrow-fanout'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import { drainSubscriberFanout } from '../helpers/fanout'
 import { restoreFetch, stubExpoPush } from '../helpers/fetch-stub'

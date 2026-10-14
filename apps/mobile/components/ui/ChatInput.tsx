@@ -3,6 +3,7 @@ import { View, TextInput, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Paperclip, ArrowUp } from 'lucide-react-native'
+import { MESSAGE_MAX_LENGTH } from '@tenda/shared'
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'
 import { typography, shadows } from '@/theme/tokens'
 import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
@@ -68,7 +69,7 @@ export function ChatInput({ onSend, onAttach, disabled }: ChatInputProps) {
           placeholder="Message…"
           placeholderTextColor={theme.colors.content.tertiary}
           multiline
-          maxLength={2000}
+          maxLength={MESSAGE_MAX_LENGTH}
           style={[s.field, { color: theme.colors.content.primary }]}
           onSubmitEditing={handleSend}
           submitBehavior="submit"
@@ -80,7 +81,7 @@ export function ChatInput({ onSend, onAttach, disabled }: ChatInputProps) {
           style={[
             s.sendBtn,
             canSend
-              ? [{ backgroundColor: theme.colors.brand.primary }, shadows.fab]
+              ? [{ backgroundColor: theme.colors.brand.solid }, shadows.fab]
               : { backgroundColor: theme.colors.surface.inset },
           ]}
           accessibilityLabel="Send message"

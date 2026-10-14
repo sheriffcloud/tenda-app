@@ -15,14 +15,18 @@
  */
 
 import { Program } from '@coral-xyz/anchor'
-import { Connection } from '@solana/web3.js'
 import { ESCROW_IDL, type TendaEscrow } from '@tenda/shared/idl'
 import { computePlatformFee } from '@server/lib/escrow'
-import { verifyWalletSignature } from '@server/lib/wallet-signature'
-import { createSolanaBuilders } from '@server/chains/solana/builders'
+import { verifyWalletSignature } from '@server/lib/chain/wallet-signature'
+import { createSolanaBuilders } from '@server/chains/solana/build/builders'
+import { fetchPlatformState } from '@server/chains/solana/build/builder-internals'
+import { cachedApprovalWindow } from '@server/chains/shared/approval-window'
 import { PROGRAM_ID } from '@server/chains/solana/pdas'
-import { createSolanaRpc, commitmentFor, type SolanaRpc } from '@server/chains/solana/rpc'
+import { createSolanaRpc, type SolanaRpc } from '@server/chains/solana/rpc'
+import { solanaConnections } from '@server/chains/rpc'
 import { createSolanaVerifier } from '@server/chains/solana/verify'
+import { solanaEscrowRelay } from '@server/chains/solana/relay'
+import type { SolanaRelayer } from '@server/chains/solana/relay/relayer'
 import type {
   AmountRaw,
   AssetId,
@@ -38,6 +42,8 @@ export interface SolanaAdapterDeps {
   resolveAsset(asset: AssetId): Promise<{ token_address: string | null }>
   /** Test seam: replace the network-backed RPC with a fake. */
   rpc?: SolanaRpc
+  /** Relayer hot wallet (#18); absent = relayed funding unavailable. */
+  relayer?: SolanaRelayer
 }
 
 export interface SolanaAdapterArgs {
@@ -60,17 +66,20 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     })
 
   // The Program instance encodes instructions only; its Connection is never
-  // used for fetches (all reads go through `rpc`), so construction is free.
+  // used for fetches (all reads go through `rpc`), so `[0]` is not a missed
+  // failover — there is nothing to fail. Built through the seam anyway, so the
+  // "no Connection outside chains/rpc" rule has no exceptions to argue about.
   const program = new Program<TendaEscrow>(ESCROW_IDL, {
-    connection: new Connection(args.rpc_url, commitmentFor(args.chain_id)),
+    connection: solanaConnections({ chain_id: args.chain_id, rpc_url: args.rpc_url })[0],
   })
 
-  const builders = createSolanaBuilders({
+  const builderDeps = {
     rpc,
     program,
     resolveWalletAddress: args.deps.resolveWalletAddress,
     resolveAsset: args.deps.resolveAsset,
-  })
+  }
+  const builders = createSolanaBuilders(builderDeps)
   const verifier = createSolanaVerifier({ rpc, chain_id: args.chain_id, program })
 
   return {
@@ -80,11 +89,21 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     // The program this adapter talks to. Same source the PDAs derive from, so
     // the address served to clients cannot disagree with the one we transact on.
     escrowAddress: PROGRAM_ID.toBase58(),
+    // platform_state.approval_window_seconds — the program's, read live (#148).
+    approvalWindowSeconds: cachedApprovalWindow(async () => (await fetchPlatformState(builderDeps)).approvalWindowSeconds.toNumber()),
+    // platform_state.fee_bps / seeker_fee_bps, read live: the program's own stored fees.
+    getFees: async () => {
+      const state = await fetchPlatformState(builderDeps)
+      return { fee_bps: state.feeBps, seeker_fee_bps: state.seekerFeeBps }
+    },
     buildTx: builders.buildTx,
+    ...(args.deps.relayer !== undefined
+      ? { relay: solanaEscrowRelay(builderDeps, args.deps.relayer, args.chain_id) }
+      : {}),
     verifyTx: verifier.verifyTx,
     fetchEscrowState: verifier.fetchEscrowState,
 
-    // Namespace-level crypto (ed25519), single source in lib/wallet-signature;
+    // Namespace-level crypto (ed25519), single source in lib/chain/wallet-signature;
     // the registry's verifyAuthSig delegates to the same.
     verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('solana', a),
 
@@ -95,4 +114,4 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
 }
 
 /** Ed25519 auth-sig check, re-exported from the single source for callers/tests. */
-export { verifyEd25519 } from '@server/lib/wallet-signature'
+export { verifyEd25519 } from '@server/lib/chain/wallet-signature'

@@ -138,7 +138,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   v: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: -0.065,
@@ -149,7 +149,7 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
   },
   vTotal: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: -0.075,

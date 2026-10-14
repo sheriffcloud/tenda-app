@@ -4,25 +4,21 @@ import { Star } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Avatar } from '@/components/ui/Avatar'
 import { Text } from '@/components/ui/Text'
-import { formatRelativeShort } from '@/lib/date'
-import { formatFullName } from '@tenda/shared'
+import { formatRelativeShort } from '@tenda/shared'
 import type { Review } from '@tenda/shared'
+import { cardPartyName, type CardParty } from './party-name'
 
 interface ReviewCardProps {
   review: Review
-  reviewer: {
-    first_name: string | null
-    last_name: string | null
-    avatar_url: string | null
-  }
+  reviewer: CardParty & { avatar_url: string | null }
   label: string
 }
 
 export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
   const { theme } = useUnistyles()
 
-  const name = formatFullName(reviewer.first_name, reviewer.last_name) || 'Anonymous'
-  const time = review.created_at ? formatRelativeShort(review.created_at) : null
+  const name = cardPartyName(reviewer) || 'Anonymous'
+  const time = formatRelativeShort(review.created_at)
 
   return (
     <View style={[s.row, { borderBottomColor: theme.colors.border.subtle }]}>
@@ -37,17 +33,15 @@ export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
               <Star
                 key={i}
                 size={12}
-                color={theme.colors.accent.primary}
-                fill={i < review.score ? theme.colors.accent.primary : 'transparent'}
+                color={theme.colors.feedback.warning.base}
+                fill={i < review.score ? theme.colors.feedback.warning.base : 'transparent'}
                 strokeWidth={i < review.score ? 0 : 1.5}
               />
             ))}
           </View>
-          {time && (
-            <Text style={[s.time, { color: theme.colors.content.tertiary }]}>
-              {time}
-            </Text>
-          )}
+          <Text style={[s.time, { color: theme.colors.content.tertiary }]}>
+            {time}
+          </Text>
         </View>
         {review.comment ? (
           <Text style={[s.comment, { color: theme.colors.content.secondary }]}>
@@ -95,7 +89,7 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   time: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 11.5,
     lineHeight: 14,
     marginLeft: 'auto',
@@ -106,12 +100,11 @@ const s = StyleSheet.create({
     lineHeight: 20,
     marginTop: 6,
   },
+  // The "About the poster / worker" caption IS the eyebrow — the token style,
+  // not a near copy of it (10/13/+0.6 sat here beside the eyebrow's
+  // 9.5/12/+0.95 while web drew the same label through its Eyebrow, #59c).
   label: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: '600',
-    letterSpacing: 0.6,
+    ...typography.styles.eyebrow,
     textTransform: 'uppercase',
     marginTop: 6,
   },

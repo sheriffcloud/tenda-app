@@ -42,3 +42,29 @@ export function formatUnits(raw: string, decimals: number): string {
   const fracStr = frac.toString().padStart(decimals, '0').replace(/0+$/, '')
   return `${sign}${whole.toString()}.${fracStr}`
 }
+
+/**
+ * A user-typed decimal amount limited to `maxDecimals` fractional digits.
+ *
+ * Digits and at most one decimal point; everything else — signs, exponents,
+ * currency symbols, spaces — never enters. The precision limit is applied at
+ * ENTRY rather than at conversion, so a field never shows a number that is
+ * not the number being used.
+ *
+ * The alternative was to accept "1.9999999" for 6dp USDC and quietly convert
+ * it to 1.999999, which is a different amount than the one on screen; or to
+ * round it to 2.000000, which is worse, because it rounds an amount UP
+ * without being asked. Refusing the seventh digit is the only one of the
+ * three where what the reader sees is what they get.
+ */
+export function sanitizeDecimalText(typed: string, maxDecimals: number): string {
+  const cleaned = typed.replace(/[^\d.]/g, '')
+  const [whole, ...rest] = cleaned.split('.')
+  if (rest.length === 0) return whole
+  // Extra dots are dropped rather than splitting the number: '1.2.3' is a
+  // typo for '1.23', not for '1.2'.
+  const frac = rest.join('').slice(0, maxDecimals)
+  // A trailing '.' is kept while decimals remain, or the reader cannot type
+  // one. At 0 decimals there is no fraction to open, so it is dropped.
+  return maxDecimals === 0 ? whole : `${whole}.${frac}`
+}

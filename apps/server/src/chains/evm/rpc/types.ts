@@ -87,11 +87,9 @@ export interface EvmRpc {
   getTransactionReceipt(hash: `0x${string}`): Promise<EvmReceipt | null>
   getBlockNumber(): Promise<bigint>
   /**
-   * Every mined log the contract emitted in [from_block, to_block], ascending
-   * block order. Reverted txs emit no logs, so only real state changes appear.
-   */
-  /**
-   * Log references from ANY of `contracts` in the block range.
+   * Log references from ANY of `contracts` in [from_block, to_block], ascending
+   * block order. Reverted transactions emit no logs, so only real state changes
+   * appear.
    *
    * Plural because a chain that has redeployed still has live escrows funded by
    * the superseded contract, and a listener watching only the current address
@@ -110,4 +108,8 @@ export interface EvmRpc {
   readEscrow(escrow_contract: `0x${string}`, escrow_id: `0x${string}`): Promise<EvmEscrowTuple | null>
   /** name() + nonces(owner) + DOMAIN_SEPARATOR() off an EIP-2612 token. */
   readPermitFacts(token: `0x${string}`, owner: `0x${string}`): Promise<EvmPermitFacts>
+  /** The contract's `approvalWindowSeconds()` — the poster's review window, a uint64 (#148). */
+  readApprovalWindow(escrow_contract: `0x${string}`): Promise<bigint>
+  /** The contract's `feeBps()` and `seekerFeeBps()`, both uint16 (basis points). */
+  readFees(escrow_contract: `0x${string}`): Promise<{ feeBps: number; seekerFeeBps: number }>
 }

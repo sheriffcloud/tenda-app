@@ -17,6 +17,7 @@ import {
   TEST_DB_CONFIGURED,
   useTestApp,
   createUser,
+  createTransactableUser,
   createEscrow,
   attachGigDetails,
   authHeader,
@@ -86,7 +87,7 @@ test('an unreadable bearer degrades to anonymous, it does not 401', { skip }, as
 test('a worker who has not applied: application null, count withheld', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const escrow = await gig(app, poster.row.id, true)
 
   const body = (await detail(app, escrow.id, worker.token)).json()
@@ -96,7 +97,7 @@ test('a worker who has not applied: application null, count withheld', { skip },
 test('a worker who applied sees their OWN application, still no count', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const escrow = await gig(app, poster.row.id, true)
 
   const applied = await applyTo(app, worker.token, escrow.id)
@@ -113,8 +114,8 @@ test('a worker who applied sees their OWN application, still no count', { skip }
 test('one applicant never sees another applicants row', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const first = await createUser(app)
-  const second = await createUser(app)
+  const first = await createTransactableUser(app)
+  const second = await createTransactableUser(app)
   const escrow = await gig(app, poster.row.id, true)
 
   await applyTo(app, first.token, escrow.id)
@@ -126,8 +127,8 @@ test('one applicant never sees another applicants row', { skip }, async () => {
 test('the poster gets the open count and never an application', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const first = await createUser(app)
-  const second = await createUser(app)
+  const first = await createTransactableUser(app)
+  const second = await createTransactableUser(app)
   const escrow = await gig(app, poster.row.id, true)
 
   await applyTo(app, first.token, escrow.id)
@@ -141,7 +142,7 @@ test('the poster gets the open count and never an application', { skip }, async 
 test('a withdrawn application stops counting toward the posters number', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const escrow = await gig(app, poster.row.id, true)
 
   await applyTo(app, worker.token, escrow.id)
@@ -162,7 +163,7 @@ test('a withdrawn application stops counting toward the posters number', { skip 
 test('instant-mode gigs answer without querying: no application, count 0 for the poster', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const worker = await createUser(app)
+  const worker = await createTransactableUser(app)
   const escrow = await gig(app, poster.row.id, false)
 
   const poster_view = (await detail(app, escrow.id, poster.token)).json()

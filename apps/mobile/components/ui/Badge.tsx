@@ -50,9 +50,9 @@ export function Badge({ variant = 'neutral', label, size = 'md', showDot = true 
     fg = theme.colors.brand.primary
     dotColor = theme.colors.brand.primary
   } else if (variant === 'accent') {
-    bg = theme.colors.accent.primarySurface
-    fg = theme.colors.accent.primary
-    dotColor = theme.colors.accent.primary
+    bg = theme.colors.feedback.warning.surface
+    fg = theme.colors.feedback.warning.base
+    dotColor = theme.colors.feedback.warning.base
   } else if (FEEDBACK_TONES.includes(variant)) {
     const tone = theme.colors.feedback[variant as FeedbackVariant]
     bg = tone.surface

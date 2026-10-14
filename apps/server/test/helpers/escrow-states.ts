@@ -28,7 +28,7 @@ export function createEscrowBody(overrides: Record<string, unknown> = {}) {
     chain_id: TEST_CHAIN_ID,
     asset: TEST_ASSET,
     amount_raw: '1000000',
-    accept_deadline_unix: Math.floor(Date.now() / 1000) + 86_400,
+    accept_window_seconds: 24 * 3600,
     completion_duration_seconds: 3_600,
     ...overrides,
   }

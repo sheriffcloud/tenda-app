@@ -1,11 +1,11 @@
 /**
- * #98 gap-fill — lib/push (Expo Push API) via a mocked global fetch.
+ * #98 gap-fill — features/notifications/push/push (Expo Push API) via a mocked global fetch.
  * Offline unit test: token filtering, batching, ticket handling
  * (DeviceNotRegistered pruning), and both failure branches.
  */
 import { test, afterEach } from 'node:test'
 import assert from 'node:assert'
-import { sendPush } from '@server/lib/push'
+import { sendPush } from '@server/features/notifications/push/push'
 
 type FetchArgs = Parameters<typeof fetch>
 interface LoggerCall { obj: object; msg: string }

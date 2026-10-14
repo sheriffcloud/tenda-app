@@ -17,11 +17,11 @@ import type { BuildTxArgs } from '@server/chains/types'
 import {
   ataProvisioningIx,
   counterpartyOrThrow,
-  fetchEscrow,
   fetchPlatformState,
   isNativeSol,
+  type FetchedEscrow,
   type SolanaBuilderDeps,
-} from '@server/chains/solana/builder-internals'
+} from '@server/chains/solana/build/builder-internals'
 
 /** The actions this module encodes. */
 export type SettleAction = Extract<
@@ -33,12 +33,14 @@ export async function buildSettleInstruction(
   deps: SolanaBuilderDeps,
   args: SettleAction,
   wallet: PublicKey,
+  /** The escrow account builders.ts already fetched for this build. */
+  fetched: FetchedEscrow,
 ): Promise<TransactionInstruction[]> {
   switch (args.action) {
 case 'approveCompletion':
 case 'claimStalledPayment':
 case 'reclaimAbandoned': {
-  const { escrowAddr, idBytes, escrow } = await fetchEscrow(deps, args.payload.escrow_id)
+  const { escrowAddr, idBytes, escrow } = fetched
   const platform = await fetchPlatformState(deps)
   const counterparty = counterpartyOrThrow(escrow)
   if (isNativeSol(escrow)) {
@@ -110,7 +112,7 @@ case 'reclaimAbandoned': {
 
 case 'cancelEscrow':
 case 'refundExpired': {
-  const { escrowAddr, idBytes, escrow } = await fetchEscrow(deps, args.payload.escrow_id)
+  const { escrowAddr, idBytes, escrow } = fetched
   if (isNativeSol(escrow)) {
     const accounts = {
       escrow: escrowAddr,

@@ -1,33 +1,31 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Navbar } from './components/layout/Navbar'
 import { Footer } from './components/sections/footer/Footer'
-import { Hero } from './components/sections/hero/Hero'
-import { TaskWall } from './components/sections/task-wall/TaskWall'
-import { TwoProducts } from './components/sections/two-products/TwoProducts'
-import { CurrencyMarquee } from './components/sections/two-products/CurrencyMarquee'
-import { HowEscrowWorks } from './components/sections/how-escrow-works/HowEscrowWorks'
-import { Onboarding } from './components/sections/onboarding/Onboarding'
-import { Ecosystems } from './components/sections/ecosystems/Ecosystems'
-import { FAQ } from './components/sections/faq/FAQ'
-import { FinalCTA } from './components/sections/final-cta/FinalCTA'
+import {
+  LANDING_SECTIONS,
+  sectionSurface,
+} from './components/sections/landing-sections'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
-function LandingPage() {
-  // Spine: dark hero → light task wall → dark products (+ full-bleed currency
-  // marquee) → dark escrow explainer → light onboarding rails → dark
-  // ecosystems → FAQ → final CTA.
+/**
+ * The landing composition, exported apart from <App /> so it can be rendered
+ * without a router. <App /> mounts a BrowserRouter, which needs a DOM this
+ * project deliberately does not install — the suite renders to static markup
+ * instead. Exporting the page is what lets `page-rhythm.test.tsx` assert
+ * against the REAL section order rather than against a copy of it that could
+ * drift from the page it claims to check.
+ *
+ * The order and the placement rationale live in `landing-sections.ts`; the
+ * surface each section renders is DERIVED from its position here (#55), so
+ * inserting a section is one line in that array and costs nothing downstream.
+ */
+export function LandingPage() {
   return (
     <>
-      <Hero />
-      <TaskWall />
-      <TwoProducts />
-      <CurrencyMarquee />
-      <HowEscrowWorks />
-      <Onboarding />
-      <Ecosystems />
-      <FAQ />
-      <FinalCTA />
+      {LANDING_SECTIONS.map(({ key, Section }, index) => (
+        <Section key={key} surface={sectionSurface(index)} />
+      ))}
     </>
   )
 }

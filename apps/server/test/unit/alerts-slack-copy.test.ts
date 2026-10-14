@@ -1,188 +1,45 @@
 /**
- * features/alerts/channels/slack — the copy, and the channel's declared shape.
+ * features/alerts/channels/slack — what a dispute alert SAYS.
  *
- * Four things this pins, none of which is "a message came out":
+ * Split from the channel contract and the safety cases (task #45); see
+ * alerts-slack-channel.test.ts for the map of the three files.
  *
- *  1. WHICH kinds Slack accepts, asserted against the full `ALERT_KINDS`
- *     vocabulary rather than a list written here, so a new kind forces a
- *     decision instead of silently reaching nobody.
- *  2. That `kinds` and the copy map are ONE fact. A channel that advertises a
- *     kind it cannot render passes `deliverAlert`'s opt-in check and then
- *     delivers nothing — a dispute that looks handled and isn't.
- *  3. Every branch of the copy that exists because the DATA is legitimately
+ * What this pins, none of which is "a message came out":
+ *
+ *  1. Every branch of the copy that exists because the DATA is legitimately
  *     absent: no title (exchange), no dispute row yet, no dashboard URL, no
  *     reason, no known raiser. Those are the normal cases, not the edge ones.
- *  4. That user-authored text cannot break the message — escaping and the
- *     length caps, which are the two ways a title or a reason reaches Slack as
- *     something other than text.
+ *  2. That the two places a party is named — the raiser's role and the parties
+ *     line — stay correct independently. `raisedByLine` exists for exactly
+ *     that: assertions against the whole message let a mislabelled raiser pass.
+ *  3. That the push preview can tell two untitled disputes apart, since that
+ *     is all an operator sees before opening Slack.
  *
  * A unit test: the copy is pure by construction (names arrive as a Map), so
- * nothing here needs postgres, Redis or a webhook. `deliver()` itself is
- * covered in test/integration/alerts-slack.test.ts, where the name lookup is a
- * real query.
+ * nothing here needs postgres, Redis or a webhook.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import { partyRoleLabel, displayName } from '@tenda/shared'
-import type { EscrowKind } from '@tenda/shared'
-import type { AlertKind, AlertOf, AlertPartyNames } from '@server/features/alerts'
-import {
-  SLACK_ALERT_KINDS,
-  slackAlertMessage,
-  slackAlertPartyIds,
-} from '@server/features/alerts/channels/slack/copy'
-import { slackAlertChannel } from '@server/features/alerts/channels/slack'
+import type { AlertPartyNames } from '@server/features/alerts'
 import { RAISED_BY_PREFIX } from '@server/features/alerts/channels/slack/kinds/dispute-raised'
-import { SLACK_TEXT_MAX, slackEnvKey } from '@server/lib/slack'
-import type { SlackMessage } from '@server/lib/slack'
-import { ADMIN_DASHBOARD_URL_ENV } from '@server/config'
+import type { SlackMessage } from '@server/features/alerts/slack'
+import { slackAlertMessage } from '@server/features/alerts/channels/slack/render/copy'
+import { allText, contextTexts, sectionTexts } from '../helpers/slack-message'
 import { disputeRaisedAlert } from '../helpers/alert-fixtures'
-import { testChannelContract } from '../helpers/alert-channel-contract'
-
-// ---------- fixtures -----------------------------------------------------
-
-const CREATOR_ID = randomUUID()
-const COUNTERPARTY_ID = randomUUID()
-const ESCROW_ID = randomUUID()
-const DASHBOARD = 'https://admin.tenda.test'
-
-const NAMES: AlertPartyNames = new Map([
-  [CREATOR_ID, 'Ada Lovelace'],
-  [COUNTERPARTY_ID, 'Grace Hopper'],
-])
-
-const ENV_WITH_DASHBOARD: NodeJS.ProcessEnv = { [ADMIN_DASHBOARD_URL_ENV]: DASHBOARD }
-const ENV_NO_DASHBOARD: NodeJS.ProcessEnv = {}
-
-/**
- * The shared fixture pinned to THIS file's stable ids, so assertions can name
- * the party they expect. The shared default leaves `raised_by_id` null (the
- * case channels get wrong); here it is the creator, because most cases below
- * are about rendering a KNOWN raiser and the null one has its own tests.
- */
-function disputeAlert(
-  over: Partial<AlertOf<'dispute.raised'>> = {},
-): AlertOf<'dispute.raised'> {
-  return disputeRaisedAlert({
-    escrow_id: ESCROW_ID,
-    tx_ref: 'sig-abc123',
-    raised_by_id: CREATOR_ID,
-    creator_id: CREATOR_ID,
-    counterparty_id: COUNTERPARTY_ID,
-    ...over,
-  })
-}
-
-/**
- * One alert per kind, keyed by kind so the COMPILER forces an entry when a
- * kind is added — a hand-written array would silently stay a list of one.
- */
-const ALERT_FIXTURES: { [K in AlertKind]: AlertOf<K> } = {
-  'dispute.raised': disputeAlert(),
-}
-
-// ---------- reading a message ---------------------------------------------
-// `flatMap` rather than `filter().map()`: filter does not narrow a
-// discriminated union, so the map would need a cast to reach `.text`.
-
-function sectionTexts(msg: SlackMessage): string[] {
-  return (msg.blocks ?? []).flatMap((b) => (b.type === 'section' ? [b.text.text] : []))
-}
-
-function contextTexts(msg: SlackMessage): string[] {
-  return (msg.blocks ?? []).flatMap((b) => (b.type === 'context' ? b.elements.map((e) => e.text) : []))
-}
-
-/** Everything an operator would actually see, fallback text included. */
-function allText(msg: SlackMessage): string {
-  return [msg.text, ...sectionTexts(msg), ...contextTexts(msg)].join('\n')
-}
-
-/**
- * The 'Raised by …' line specifically.
- *
- * Isolated because the party labels appear TWICE in a message — once as the
- * raiser's role and once in the parties list — so `allText().includes('Worker')`
- * passes even when the raiser's role is wrong or missing. Mutation testing
- * found exactly that: two mutants that mislabelled the raiser both survived
- * assertions written against the whole message.
- */
-function raisedByLine(msg: SlackMessage): string {
-  const line = sectionTexts(msg)[0]
-    .split('\n')
-    .find((candidate) => candidate.startsWith(RAISED_BY_PREFIX))
-  assert.ok(line !== undefined, `no raiser line in: ${sectionTexts(msg)[0]}`)
-  return line
-}
-
-/** The message for a dispute alert, asserted present so cases read cleanly. */
-function render(
-  over: Partial<AlertOf<'dispute.raised'>> = {},
-  env: NodeJS.ProcessEnv = ENV_WITH_DASHBOARD,
-): SlackMessage {
-  const msg = slackAlertMessage(disputeAlert(over), NAMES, env)
-  assert.ok(msg !== null, 'dispute.raised must produce a message')
-  return msg
-}
-
-// ---------- which kinds the channel accepts -------------------------------
-
-// The composition question a hand-written list in a test cannot answer: is
-// there a kind nobody wrote Slack copy for? Silence is the failure this
-// feature exists to prevent, so a new kind must be an explicit decision.
-const DELIBERATELY_NOT_ON_SLACK: Partial<Record<AlertKind, string>> = {}
-
-// The per-channel properties from the shared contract — kind coverage, the
-// derived-kinds agreement, and reachability through the registry. Registry-WIDE
-// facts live in test/unit/alerts-registry.test.ts.
-testChannelContract({
-  channel: slackAlertChannel,
-  derivedKinds: SLACK_ALERT_KINDS,
-  deliberatelyExcluded: DELIBERATELY_NOT_ON_SLACK,
-  fixtures: ALERT_FIXTURES,
-  renders: (alert) => slackAlertMessage(alert, NAMES, ENV_WITH_DASHBOARD) !== null,
-})
-
-// Beyond the contract: Slack renders blocks but uses `text` for the push
-// preview, so a message that "renders" with no fallback arrives blank.
-test('every advertised kind carries a non-empty fallback text', () => {
-  for (const kind of slackAlertChannel.kinds) {
-    const msg = slackAlertMessage(ALERT_FIXTURES[kind], NAMES, ENV_WITH_DASHBOARD)
-    assert.ok(msg !== null)
-    assert.ok(msg.text.trim().length > 0, `'${kind}' produced an empty fallback text`)
-  }
-})
-
-// ---------- configured() ---------------------------------------------------
-
-test('configured: true only with a usable webhook, and never throws', () => {
-  const key = slackEnvKey('disputes')
-  assert.strictEqual(slackAlertChannel.configured({ [key]: 'https://hooks.slack.test/a/b/c' }), true)
-  assert.strictEqual(slackAlertChannel.configured({}), false)
-  assert.strictEqual(slackAlertChannel.configured({ [key]: '   ' }), false)
-  // Malformed must be false, not a throw: the contract says being unconfigured
-  // is a normal state and this method may not raise.
-  assert.strictEqual(slackAlertChannel.configured({ [key]: 'http://insecure' }), false)
-  assert.strictEqual(slackAlertChannel.configured({ [key]: 'https:hooks.slack.test/x' }), false)
-})
-
-// ---------- which names get loaded -----------------------------------------
-
-test('partyIds asks for exactly the ids the copy renders', () => {
-  const alert = disputeAlert()
-  assert.deepStrictEqual(
-    [...slackAlertPartyIds(alert)],
-    [alert.raised_by_id, alert.creator_id, alert.counterparty_id],
-  )
-})
-
-test('partyIds passes nulls through rather than making each caller filter', () => {
-  const ids = slackAlertPartyIds(disputeAlert({ raised_by_id: null, counterparty_id: null }))
-  assert.deepStrictEqual([...ids], [null, CREATOR_ID, null])
-})
-
-// ---------- dispute.raised copy --------------------------------------------
+import {
+  COUNTERPARTY_ID,
+  CREATOR_ID,
+  DASHBOARD,
+  disputeAlert,
+  ENV_NO_DASHBOARD,
+  ENV_WITH_DASHBOARD,
+  ESCROW_ID,
+  NAMES,
+  raisedByLine,
+  render,
+} from '../helpers/slack-copy-fixtures'
 
 test('links the subject to the dispute in the admin dashboard', () => {
   const dispute_id = randomUUID()
@@ -274,6 +131,35 @@ test('two untitled disputes do not share a push preview', () => {
   assert.notStrictEqual(a.text, b.text)
 })
 
+// `raisedByLine` narrows to ONE LINE of the headline, and every test below that
+// uses it rests on that precision. (No count here on purpose — a number in a
+// comment goes stale the moment a case is added, and this one already did.)
+//
+// The precision is currently INVISIBLE: today's copy puts the parties on their
+// own line, so returning the whole headline section passes all of them — a
+// mutation proved exactly that. This pins the narrowing directly, against a
+// headline that carries a second party label, so the guard keeps working if the
+// copy ever puts them in one block.
+test('raisedByLine returns the raiser line ALONE, not the whole headline', () => {
+  const crowded: SlackMessage = {
+    text: 'fallback',
+    blocks: [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*Dispute raised*\n${RAISED_BY_PREFIX}Ada (Creator)\nParties: Ada (Creator), Grace (Worker)`,
+        },
+      },
+    ],
+  }
+  const line = raisedByLine(crowded)
+  assert.ok(line.startsWith(RAISED_BY_PREFIX), line)
+  assert.ok(line.includes('Ada (Creator)'), line)
+  assert.ok(!line.includes('Grace'), `the parties line leaked into the raiser line: ${line}`)
+  assert.ok(!line.includes('Dispute raised'), `the headline leaked in: ${line}`)
+})
+
 test('names the raiser and their party role, using the kind-aware label', () => {
   const creator = raisedByLine(render({ raised_by_id: CREATOR_ID, escrow_kind: 'gig' }))
   assert.ok(creator.includes('Ada Lovelace'), creator)
@@ -360,162 +246,4 @@ test('carries the identifiers a mediator needs to find the record', () => {
   const text = allText(render({ tx_ref: 'sig-unique-999' }))
   assert.ok(text.includes(ESCROW_ID), 'escrow id')
   assert.ok(text.includes('sig-unique-999'), 'the tx that raised it')
-})
-
-// ---------- text safety ----------------------------------------------------
-
-test('a title containing markup cannot inject Slack entities', () => {
-  const text = allText(render({ escrow_title: 'Fix <http://evil|me> & <@U123>' }))
-  assert.ok(!text.includes('<http://evil'), text)
-  assert.ok(!text.includes('<@U123>'), text)
-  assert.ok(text.includes('&lt;') && text.includes('&amp;'), text)
-})
-
-test('a reason containing markup cannot break out of its block', () => {
-  const text = allText(render({ reason: 'they said <@here> & left' }))
-  assert.ok(!text.includes('<@here>'), text)
-})
-
-// The label sits inside <url|label>; an unescaped `>` would end the link early
-// and spill the rest of the message outside it.
-test('a title cannot terminate the link it labels', () => {
-  const msg = render({ escrow_title: 'a > b' })
-  const section = sectionTexts(msg)[0]
-  assert.ok(section.includes('&gt;'), section)
-  assert.ok(section.includes(`|a &gt; b>`), section)
-})
-
-// `escapeSlackText` neutralises only `&`, `<` and `>` — Slack's own documented
-// set — so a NEWLINE survives it. Profile names are user-authored, and an
-// operator reads this message to decide who did what, so a name that can invent
-// a line can misattribute the dispute.
-test('a party name cannot forge a line in the headline', () => {
-  const forger = randomUUID()
-  const names: AlertPartyNames = new Map([
-    [forger, `Mallory\nRaised by *${partyRoleLabel('gig', 'counterparty')} impostor*`],
-  ])
-  const msg = slackAlertMessage(disputeAlert({ creator_id: forger }), names, ENV_WITH_DASHBOARD)
-  assert.ok(msg !== null)
-
-  // Exactly one line may begin with 'Raised by' — the real one.
-  const forged = sectionTexts(msg)[0].split('\n').filter((l) => l.startsWith(RAISED_BY_PREFIX))
-  assert.strictEqual(forged.length, 1, `forged raiser line: ${sectionTexts(msg)[0]}`)
-})
-
-test('a multi-line title cannot break the headline layout', () => {
-  const msg = render({ escrow_title: 'Deliver flyers\n\n*URGENT*\nRaised by *nobody*' })
-  const forged = sectionTexts(msg)[0].split('\n').filter((l) => l.startsWith(RAISED_BY_PREFIX))
-  assert.strictEqual(forged.length, 1, sectionTexts(msg)[0])
-  assert.ok(!msg.text.includes('\n'), `the fallback preview must stay one line: ${msg.text}`)
-})
-
-test('every block stays inside Slack’s per-block limit', () => {
-  const msg = render({
-    escrow_title: 'T'.repeat(10_000),
-    reason: 'R'.repeat(10_000),
-  })
-  for (const text of [...sectionTexts(msg), ...contextTexts(msg)]) {
-    assert.ok([...text].length <= SLACK_TEXT_MAX, `block of ${[...text].length} code points`)
-  }
-})
-
-// The readability caps count what a PERSON reads, so they are applied before
-// escaping — which means escaping can still push a block over Slack's own
-// limit, and the block-level cap is what stops it. `&` is the worst case: it
-// expands 5x, so a reason capped at REASON_MAX ampersands lands exactly on the
-// limit and the "*Reason*" heading tips it over. Not hypothetical arithmetic —
-// this test fails if the block-level truncate is removed.
-test('the block cap holds for text that expands under escaping', () => {
-  const msg = render({ escrow_title: '&'.repeat(10_000), reason: '&'.repeat(10_000) })
-  for (const text of [...sectionTexts(msg), ...contextTexts(msg)]) {
-    assert.ok([...text].length <= SLACK_TEXT_MAX, `block of ${[...text].length} code points`)
-  }
-})
-
-// Identifiers are NOT length-capped as fields — truncating one makes it
-// unsearchable, which defeats the reason it is in the message. So the block cap
-// is the only thing bounding them, and a chain that hands back an outsized ref
-// must not produce a message Slack rejects with `invalid_blocks`.
-test('an outsized identifier cannot blow the context block', () => {
-  const msg = render({ tx_ref: 'z'.repeat(20_000) })
-  for (const text of contextTexts(msg)) {
-    assert.ok([...text].length <= SLACK_TEXT_MAX, `context of ${[...text].length} code points`)
-  }
-})
-
-test('the fallback text is capped too — it is the push preview', () => {
-  const msg = render({ escrow_title: 'T'.repeat(10_000) })
-  assert.ok([...msg.text].length <= SLACK_TEXT_MAX, `${[...msg.text].length} code points`)
-})
-
-// ---------- shape ----------------------------------------------------------
-
-// Slack renders blocks but uses `text` for the notification preview and screen
-// readers, so a blocks-only message arrives blank where it matters most.
-test('every message carries both blocks and a non-empty fallback text', () => {
-  for (const kind of slackAlertChannel.kinds) {
-    const msg = slackAlertMessage(ALERT_FIXTURES[kind], NAMES, ENV_WITH_DASHBOARD)
-    assert.ok(msg !== null)
-    assert.ok(msg.text.trim().length > 0, `${kind}: empty fallback`)
-    assert.ok((msg.blocks ?? []).length > 0, `${kind}: no blocks`)
-  }
-})
-
-/**
- * Block Kit structural validity, for EVERY advertised kind and for the sparse
- * data shapes — because Slack rejects the WHOLE message with `invalid_blocks`,
- * not just the offending block. One malformed block is total silence, which is
- * the exact failure this feature exists to prevent.
- *
- * Written kind-agnostically so it keeps guarding as #13 and later kinds land,
- * rather than needing a copy per kind.
- */
-test('every message is structurally valid Block Kit', () => {
-  const sparse: Partial<AlertOf<'dispute.raised'>>[] = [
-    {},
-    { escrow_title: null, reason: null, dispute_id: null },
-    { escrow_title: '  ', reason: '  ', raised_by_id: null, counterparty_id: null },
-  ]
-  const messages = [
-    ...slackAlertChannel.kinds.flatMap((kind) => {
-      const msg = slackAlertMessage(ALERT_FIXTURES[kind], NAMES, ENV_WITH_DASHBOARD)
-      return msg === null ? [] : [msg]
-    }),
-    ...sparse.map((over) => render(over, ENV_NO_DASHBOARD)),
-  ]
-
-  for (const msg of messages) {
-    const blocks = msg.blocks ?? []
-    assert.ok(blocks.length > 0, 'a message with no blocks is just the fallback')
-    for (const block of blocks) {
-      if (block.type === 'section') {
-        assert.strictEqual(block.text.type, 'mrkdwn')
-        assert.ok(block.text.text.trim().length > 0, 'an empty section renders as a gap')
-        assert.ok([...block.text.text].length <= SLACK_TEXT_MAX)
-      } else {
-        // Slack caps a context block at 10 elements and rejects an empty one.
-        assert.ok(block.elements.length > 0 && block.elements.length <= 10, 'context arity')
-        for (const element of block.elements) {
-          assert.strictEqual(element.type, 'mrkdwn')
-          assert.ok(element.text.trim().length > 0, 'an empty context element')
-          assert.ok([...element.text].length <= SLACK_TEXT_MAX)
-        }
-      }
-    }
-  }
-})
-
-test('no block is emitted with empty text', () => {
-  const msg = render({ reason: null, escrow_title: null, dispute_id: null }, ENV_NO_DASHBOARD)
-  for (const text of [...sectionTexts(msg), ...contextTexts(msg)]) {
-    assert.ok(text.trim().length > 0, 'an empty block renders as a gap in Slack')
-  }
-})
-
-// Kind-agnostic, so it keeps holding as kinds are added.
-test('the escrow kind is stated verbatim rather than relabelled', () => {
-  for (const escrow_kind of ['gig', 'exchange'] satisfies EscrowKind[]) {
-    const text = allText(render({ escrow_kind, escrow_title: null }))
-    assert.ok(text.includes(escrow_kind), `${escrow_kind} is not stated`)
-  }
 })

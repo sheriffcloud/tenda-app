@@ -1,5 +1,5 @@
 /**
- * lib/boot-lock.ts — the single advisory lock every registry writer takes.
+ * lib/boot/lock.ts — the single advisory lock every registry writer takes.
  *
  * Three writers exist: migrateOnBoot, seedOnBoot, and the hand-run `db:seed`
  * CLI. They must serialise, because seedOnBoot's guard reads the enabled set
@@ -18,8 +18,8 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import postgres from 'postgres'
 import { TEST_DB_CONFIGURED, useSuiteLock } from '../helpers/test-app'
-import { acquireBootLock, BOOT_LOCK_TIMEOUT } from '@server/lib/boot-lock'
-import { runSeed } from '@server/db/seed-v2'
+import { acquireBootLock, BOOT_LOCK_TIMEOUT } from '@server/lib/boot/lock'
+import { runSeed } from '@server/db/seed/seed-v2'
 
 const skip = !TEST_DB_CONFIGURED
 

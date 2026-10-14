@@ -94,7 +94,6 @@ export default function UserDetailPage() {
             <p className="mb-2 text-sm font-medium">Profile</p>
             <dl className="space-y-1 text-sm">
               <div className="flex justify-between"><dt className="text-muted-foreground">Location</dt><dd>{user.city !== null ? `${user.city}, ${user.country}` : (user.country ?? '—')}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Phone</dt><dd>{user.phone_e164 ?? '—'}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">Review score</dt><dd>{user.review_score ?? '—'}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">Advanced mode</dt><dd>{user.advanced_mode_enabled ? 'on' : 'off'}</dd></div>
             </dl>

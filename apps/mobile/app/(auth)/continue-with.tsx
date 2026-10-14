@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { isE164, normalizeEmail } from '@tenda/shared'
+import { isE164, normalizeEmail, verifyErrorMessage } from '@tenda/shared'
 import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
 import { api } from '@/api/client'
-import { verifyErrorMessage } from '@/lib/auth-flow'
 
 /** The two contact channels that issue an OTP from this screen. */
 type ContactMethod = 'phone' | 'email'

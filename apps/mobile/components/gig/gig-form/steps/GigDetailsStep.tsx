@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { radius, spacing } from '@/theme/tokens'
 import { CrossBorderBanner } from '../CrossBorderBanner'
-import { DESC_MAX, TITLE_MAX } from '../constants'
+import { DESC_MAX, TITLE_MAX } from '@tenda/shared'
 
 interface Props {
   category: GigCategory | null

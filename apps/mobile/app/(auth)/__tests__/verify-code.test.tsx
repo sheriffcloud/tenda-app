@@ -6,7 +6,7 @@
  *     message and clears the field. Native/UI deps + OtpCodeField stubbed.
  */
 import { render, fireEvent, waitFor, screen } from '@testing-library/react-native'
-import { TIER0_MESSAGE } from '@/lib/auth-flow'
+import { ApiClientError, TIER0_MESSAGE } from '@tenda/shared'
 
 // Mutable params so a single mock can flip between signin / link mode per test.
 let mockParams: Record<string, string> = { channel: 'email', identifier: 'a@x.io' }
@@ -61,22 +61,10 @@ jest.mock('@/stores/auth.store', () => ({
 }))
 
 jest.mock('@/api/client', () => {
-  // Defined inside the factory so auth-flow's `instanceof ApiClientError`
-  // resolves to THIS class (the test imports it from the mocked module too).
-  class ApiClientError extends Error {
-    statusCode: number
-    code?: string
-    constructor(statusCode: number, error: string, message: string, code?: string) {
-      super(message)
-      this.statusCode = statusCode
-      this.code = code
-    }
-  }
-  return { api: { auth: { challenge: jest.fn(async () => ({ expires_in: 600 })) } }, ApiClientError }
+  return { api: { auth: { challenge: jest.fn(async () => ({ expires_in: 600 })) } } }
 })
 
 import VerifyCodeScreen from '@/app/(auth)/verify-code'
-import { ApiClientError } from '@/api/client'
 
 beforeEach(() => {
   mockParams = { channel: 'email', identifier: 'a@x.io' }

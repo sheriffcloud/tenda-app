@@ -6,12 +6,13 @@ import { ScreenContainer, Text, Header, Button, BottomSheet, ConfirmDialog, Inpu
 import { AllowanceRow, type AllowanceRowData } from '@/components/settings/AllowanceRow'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { resolveEvmFrom } from '@/wallet/dispatch'
+import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
 import {
   displayToAmountRaw,
   readAllowance,
   sendApprove,
   waitForReceipt,
-} from '@/wallet/allowance'
+} from '@tenda/shared'
 import { spacing } from '@/theme/tokens'
 
 /**
@@ -88,6 +89,7 @@ export default function TokenApprovalsScreen() {
         spender: row.spender,
         amountRaw,
         from: owner,
+        sendTx: sendEvmTransaction,
       })
       const outcome = await waitForReceipt({ chainId: row.chainId, txHash })
       if (outcome === 'reverted') {

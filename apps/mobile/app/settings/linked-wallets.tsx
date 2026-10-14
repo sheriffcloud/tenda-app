@@ -3,12 +3,12 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { Star, Unlink } from 'lucide-react-native'
-import { ErrorCode, type LinkedWallet } from '@tenda/shared'
+import { CHAIN_NAMESPACE_LABEL, ErrorCode, type LinkedWallet, ApiClientError } from '@tenda/shared'
 import { ScreenContainer, Text, Header, Button, BottomSheet, ConfirmDialog, showToast } from '@/components/ui'
 import { WalletCard } from '@/components/onboarding/WalletCard'
 import { useAuthStore } from '@/stores/auth.store'
-import { api, ApiClientError } from '@/api/client'
-import { WalletError } from '@/wallet/errors'
+import { api } from '@/api/client'
+import { WalletError } from '@tenda/shared'
 import { WalletPicker } from '@/wallet/picker'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 import { useReturnToLinkedWallets } from '@/lib/post-auth-nav'
@@ -68,10 +68,10 @@ export default function LinkedWalletsScreen() {
     setManaging(null)
     try {
       await api.auth.setPrimaryWallet({ chain_ns: w.chain_ns, address: w.address })
-      showToast('success', 'Primary wallet updated')
+      showToast('success', `Main ${CHAIN_NAMESPACE_LABEL[w.chain_ns]} wallet updated`)
       await refreshMe()
     } catch (e) {
-      showToast('error', e instanceof ApiClientError ? e.message : 'Could not update the primary wallet')
+      showToast('error', e instanceof ApiClientError ? e.message : 'Could not update your main wallet')
     }
   }
 
@@ -91,7 +91,7 @@ export default function LinkedWalletsScreen() {
       setUnlinkTarget(null)
     } catch (e) {
       if (e instanceof ApiClientError && e.code === ErrorCode.WALLET_IS_PRIMARY) {
-        showToast('error', 'Make another wallet your primary first, then unlink this one')
+        showToast('error', 'Make another wallet the main one for this chain first, then unlink this one')
       } else if (e instanceof ApiClientError && e.code === ErrorCode.WALLET_IN_USE) {
         showToast('error', 'This wallet is part of an active escrow, finish or cancel it first')
       } else {
@@ -108,8 +108,8 @@ export default function LinkedWalletsScreen() {
 
       <ScrollView contentContainerStyle={s.content}>
         <Text size={13} color={theme.colors.content.secondary} style={s.lede}>
-          Any linked wallet can sign you in. The primary wallet receives
-          payments by default.
+          Any linked wallet can sign you in. You pick a main wallet for each
+          chain, and payments on that chain go to it by default.
         </Text>
 
         <View style={s.list}>
@@ -163,15 +163,18 @@ export default function LinkedWalletsScreen() {
                 style={({ pressed }) => [s.menuItem, { borderTopColor: theme.colors.border.subtle }, pressed && { opacity: 0.7 }]}
                 onPress={() => void handleSetPrimary(managing)}
                 accessibilityRole="button"
-                accessibilityLabel="Make primary wallet"
+                accessibilityLabel={`Make main ${CHAIN_NAMESPACE_LABEL[managing.chain_ns]} wallet`}
               >
                 <View style={[s.menuIcon, { backgroundColor: theme.colors.brand.primarySurface }]}>
                   <Star size={18} color={theme.colors.brand.primary} />
                 </View>
                 <View style={s.menuBody}>
-                  <Text size={15} weight="semibold">Make primary</Text>
+                  <Text size={15} weight="semibold">
+                    Make main {CHAIN_NAMESPACE_LABEL[managing.chain_ns]} wallet
+                  </Text>
                   <Text size={12.5} color={theme.colors.content.secondary}>
-                    Payments default to this wallet.
+                    {CHAIN_NAMESPACE_LABEL[managing.chain_ns]} payments default to this
+                    wallet. Your other chains are unaffected.
                   </Text>
                 </View>
               </Pressable>

@@ -1,48 +1,11 @@
 import { View, ScrollView, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { MessageCircle, Mail, Globe, Hash, Camera } from 'lucide-react-native'
+import { MessageCircle, Send, Mail, Globe, Hash, Camera } from 'lucide-react-native'
 import { ScreenContainer, Header, Text, AccordionItem } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { InfoCard, ContactRow } from '@/components/support'
-import { APP_INFO } from '@/lib/app-info'
+import { APP_INFO, SUPPORT_FAQS } from '@tenda/shared'
 
-const FAQS = [
-  {
-    question: 'Do I need crypto to use Tenda?',
-    answer:
-      "No, you can receive payouts directly to your bank. The wallet holds what you've earned; you cash out in your local currency through Trade.",
-  },
-  {
-    question: 'Will my money be safe?',
-    answer:
-      "Yes. Payment is locked in a smart contract on the Solana blockchain, not held by Tenda. We can't touch your money. It's released only when you (the poster) approve the work, or returned to you if the gig expires or a dispute is resolved in your favour.",
-  },
-  {
-    question: 'What if the client never approves?',
-    answer:
-      "If a poster doesn't approve or raise a dispute within the gig's time limit, the gig expires and you can raise a dispute through the app. For ongoing issues, contact our support team.",
-  },
-  {
-    question: 'Can I lose my money as a poster?',
-    answer:
-      "Only if you approve work you're not satisfied with. If the work isn't done correctly, raise a dispute before approving. Never tap Approve unless you're satisfied; it cannot be undone.",
-  },
-  {
-    question: 'How do I withdraw to my bank account?',
-    answer:
-      'SOL in your wallet can be exchanged for Naira through Tenda P2P or Nigerian crypto exchanges. You send SOL and receive Naira in your bank account from the buyer.',
-  },
-  {
-    question: 'What is SOL?',
-    answer:
-      "SOL is the digital currency of the Solana blockchain, the network Tenda runs on. Think of it like airtime units, but for a financial network. Tenda shows SOL amounts alongside their local equivalent so you always know what you're paying or earning.",
-  },
-  {
-    question: 'Can I both post gigs and work on gigs?',
-    answer:
-      'Yes, there are no restrictions. You can post a gig as a client and also apply to work on other gigs as a worker. Use both sides of the marketplace.',
-  },
-] as const
 
 export default function FaqScreen() {
   const { theme } = useUnistyles()
@@ -59,12 +22,12 @@ export default function FaqScreen() {
             { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default },
           ]}
         >
-          {FAQS.map((faq, index) => (
+          {SUPPORT_FAQS.map((faq, index) => (
             <AccordionItem
               key={faq.question}
               title={faq.question}
               defaultExpanded={index === 0}
-              last={index === FAQS.length - 1}
+              last={index === SUPPORT_FAQS.length - 1}
             >
               <Text style={[s.answer, { color: theme.colors.content.secondary }]}>
                 {faq.answer}
@@ -87,6 +50,17 @@ export default function FaqScreen() {
             value="Chat with us"
             url={APP_INFO.support.whatsapp}
             tone="success"
+          />
+          {/* Beside WhatsApp, not with the social rows below it: this group is
+              a place to ask for help, and it is the channel Terms and Privacy
+              already point a reader at. It reads from `social.telegram`
+              because that is where the URL lives — one constant per link. */}
+          <ContactRow
+            Icon={Send}
+            label="Telegram"
+            value="Ask in the group"
+            url={APP_INFO.social.telegram}
+            tone="brand"
           />
           <ContactRow
             Icon={Mail}

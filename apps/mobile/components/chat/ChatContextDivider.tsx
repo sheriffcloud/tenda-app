@@ -82,7 +82,7 @@ const s = StyleSheet.create({
     maxWidth: '90%',
   },
   pillText: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10.5,
     lineHeight: 14,
     fontWeight: '600',
@@ -93,7 +93,7 @@ const s = StyleSheet.create({
     lineHeight: 14,
   },
   title: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10.5,
     lineHeight: 14,
     fontWeight: '600',

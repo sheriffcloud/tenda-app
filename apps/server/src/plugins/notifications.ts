@@ -1,6 +1,6 @@
 // Fastify plugin that translates in-process app events into push
 // notifications. Post-cutover (#34, checklist §3) listeners do NOT push
-// directly, they enqueue 'notifications' jobs; workers/processors.ts
+// directly, they enqueue 'notifications' jobs; queue/workers/processors.ts
 // resolves device tokens at delivery time and routes per platform.
 //
 // Escrow lifecycle pushes do not ride this plugin: verify-tx republish
@@ -14,7 +14,7 @@ import {
   chatPushData,
   fiatIntentPushData,
   type PushData,
-} from '@server/lib/notify'
+} from '@server/features/notifications'
 
 const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   async function notify(

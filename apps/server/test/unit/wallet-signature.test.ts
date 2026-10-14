@@ -15,7 +15,7 @@ import {
   deriveChainNamespace,
   verifyWalletSignature,
   verifyEd25519,
-} from '@server/lib/wallet-signature'
+} from '@server/lib/chain/wallet-signature'
 
 const MESSAGE = 'Tenda wants you to sign in with your wallet:\n0xabc\n\nNonce: n1'
 

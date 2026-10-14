@@ -6,7 +6,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { buildFiatDeps, initiateIntent } from '@server/features/fiat-rails'
-import { requireFiatRails, requireStr } from '@server/lib/fiat-routes'
+import { requireFiatRails, requireStr } from '@server/features/fiat-rails/http/fiat-routes'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: { intent_id?: unknown } }>(

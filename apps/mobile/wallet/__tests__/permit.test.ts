@@ -6,17 +6,8 @@
 jest.mock('@/api/client', () => {
   // No TS parameter properties here, Babel would hoist them as out-of-scope
   // references inside the mock factory.
-  class ApiClientError extends Error {
-    statusCode: number
-    error: string
-    code?: string
-    constructor(statusCode: number, error: string, message: string, code?: string) {
-      super(message)
-      this.statusCode = statusCode
-      this.error = error
-      this.code = code
-    }
-  }
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  const { ApiClientError } = jest.requireActual('@tenda/shared')
   return {
     ApiClientError,
     api: { blockchain: { permitPayload: jest.fn() } },
@@ -35,12 +26,14 @@ jest.mock('@/stores/chain-registry.store', () => ({
   useChainRegistryStore: { getState: jest.fn() },
 }))
 
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
+import { ApiClientError, type ChainRegistryEntry } from '@tenda/shared'
 import { signEvmTypedData } from '@/wallet/adapters/walletconnect'
 import { resolveEvmFrom } from '@/wallet/dispatch'
 import { ensureEvmSession } from '@/wallet/ensure-session'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { buildPermitFor } from '@/wallet/permit'
+import { registryEntryDefaults } from '@tenda/shared/testing'
 
 const payloadMock = api.blockchain.permitPayload as jest.Mock
 const signMock = signEvmTypedData as jest.Mock
@@ -51,7 +44,8 @@ const registryMock = useChainRegistryStore.getState as jest.Mock
 const CHAIN = 'eip155:84532'
 const OWNER = '0xAbC0000000000000000000000000000000000001'
 
-function registry(supports_permit: boolean) {
+// The wire shape, so the stub cannot serve a registry the server never sends.
+function registry(supports_permit: boolean): { chains: ChainRegistryEntry[] } {
   return {
     chains: [
       {
@@ -59,6 +53,7 @@ function registry(supports_permit: boolean) {
         namespace: 'eip155',
         display_name: 'Base Sepolia',
         escrow_address: '0xEscrow',
+        ...registryEntryDefaults(CHAIN),
         assets: [
           {
             id: 'USDC_BASE',
@@ -67,6 +62,8 @@ function registry(supports_permit: boolean) {
             is_stable: true,
             token_address: '0xToken',
             supports_permit,
+            funds_by_signature: supports_permit,
+            roles: ['gig', 'exchange'],
           },
         ],
       },

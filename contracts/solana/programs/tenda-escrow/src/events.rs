@@ -1,12 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0
 use anchor_lang::prelude::*;
 
 use crate::state::{DisputeWinner, EscrowKind, EscrowStatus};
 
 // ============================================================================
-// All events use `emit_cpi!` from instruction handlers (foundation.md L589).
-// Inner-instruction encoding lets the off-chain listener decode the full
-// payload from `meta.innerInstructions` without parsing Anchor program logs
-// (`Program data:` lines are truncated when the log buffer fills).
+// All events are emitted with `emit!` from the instruction handlers: the
+// payload is a base64 `Program data:` log line, which is what the litesvm
+// suite's `expectEvent` and the server's Solana listener both decode.
+// (`emit_cpi!` — inner-instruction encoding, immune to log truncation — was
+// the foundation-doc plan; it was never adopted, and switching would change
+// the wire format every decoder reads.)
 //
 // Field naming mirrors the future Solidity event surface — server's
 // `verifyTx` decoder accepts both Solana and EVM via the same field names.

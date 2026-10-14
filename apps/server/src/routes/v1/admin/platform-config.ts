@@ -9,13 +9,16 @@ import {
   MIN_APPLICATION_TTL_SECONDS,
   MAX_APPLICATION_TTL_SECONDS,
 } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/http/guards'
 import { AppError, requireBody } from '@server/lib/errors'
-import { ensureIntInRange } from '@server/lib/validation'
-import { ensureTxUpdated } from '@server/lib/db'
+import { ensureIntInRange } from '@server/lib/http/validation'
+import { ensureTxUpdated } from '@server/lib/errors/pg'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
 import { appEvents } from '@server/lib/events'
-import type { AdminPlatformConfig, ApiError, UpdatePlatformConfigBody } from '@tenda/shared'
+import type { AdminContract, ApiError, UpdatePlatformConfigBody } from '@tenda/shared'
+import { toWire } from '@server/lib/http/wire'
+
+type ConfigContract = AdminContract['platformConfig']
 
 /**
  * Editable tunables come from the shared contract, so the route, the admin
@@ -25,49 +28,61 @@ import type { AdminPlatformConfig, ApiError, UpdatePlatformConfigBody } from '@t
  */
 type PatchBody = UpdatePlatformConfigBody
 
+/** Accepted by an earlier version of this route; refused now (see the handler). */
+const RETIRED_FEE_FIELDS = ['fee_bps', 'seeker_fee_bps'] as const
+
 const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
   // GET /v1/admin/platform-config
-  fastify.get('/', {
+  fastify.get<{ Reply: ConfigContract['GET']['response'] | ApiError }>('/', {
     preHandler: [requirePermission('config.read')]
   }, async () => {
     const [row] = await fastify.db.select().from(platform_config).limit(1)
     if (!row) throw new AppError(404, ErrorCode.INTERNAL_ERROR, 'Platform config not found, seed the database first')
-    return row
+    return toWire(row)
   })
 
   // PATCH /v1/admin/platform-config
   fastify.patch<{
     Body:  PatchBody
-    Reply: AdminPlatformConfig | ApiError
+    Reply: ConfigContract['PATCH']['response'] | ApiError
   }>('/', {
     preHandler: [requirePermission('config.write')]
   }, async (request) => {
+    const body = requireBody(request.body)
+    // The fees are NOT editable here (they used to be, and the DB then disagreed with the
+    // contracts). Each contract charges its own stored value; `fee:set` moves every chain
+    // and writes this row only once all of them confirm. Refused by name so a stale client
+    // learns why rather than silently losing the change.
+    for (const key of RETIRED_FEE_FIELDS) {
+      if (Object.hasOwn(body, key)) {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_ERROR,
+          `${key} cannot be changed here: the fee lives on each contract. Use \`pnpm --filter tenda-server fee:set\`, which updates platform_config once every chain confirms.`,
+        )
+      }
+    }
     const {
-      fee_bps,
-      seeker_fee_bps,
       grace_period_seconds,
       max_pending_gigs,
       unassign_window_seconds,
       max_open_applications,
       application_ttl_seconds,
-    } = requireBody(request.body)
+    } = body
 
-    // Fee/grace caps mirror the on-chain limits (ESCROW_LIMITS, guarded ==
+    // Grace/window caps mirror the on-chain limits (ESCROW_LIMITS, guarded ==
     // both contracts) so an admin can't configure a value the contract would
-    // revert: the contract caps platform fee at MAX_PLATFORM_FEE_BPS and grace
-    // at MAX_GRACE_PERIOD_SECONDS, and the server's off-chain reclaim-window
-    // math must stay within the window the chain actually enforces.
+    // revert: the contract caps grace at MAX_GRACE_PERIOD_SECONDS, and the
+    // server's off-chain reclaim-window math must stay within the window the
+    // chain actually enforces.
     // max_pending_gigs is purely off-chain, bounded by the same constant as the
     // column's CHECK so the route rejects before Postgres does.
     const {
-      maxPlatformFeeBps,
       maxGracePeriodSeconds,
       minUnassignWindowSeconds,
       maxUnassignWindowSeconds,
     } = ESCROW_LIMITS
 
-    ensureIntInRange(fee_bps, 'fee_bps', 0, maxPlatformFeeBps)
-    ensureIntInRange(seeker_fee_bps, 'seeker_fee_bps', 0, maxPlatformFeeBps)
     ensureIntInRange(grace_period_seconds, 'grace_period_seconds', 0, maxGracePeriodSeconds)
     ensureIntInRange(max_pending_gigs, 'max_pending_gigs', 1, MAX_PENDING_GIGS_CEILING)
     // Same bound both contracts enforce: a window the chain would revert must
@@ -89,8 +104,6 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
     )
 
     const fields = [
-      'fee_bps',
-      'seeker_fee_bps',
       'grace_period_seconds',
       'max_pending_gigs',
       'unassign_window_seconds',
@@ -98,8 +111,6 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
       'application_ttl_seconds',
     ] as const satisfies readonly (keyof PatchBody)[]
     const changes: PatchBody = {
-      ...(fee_bps !== undefined && { fee_bps }),
-      ...(seeker_fee_bps !== undefined && { seeker_fee_bps }),
       ...(grace_period_seconds !== undefined && { grace_period_seconds }),
       ...(max_pending_gigs !== undefined && { max_pending_gigs }),
       ...(unassign_window_seconds !== undefined && { unassign_window_seconds }),
@@ -130,7 +141,7 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
       changes,
     })
 
-    return result
+    return toWire(result)
   })
 }
 

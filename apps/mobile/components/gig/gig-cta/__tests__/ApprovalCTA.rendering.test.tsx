@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports -- Jest factories load RN after hoisting. */
 import { render, screen } from '@testing-library/react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { ApprovalCTA } from '../ApprovalCTA'

@@ -11,7 +11,7 @@ import { Input } from './Input'
 import { Chip } from './Chip'
 import { BottomSheet } from './BottomSheet'
 import { LocationPicker } from '@/components/form/LocationPicker'
-import { CATEGORY_META } from '@/lib/categories'
+import { CATEGORY_META } from '@tenda/shared'
 
 interface FilterSheetProps {
   visible: boolean

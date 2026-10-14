@@ -2,25 +2,31 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { GigAvailableFrame, GigUnavailableFrame } from '../../src/api/contracts/ws.contract'
 import type { GigSummary } from '../../src/types/gig'
+import type { UserRef } from '../../src/types/user'
 import {
   applyGigFeedEvent,
   classifyGigFeedQuery,
   compareGigFeedRevisions,
   compareGigSummariesByRecency,
   matchesGigFeedQuery,
+  GIG_FEED_REVISION_MEMORY,
   type GigFeedState,
 } from '../../src/gig-feed'
 
-const creator = {
+// Typed, so a field the wire does not carry cannot ride along in a fixture.
+const creator: UserRef = {
   id: 'user-1',
   first_name: 'Ada',
   last_name: 'Lovelace',
   avatar_url: null,
-  username: null,
   country: 'NG',
   is_seeker: false,
+  is_agent: false,
   review_score: null,
 }
+
+/** The projection a caller that stores whole summaries supplies. */
+const identity = (item: GigSummary): GigSummary => item
 
 function gig(escrow_id: string, created_at: string, overrides: Partial<GigSummary> = {}): GigSummary {
   return {
@@ -42,6 +48,7 @@ function gig(escrow_id: string, created_at: string, overrides: Partial<GigSummar
     remote: false,
     cross_border: false,
     proof_requirements: [],
+    proof_params: null,
     requires_approval: false,
     creator,
     ...overrides,
@@ -81,6 +88,7 @@ test('available inserts in deterministic recency order without mutating input', 
     state,
     event: available(gig('b', '2026-08-13T10:00:00.000Z'), '1'),
     query: {},
+    project: identity,
   })
   assert.equal(result.outcome, 'applied')
   assert.deepEqual(result.state.items.map((item) => item.escrow_id), ['b', 'a'])
@@ -94,16 +102,17 @@ test('higher revision replaces and lower/equal revisions cannot overwrite it', (
     state,
     event: available({ ...original, title: 'Updated' }, '10'),
     query: {},
+    project: identity,
   })
   assert.equal(updated.outcome, 'applied')
   assert.equal(updated.state.items[0].title, 'Updated')
-  assert.equal(applyGigFeedEvent({ state: updated.state, event: unavailable('a', '9'), query: {} }).outcome, 'ignored_stale')
-  assert.equal(applyGigFeedEvent({ state: updated.state, event: unavailable('a', '10'), query: {} }).outcome, 'ignored_duplicate')
+  assert.equal(applyGigFeedEvent({ state: updated.state, event: unavailable('a', '9'), query: {}, project: identity }).outcome, 'ignored_stale')
+  assert.equal(applyGigFeedEvent({ state: updated.state, event: unavailable('a', '10'), query: {}, project: identity }).outcome, 'ignored_duplicate')
 })
 
 test('unavailable removes a known row and records revision for replay protection', () => {
   const state: GigFeedState = { items: [gig('a', '2026-08-12T10:00:00.000Z')], revisions: {} }
-  const result = applyGigFeedEvent({ state, event: unavailable('a', '4'), query: {} })
+  const result = applyGigFeedEvent({ state, event: unavailable('a', '4'), query: {}, project: identity })
   assert.equal(result.outcome, 'applied')
   assert.deepEqual(result.state.items, [])
   assert.equal(result.state.revisions.a, '4')
@@ -120,7 +129,7 @@ test('deterministic filters exclude non-matching available gigs', () => {
   assert.equal(matchesGigFeedQuery(item, { chain_id: 'eip155:8453' }), false)
   assert.equal(matchesGigFeedQuery(item, { min_amount_raw: '1000001' }), false)
   assert.equal(matchesGigFeedQuery(item, { max_amount_raw: '999999' }), false)
-  const result = applyGigFeedEvent({ state: empty, event: available(item, '1'), query: { remote: true } })
+  const result = applyGigFeedEvent({ state: empty, event: available(item, '1'), query: { remote: true }, project: identity })
   assert.equal(result.outcome, 'applied')
   assert.deepEqual(result.state.items, [])
 })
@@ -128,7 +137,7 @@ test('deterministic filters exclude non-matching available gigs', () => {
 test('full-text search explicitly requires authoritative reconciliation', () => {
   const event = available(gig('a', '2026-08-12T10:00:00.000Z'), '1')
   assert.equal(classifyGigFeedQuery({ q: 'deliver' }), 'server_reconciliation_required')
-  const result = applyGigFeedEvent({ state: empty, event, query: { q: 'deliver' } })
+  const result = applyGigFeedEvent({ state: empty, event, query: { q: 'deliver' }, project: identity })
   assert.equal(result.outcome, 'reconciliation_required')
   assert.strictEqual(result.state, empty)
 })
@@ -144,7 +153,7 @@ test('server-owned membership and ordering never get approximated locally', () =
   for (const query of serverOnlyQueries) {
     assert.equal(classifyGigFeedQuery(query), 'server_reconciliation_required')
     assert.equal(
-      applyGigFeedEvent({ state: empty, event: available(gig('a', '2026-08-12T10:00:00Z'), '1'), query }).outcome,
+      applyGigFeedEvent({ state: empty, event: available(gig('a', '2026-08-12T10:00:00Z'), '1'), query, project: identity }).outcome,
       'reconciliation_required',
     )
   }
@@ -158,6 +167,7 @@ test('invalid or non-canonical amount filters cannot throw during realtime appli
       state: empty,
       event: available(gig('a', '2026-08-12T10:00:00Z'), '1'),
       query,
+      project: identity,
     })
     assert.equal(classifyGigFeedQuery(query), 'server_reconciliation_required')
     assert.equal(result.outcome, 'reconciliation_required')
@@ -166,7 +176,7 @@ test('invalid or non-canonical amount filters cannot throw during realtime appli
 
 test('unavailable remains safe under a full-text query', () => {
   const state: GigFeedState = { items: [gig('a', '2026-08-12T10:00:00.000Z')], revisions: {} }
-  const result = applyGigFeedEvent({ state, event: unavailable('a', '2'), query: { q: 'deliver' } })
+  const result = applyGigFeedEvent({ state, event: unavailable('a', '2'), query: { q: 'deliver' }, project: identity })
   assert.equal(result.outcome, 'applied')
   assert.deepEqual(result.state.items, [])
 })
@@ -178,15 +188,16 @@ test('revision comparison supports values beyond Number.MAX_SAFE_INTEGER and ref
   assert.throws(() => compareGigFeedRevisions('-1', '1'), /non-negative decimal/)
 })
 
-test('recency ordering handles null timestamps and uses escrow id as a stable tie-breaker', () => {
+test('recency ordering puts the newer gig first and uses escrow id as a stable tie-breaker', () => {
   const timestamp = '2026-08-13T10:00:00.000Z'
+  const older = '2026-08-12T10:00:00.000Z'
+  // Newer first, whichever side it is on — the ordering, not just a sign.
+  assert.equal(compareGigSummariesByRecency(gig('a', timestamp), gig('a', older)), -1)
+  assert.equal(compareGigSummariesByRecency(gig('a', older), gig('a', timestamp)), 1)
+  // Equal timestamps fall through to the id, descending.
   assert.equal(compareGigSummariesByRecency(gig('b', timestamp), gig('a', timestamp)), -1)
   assert.equal(compareGigSummariesByRecency(gig('a', timestamp), gig('b', timestamp)), 1)
   assert.equal(compareGigSummariesByRecency(gig('a', timestamp), gig('a', timestamp)), 0)
-  assert.equal(compareGigSummariesByRecency(
-    gig('a', timestamp),
-    gig('b', timestamp, { created_at: null }),
-  ), -1)
 })
 
 test('blank search stays client-matchable while partial proximity and invalid max require server truth', () => {
@@ -194,3 +205,100 @@ test('blank search stays client-matchable while partial proximity and invalid ma
   assert.equal(classifyGigFeedQuery({ lat: 6.5 }), 'server_reconciliation_required')
   assert.equal(classifyGigFeedQuery({ max_amount_raw: '01' }), 'server_reconciliation_required')
 })
+
+/**
+ * The projected case — the reason the reducer is generic at all. The anonymous
+ * feed stores a trimmed card model (no `amount_raw`; the page keeps base units
+ * out of what it ships to the browser), so the frame's full gig has to survive
+ * long enough to be MATCHED and then be narrowed before it is stored.
+ */
+test('a caller that stores less than a summary matches on the full gig and stores the projection', () => {
+  interface Card { escrow_id: string; created_at: string; title: string }
+  const toCard = (item: GigSummary): Card => ({
+    escrow_id: item.escrow_id,
+    created_at: item.created_at,
+    title: item.title,
+  })
+  const state: GigFeedState<Card> = { items: [], revisions: {} }
+
+  // Matching still reads a field the stored shape does not carry.
+  const priced = applyGigFeedEvent({
+    state,
+    event: available(gig('a', '2026-08-12T10:00:00.000Z'), '1'),
+    query: { min_amount_raw: '1000000' },
+    project: toCard,
+  })
+  assert.equal(priced.outcome, 'applied')
+  assert.deepEqual(priced.state.items, [
+    { escrow_id: 'a', created_at: '2026-08-12T10:00:00.000Z', title: 'Gig a' },
+  ])
+
+  // ...and excludes on that same field, which no card could answer.
+  const tooDear = applyGigFeedEvent({
+    state,
+    event: available(gig('b', '2026-08-13T10:00:00.000Z'), '1'),
+    query: { min_amount_raw: '1000001' },
+    project: toCard,
+  })
+  assert.equal(tooDear.outcome, 'applied')
+  assert.deepEqual(tooDear.state.items, [])
+
+  // Ordering and removal work on the projection, not the summary.
+  const two = applyGigFeedEvent({
+    state: priced.state,
+    event: available(gig('c', '2026-08-14T10:00:00.000Z'), '1'),
+    query: {},
+    project: toCard,
+  })
+  assert.deepEqual(two.state.items.map((item) => item.escrow_id), ['c', 'a'])
+  const removed = applyGigFeedEvent({
+    state: two.state,
+    event: unavailable('c', '2'),
+    query: {},
+    project: toCard,
+  })
+  assert.deepEqual(removed.state.items.map((item) => item.escrow_id), ['a'])
+})
+
+/**
+ * #73 — the revision memory is BOUNDED by the reducer itself, so every
+ * consumer (web anonymous feed, web open-gigs list, mobile) is bounded without
+ * remembering to be. The trade is stated as a test: a departed gig's revision
+ * is remembered for GIG_FEED_REVISION_MEMORY further departures and then
+ * forgotten, at which point an old frame for it reads as new.
+ */
+test('#73: the revision map stays bounded as gigs come and go, remembering the newest departures', () => {
+  let state: GigFeedState = { items: [], revisions: {} }
+  const churn = GIG_FEED_REVISION_MEMORY + 50
+  for (let i = 0; i < churn; i += 1) {
+    // Each gig arrives and leaves: after this the list is empty and the gig has departed.
+    const item = gig(`churn-${i}`, '2026-08-13T10:00:00.000Z')
+    const arrived = applyGigFeedEvent({ state, event: available(item, '1'), query: {}, project: identity })
+    assert.equal(arrived.outcome, 'applied')
+    const left = applyGigFeedEvent({ state: arrived.state, event: unavailable(item.escrow_id, '2'), query: {}, project: identity })
+    assert.equal(left.outcome, 'applied')
+    state = left.state
+  }
+  assert.equal(state.items.length, 0)
+  assert.equal(Object.keys(state.revisions).length, GIG_FEED_REVISION_MEMORY, 'exactly the memory, never the whole history')
+
+  // The most recent departure is still guarded: its old frame is stale.
+  const recent = gig(`churn-${churn - 1}`, '2026-08-13T10:00:00.000Z')
+  assert.equal(applyGigFeedEvent({ state, event: available(recent, '1'), query: {}, project: identity }).outcome, 'ignored_stale')
+  // The earliest one has been forgotten: the same old frame now reads as new — the stated trade.
+  const forgotten = gig('churn-0', '2026-08-13T10:00:00.000Z')
+  assert.equal(applyGigFeedEvent({ state, event: available(forgotten, '1'), query: {}, project: identity }).outcome, 'applied')
+})
+
+test('#73: a CURRENT row is never forgotten, however much churn surrounds it', () => {
+  const pinned = gig('pinned', '2026-08-13T10:00:00.000Z', { public_feed_revision: '9' })
+  let state: GigFeedState = { items: [pinned], revisions: { pinned: '9' } }
+  for (let i = 0; i < GIG_FEED_REVISION_MEMORY + 20; i += 1) {
+    const item = gig(`c-${i}`, '2026-08-13T10:00:00.000Z')
+    state = applyGigFeedEvent({ state, event: unavailable(item.escrow_id, '1'), query: {}, project: identity }).state
+  }
+  assert.equal(state.revisions.pinned, '9')
+  const stale = applyGigFeedEvent({ state, event: available({ ...pinned, title: 'old' }, '3'), query: {}, project: identity })
+  assert.equal(stale.outcome, 'ignored_stale')
+})
+

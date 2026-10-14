@@ -92,7 +92,10 @@ describe("acceptance modes (approval / assign / unassign)", () => {
       const e = await createSolEscrow(ctx, approvalArgs());
       const acct = await ctx.program.account.escrow.fetch(e.escrow);
       assert.isTrue(acct.requiresApproval);
-      assert.equal(acct.unassignWindowSeconds.toNumber(), DEFAULT_UNASSIGN_WINDOW);
+      assert.equal(
+        acct.unassignWindowSeconds.toNumber(),
+        DEFAULT_UNASSIGN_WINDOW,
+      );
       assert.equal(enumKey(acct.status), "open");
     });
 
@@ -453,7 +456,10 @@ describe("acceptance modes (approval / assign / unassign)", () => {
 
       const acct = await ctx.program.account.escrow.fetch(e.escrow);
       assert.equal(enumKey(acct.status), "completed");
-      assert.isAbove(Number(balance(ctx, ctx.counterparty.publicKey) - before), 0);
+      assert.isAbove(
+        Number(balance(ctx, ctx.counterparty.publicKey) - before),
+        0,
+      );
     });
 
     it("still allows reclaim_abandoned after the grace period", async () => {

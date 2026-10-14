@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { drizzleTxAttemptsStore, recordTxAttempt } from '@server/lib/tx-attempts'
+import { drizzleTxAttemptsStore, recordTxAttempt } from '@server/features/escrows/tx-attempts'
 import { isEscrowTxType } from '@server/chains/types'
 
 interface ClientPingBody {

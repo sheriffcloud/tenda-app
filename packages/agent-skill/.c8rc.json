@@ -1,0 +1,15 @@
+{
+  "//": "Coverage for the skill's own code: the renderer and the build check (src/) and, in-process, the helper's pure library (skill/scripts/lib.cjs). The CLI entry points are exercised by spawning them (test/cli.test.ts), which c8 does not attribute to the files.",
+  "all": true,
+  "src": ["src", "skill/scripts"],
+  "include": ["src/**/*.ts", "skill/scripts/lib.cjs"],
+  "exclude": ["src/build.ts"],
+  "reporter": ["text"],
+  "report-dir": "coverage",
+  "clean": true,
+  "check-coverage": true,
+  "lines": 90,
+  "branches": 85,
+  "functions": 90,
+  "statements": 90
+}

@@ -10,11 +10,11 @@ function LegalSection({
   children: React.ReactNode
 }) {
   return (
-    <section className="grid gap-3 border-t border-[var(--border)] pt-8 first:border-t-0 first:pt-0 md:grid-cols-[220px_1fr] md:gap-8">
-      <h2 className="text-lg font-bold tracking-[-0.02em] text-[var(--heading)] sm:text-xl">
+    <section className="grid gap-3 border-t border-[var(--border-default)] pt-8 first:border-t-0 first:pt-0 md:grid-cols-[220px_1fr] md:gap-8">
+      <h2 className="text-lg font-bold tracking-[-0.02em] text-[var(--content-primary)] sm:text-xl">
         {title}
       </h2>
-      <div className="space-y-4 text-sm leading-7 text-[var(--text)] sm:text-base">
+      <div className="space-y-4 text-sm leading-7 text-[var(--content-secondary)] sm:text-base">
         {children}
       </div>
     </section>
@@ -25,19 +25,19 @@ export function Privacy() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-20 sm:px-6 sm:py-24">
       <div className="mb-12 max-w-2xl">
-        <div className="mb-4 inline-flex rounded-full border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface)_92%,transparent)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">
+        <div className="mb-4 inline-flex rounded-full border border-[var(--border-default)] bg-[color-mix(in_oklab,var(--surface-card)_92%,transparent)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-primary)]">
           Legal
         </div>
 
-        <h1 className="text-4xl font-black tracking-[-0.04em] text-[var(--heading)] sm:text-5xl">
+        <h1 className="text-4xl font-black tracking-[-0.04em] text-[var(--content-primary)] sm:text-5xl">
           Privacy Policy
         </h1>
 
-        <p className="mt-3 text-sm text-[var(--text-muted)]">
+        <p className="mt-3 text-sm text-[var(--content-tertiary)]">
           Effective: {EFFECTIVE_DATE}
         </p>
 
-        <p className="mt-6 text-base leading-7 text-[var(--text-muted)] sm:text-lg">
+        <p className="mt-6 text-base leading-7 text-[var(--content-tertiary)] sm:text-lg">
           {APP_INFO.name} is designed to keep data collection minimal. This policy explains what is
           collected, what stays public on-chain, and how off-chain platform data is used.
         </p>
@@ -54,35 +54,35 @@ export function Privacy() {
         </LegalSection>
 
         <LegalSection title="2. What We Collect">
-          <ul className="list-disc space-y-2 pl-5 marker:text-[var(--primary)]">
+          <ul className="list-disc space-y-2 pl-5 marker:text-[var(--brand-primary)]">
             <li>
-              <strong className="text-[var(--heading)]">Wallet address</strong> — used as your account
+              <strong className="text-[var(--content-primary)]">Wallet address</strong> — used as your account
               identifier. Public on-chain.
             </li>
             <li>
-              <strong className="text-[var(--heading)]">Profile information</strong> — name, avatar,
+              <strong className="text-[var(--content-primary)]">Profile information</strong> — name, avatar,
               and bio that you optionally provide.
             </li>
             <li>
-              <strong className="text-[var(--heading)]">Gig content</strong> — titles, descriptions,
+              <strong className="text-[var(--content-primary)]">Gig content</strong> — titles, descriptions,
               proof files (photos/videos) you upload.
             </li>
             <li>
-              <strong className="text-[var(--heading)]">Messages</strong> — in-app conversations between users.
+              <strong className="text-[var(--content-primary)]">Messages</strong> — in-app conversations between users.
             </li>
             <li>
-              <strong className="text-[var(--heading)]">Device push token</strong> — to send you relevant
+              <strong className="text-[var(--content-primary)]">Device push token</strong> — to send you relevant
               notifications. Stored only while you are registered for notifications.
             </li>
             <li>
-              <strong className="text-[var(--heading)]">Usage data</strong> — crash reports and performance
+              <strong className="text-[var(--content-primary)]">Usage data</strong> — crash reports and performance
               data via Sentry, to help us fix bugs. No personal identifiers are attached beyond your wallet address.
             </li>
           </ul>
         </LegalSection>
 
         <LegalSection title="3. What We Do Not Collect">
-          <ul className="list-disc space-y-2 pl-5 marker:text-[var(--primary)]">
+          <ul className="list-disc space-y-2 pl-5 marker:text-[var(--brand-primary)]">
             <li>Private keys or seed phrases (never — your wallet is non-custodial)</li>
             <li>Government ID or KYC documents</li>
             <li>Precise location (city is optionally provided by you for gig filtering)</li>
@@ -91,7 +91,7 @@ export function Privacy() {
         </LegalSection>
 
         <LegalSection title="4. How We Use Your Data">
-          <ul className="list-disc space-y-2 pl-5 marker:text-[var(--primary)]">
+          <ul className="list-disc space-y-2 pl-5 marker:text-[var(--brand-primary)]">
             <li>To operate the platform — match workers with gigs, facilitate payments</li>
             <li>To send push notifications for gig activity and messages</li>
             <li>To resolve disputes — admin may review proof files and messages in dispute cases</li>
@@ -101,10 +101,10 @@ export function Privacy() {
 
         <LegalSection title="5. Data Sharing">
           <p>We do not sell your data. We share data only with:</p>
-          <ul className="list-disc space-y-2 pl-5 marker:text-[var(--primary)]">
-            <li><strong className="text-[var(--heading)]">Cloudinary</strong> — for proof file storage and delivery</li>
-            <li><strong className="text-[var(--heading)]">Expo / FCM / APNs</strong> — for push notification delivery</li>
-            <li><strong className="text-[var(--heading)]">Sentry</strong> — for crash reporting</li>
+          <ul className="list-disc space-y-2 pl-5 marker:text-[var(--brand-primary)]">
+            <li><strong className="text-[var(--content-primary)]">Cloudinary</strong> — for proof file storage and delivery</li>
+            <li><strong className="text-[var(--content-primary)]">Expo / FCM / APNs</strong> — for push notification delivery</li>
+            <li><strong className="text-[var(--content-primary)]">Sentry</strong> — for crash reporting</li>
             <li>Law enforcement if required by valid legal process</li>
           </ul>
         </LegalSection>
@@ -143,7 +143,7 @@ export function Privacy() {
             For privacy requests or questions, reach us on{' '}
             <a
               href={APP_INFO.twitterUrl}
-              className="font-medium text-[var(--primary)] no-underline hover:text-[var(--heading)]"
+              className="font-medium text-[var(--brand-primary)] no-underline hover:text-[var(--content-primary)]"
               target="_blank"
               rel="noreferrer"
             >
@@ -152,7 +152,7 @@ export function Privacy() {
             or{' '}
             <a
               href={APP_INFO.telegramUrl}
-              className="font-medium text-[var(--primary)] no-underline hover:text-[var(--heading)]"
+              className="font-medium text-[var(--brand-primary)] no-underline hover:text-[var(--content-primary)]"
               target="_blank"
               rel="noreferrer"
             >

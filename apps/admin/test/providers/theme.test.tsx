@@ -21,5 +21,7 @@ test('saved preference is applied after mount, outside hydration', async () => {
   localStorage.setItem('theme', 'dark')
   render(<AdminThemeProvider><Probe /></AdminThemeProvider>)
   await waitFor(() => expect(screen.getByText('dark')).toBeTruthy())
-  expect(document.documentElement.classList.contains('dark')).toBe(true)
+  // The class is set by a passive effect that can land a tick after the text
+  // commits, so wait for it rather than reading it once.
+  await waitFor(() => expect(document.documentElement.classList.contains('dark')).toBe(true))
 })

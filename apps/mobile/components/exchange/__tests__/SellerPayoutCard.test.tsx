@@ -4,7 +4,8 @@
  * predicate (creator-only, live statuses, account present) and the render.
  */
 import { render, screen } from '@testing-library/react-native'
-import type { ExchangePayoutAccount, EscrowStatus, UserRef } from '@tenda/shared'
+import type { ExchangePayoutAccount, EscrowStatus } from '@tenda/shared'
+import { exchangeParty } from '../__fixtures__/exchange-detail'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -21,9 +22,7 @@ jest.mock('@/components/ui/Text', () => {
 
 import { SellerPayoutCard, shouldShowSellerPayout } from '../SellerPayoutCard'
 
-const creator: UserRef = {
-  id: 'seller-1', first_name: 'A', last_name: 'B', avatar_url: null, review_score: null, is_seeker: false, country: 'NG',
-}
+const creator = exchangeParty('seller-1', { review_score: null })
 const account: ExchangePayoutAccount = {
   kind: 'bank', bank_code: 'GTB', account_number: '0123456789', account_name: 'ADA OBI', country: 'NG',
 }

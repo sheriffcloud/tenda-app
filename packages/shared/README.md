@@ -31,6 +31,15 @@ import { amountRawToDisplay, hasPermission } from '@tenda/shared'
 import { escrows, users, escrow_proofs } from '@tenda/shared/db/schema'
 ```
 
+## Scripts
+
+| Command | Description |
+|---|---|
+| `pnpm build` | Compile to `dist/` (+ copy ABI/IDL JSON) |
+| `pnpm build:watch` | tsc watch mode |
+| `pnpm test` / `pnpm test:coverage` | node:test suite |
+| `pnpm type-check` | tsc (src) — `type-check:test` for the test tsconfig |
+
 ## Important
 
 **Always rebuild after changes:**
@@ -39,8 +48,9 @@ import { escrows, users, escrow_proofs } from '@tenda/shared/db/schema'
 pnpm --filter @tenda/shared build
 ```
 
-The consumers resolve imports from `dist/`. Stale output will cause type
-mismatches and runtime errors.
+The consumers resolve imports from `dist/` — stale output causes type
+mismatches and runtime errors. The build does `rm -rf dist` first, so never
+run it while another package's test suite is mid-run.
 
 ## Exports
 

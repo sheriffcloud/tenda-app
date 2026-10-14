@@ -18,7 +18,7 @@ import {
   type ProviderHttp,
 } from '@server/features/fiat-rails/providers/licensed-http'
 import { AppError } from '@server/lib/errors'
-import type { QuoteRequest } from '@server/features/fiat-rails/types'
+import type { QuoteRequest } from '@server/features/fiat-rails/core/types'
 
 const realFetch = globalThis.fetch
 afterEach(() => {
