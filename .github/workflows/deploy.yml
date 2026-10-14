@@ -160,7 +160,9 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter docs --filter @tenda/api-doc --filter @tenda/shared
+        run: pnpm install --frozen-lockfile
+      - name: Build shared deps
+        run: pnpm --filter @tenda/shared build && pnpm --filter @tenda/api-doc build
       - name: Build docs
         env:
           VITE_API_BASE_URL: https://api.netforgetech.online

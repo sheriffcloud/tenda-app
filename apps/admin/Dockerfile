@@ -32,6 +32,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts \
 COPY packages/shared packages/shared
 COPY apps/admin apps/admin
 
+
 # NEXT_PUBLIC_* must be present at build time to be embedded in the bundle.
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_ADMIN_URL
@@ -41,6 +42,7 @@ ENV NEXT_PUBLIC_ADMIN_URL=$NEXT_PUBLIC_ADMIN_URL
 ENV NEXT_PUBLIC_REOWN_PROJECT_ID=$NEXT_PUBLIC_REOWN_PROJECT_ID
 
 RUN pnpm --filter @tenda/shared build && pnpm --filter admin build
+RUN mkdir -p /app/apps/admin/public
 
 ########################################
 FROM node:24-slim AS runtime

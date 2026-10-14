@@ -47,6 +47,7 @@ COPY apps/server apps/server
 # @tenda/api-doc between them, not beside them: it builds AGAINST shared's dist
 # (it is the served OpenAPI document, #157) and the server imports its dist in
 # turn, so the order is the dependency order.
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN pnpm --filter @tenda/shared build \
     && pnpm --filter @tenda/api-doc build \
     && pnpm --filter tenda-server build
