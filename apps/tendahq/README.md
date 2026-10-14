@@ -84,3 +84,4 @@ colour gig categories only; per-chain brand colours appear only as
 micro-glyphs; accent amber is absent (the generator's tendahq target omits the
 group). Fonts: Space Grotesk (display), Manrope (body), JetBrains Mono
 (numerics and eyebrows), mobile's three faces as variable web fonts.
+

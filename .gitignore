@@ -33,6 +33,8 @@ android/
 
 # Production / Build
 build
+!apps/server/src/chains/**/build
+!apps/server/src/chains/**/build/**
 
 # Environment files
 .env
