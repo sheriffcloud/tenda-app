@@ -19,6 +19,7 @@ jobs:
       server: ${{ steps.filter.outputs.server }}
       admin: ${{ steps.filter.outputs.admin }}
       tendahq: ${{ steps.filter.outputs.tendahq }}
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -35,6 +36,11 @@ jobs:
               - 'pnpm-lock.yaml'
             tendahq:
               - 'apps/tendahq/**'
+              - 'packages/shared/**'
+              - 'pnpm-lock.yaml'
+            docs:
+              - 'apps/docs/**'
+              - 'packages/api-doc/**'
               - 'packages/shared/**'
               - 'pnpm-lock.yaml'
 
@@ -113,7 +119,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -127,10 +132,42 @@ jobs:
       - name: Build landing page
         env:
           VITE_API_BASE_URL: https://api.netforgetech.online
+          VITE_WEB_APP_URL: https://app.netforgetech.online
         run: pnpm --filter tendahq build
       - name: Sync to S3
         run: aws s3 sync apps/tendahq/dist s3://tenda-production-landing --delete
       - name: Invalidate CloudFront
         run: |
           DIST_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?Aliases.Items[0]=='netforgetech.online'].Id" --output text)
+          aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
+
+  deploy-docs:
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --filter docs --filter @tenda/api-doc --filter @tenda/shared
+      - name: Build docs
+        env:
+          VITE_API_BASE_URL: https://api.netforgetech.online
+        run: pnpm --filter docs build
+      - name: Sync to S3
+        run: aws s3 sync apps/docs/dist s3://tenda-production-docs --delete
+      - name: Invalidate CloudFront
+        run: |
+          DIST_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?Aliases.Items[0]=='docs.netforgetech.online'].Id" --output text)
           aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
