@@ -30,6 +30,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts \
 
 COPY packages/shared packages/shared
 COPY apps/web apps/web
+COPY apps/mobile/theme apps/mobile/theme
 
 # NEXT_PUBLIC_* baked in at build time
 ARG NEXT_PUBLIC_API_URL

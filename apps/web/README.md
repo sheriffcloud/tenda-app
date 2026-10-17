@@ -27,3 +27,4 @@ pnpm --filter web dev               # http://localhost:3200
 | `pnpm test:e2e` (`:headed`) | Playwright e2e (does a full `next build`) |
 | `pnpm gen:tokens` (`:check`) | Regenerate `styles/tokens.css` from `apps/mobile/theme/tokens.ts` |
 | `pnpm type-check` / `pnpm lint` | tsc / eslint |
+

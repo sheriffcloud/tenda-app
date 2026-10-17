@@ -8,6 +8,8 @@
 **/.env.*
 apps/mobile/*
 !apps/mobile/package.json
+!apps/mobile/theme
+!apps/mobile/theme/**
 apps/server/*
 !apps/server/package.json
 apps/admin/*
