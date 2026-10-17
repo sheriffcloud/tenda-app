@@ -20,6 +20,7 @@ jobs:
       admin: ${{ steps.filter.outputs.admin }}
       tendahq: ${{ steps.filter.outputs.tendahq }}
       docs: ${{ steps.filter.outputs.docs }}
+      web: ${{ steps.filter.outputs.web }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -41,6 +42,10 @@ jobs:
             docs:
               - 'apps/docs/**'
               - 'packages/api-doc/**'
+              - 'packages/shared/**'
+              - 'pnpm-lock.yaml'
+            web:
+              - 'apps/web/**'
               - 'packages/shared/**'
               - 'pnpm-lock.yaml'
 
@@ -173,3 +178,38 @@ jobs:
         run: |
           DIST_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?Aliases.Items[0]=='docs.netforgetech.online'].Id" --output text)
           aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
+
+  deploy-web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push web image
+        run: |
+          docker build -f apps/web/Dockerfile \
+            --build-arg NEXT_PUBLIC_API_URL=https://api.netforgetech.online \
+            --build-arg NEXT_PUBLIC_WEB_URL=https://app.netforgetech.online \
+            --build-arg NEXT_PUBLIC_APP_ENV=development \
+            --build-arg NEXT_PUBLIC_REOWN_PROJECT_ID=${{ vars.REOWN_PROJECT_ID }} \
+            -t $ECR_REGISTRY/tenda-production-web:${{ github.sha }} \
+            -t $ECR_REGISTRY/tenda-production-web:latest .
+          docker push $ECR_REGISTRY/tenda-production-web:${{ github.sha }}
+          docker push $ECR_REGISTRY/tenda-production-web:latest
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster tenda-production-cluster \
+            --service tenda-production-web \
+            --force-new-deployment \
+            --region $AWS_REGION

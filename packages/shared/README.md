@@ -60,3 +60,4 @@ run it while another package's test suite is mid-run.
 | `@tenda/shared/db/schema` (+ `/db/schema/*`) | Drizzle table definitions |
 | `@tenda/shared/abi` | Generated EVM contract ABI |
 | `@tenda/shared/idl` | Generated Anchor IDL |
+
