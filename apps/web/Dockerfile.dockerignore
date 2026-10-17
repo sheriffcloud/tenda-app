@@ -22,5 +22,3 @@ contracts/evm/*
 !contracts/evm/package.json
 contracts/solana/*
 !contracts/solana/package.json
-apps/web/test
-apps/web/e2e

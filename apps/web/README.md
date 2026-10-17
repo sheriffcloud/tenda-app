@@ -28,3 +28,4 @@ pnpm --filter web dev               # http://localhost:3200
 | `pnpm gen:tokens` (`:check`) | Regenerate `styles/tokens.css` from `apps/mobile/theme/tokens.ts` |
 | `pnpm type-check` / `pnpm lint` | tsc / eslint |
 
+
